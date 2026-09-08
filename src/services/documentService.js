@@ -141,6 +141,27 @@ export async function createDocument({ companyId, userId, values, file }) {
   return document
 }
 
+export async function deleteDocument({ documentId, filePath }) {
+  const supabase = requireSupabase()
+
+  const { error: deleteError } = await supabase
+    .from('documents')
+    .delete()
+    .eq('id', documentId)
+
+  if (deleteError) throw deleteError
+
+  if (filePath) {
+    const { error: storageError } = await supabase.storage
+      .from(DOCUMENT_BUCKET)
+      .remove([filePath])
+
+    if (storageError) {
+      console.error('Document row deleted but storage cleanup failed', storageError)
+    }
+  }
+}
+
 export async function openDocumentFile(filePath) {
   const supabase = requireSupabase()
   // Open the tab while we still have the user's click gesture, otherwise browsers may block it.
