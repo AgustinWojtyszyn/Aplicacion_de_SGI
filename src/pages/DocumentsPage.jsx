@@ -1,5 +1,6 @@
 import { Download, FilePlus2, FileText, RefreshCw, Search, SlidersHorizontal } from 'lucide-react'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import DocumentDetailDrawer from '../components/DocumentDetailDrawer'
 import DocumentFormModal from '../components/DocumentFormModal'
 import StatusBadge from '../components/StatusBadge'
 import { DOCUMENT_STATUSES, DOCUMENT_TYPE_OPTIONS, NORM_OPTIONS } from '../lib/constants'
@@ -33,6 +34,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [selectedDocumentId, setSelectedDocumentId] = useState(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const deferredSearch = useDeferredValue(filters.search)
 
@@ -68,7 +70,8 @@ export default function DocumentsPage() {
     setFilters((current) => ({ ...current, [field]: value }))
   }
 
-  async function handleOpenFile(document) {
+  async function handleOpenFile(document, event) {
+    event?.stopPropagation()
     try {
       await openDocumentFile(document.file_path)
     } catch (openError) {
@@ -140,29 +143,16 @@ export default function DocumentsPage() {
               {DOCUMENT_TYPE_OPTIONS.map((option) => <option key={option}>{option}</option>)}
             </select>
           </label>
-          <label className="field">
-            <span>Desde</span>
-            <input type="date" value={filters.dateFrom} onChange={(event) => setFilter('dateFrom', event.target.value)} />
-          </label>
-          <label className="field">
-            <span>Hasta</span>
-            <input type="date" value={filters.dateTo} onChange={(event) => setFilter('dateTo', event.target.value)} />
-          </label>
-          {activeFilterCount > 0 && (
-            <button className="clear-filters" onClick={() => setFilters((current) => ({ ...emptyFilters, search: current.search }))}>Limpiar filtros</button>
-          )}
+          <label className="field"><span>Desde</span><input type="date" value={filters.dateFrom} onChange={(event) => setFilter('dateFrom', event.target.value)} /></label>
+          <label className="field"><span>Hasta</span><input type="date" value={filters.dateTo} onChange={(event) => setFilter('dateTo', event.target.value)} /></label>
+          {activeFilterCount > 0 && <button className="clear-filters" onClick={() => setFilters((current) => ({ ...emptyFilters, search: current.search }))}>Limpiar filtros</button>}
         </div>
       )}
 
       {error && <div className="page-error" role="alert">{error}</div>}
 
       <div className="documents-surface">
-        <div className="documents-surface-header">
-          <div>
-            <strong>{loading ? 'Cargando…' : `${documents.length} documento${documents.length === 1 ? '' : 's'}`}</strong>
-            <span>Resultados según los filtros seleccionados</span>
-          </div>
-        </div>
+        <div className="documents-surface-header"><div><strong>{loading ? 'Cargando…' : `${documents.length} documento${documents.length === 1 ? '' : 's'}`}</strong><span>Seleccioná un documento para ver seguimiento e historial</span></div></div>
 
         {loading ? (
           <div className="documents-loading"><span className="loader-dot" /><p>Cargando documentación…</p></div>
@@ -176,37 +166,16 @@ export default function DocumentsPage() {
         ) : (
           <div className="documents-table-wrap">
             <table className="documents-table">
-              <thead>
-                <tr>
-                  <th>Documento</th>
-                  <th>Módulo</th>
-                  <th>Estado</th>
-                  <th>Responsable</th>
-                  <th>Fecha</th>
-                  <th aria-label="Acciones" />
-                </tr>
-              </thead>
+              <thead><tr><th>Documento</th><th>Módulo</th><th>Estado</th><th>Responsable</th><th>Fecha</th><th aria-label="Acciones" /></tr></thead>
               <tbody>
                 {documents.map((document) => (
-                  <tr key={document.id}>
-                    <td>
-                      <div className="document-cell-main">
-                        <div className="document-file-icon"><FileText size={18} /></div>
-                        <div>
-                          <strong>{document.title}</strong>
-                          <span>{document.document_type} · {document.norm || 'General'} · {formatBytes(document.file_size)}</span>
-                        </div>
-                      </div>
-                    </td>
+                  <tr key={document.id} className="document-row-clickable" onClick={() => setSelectedDocumentId(document.id)}>
+                    <td><div className="document-cell-main"><div className="document-file-icon"><FileText size={18} /></div><div><strong>{document.title}</strong><span>{document.document_type} · {document.norm || 'General'} · {formatBytes(document.file_size)}</span></div></div></td>
                     <td data-label="Módulo">{document.module?.name || 'General'}</td>
                     <td data-label="Estado"><StatusBadge status={document.status} /></td>
                     <td data-label="Responsable">{document.responsible?.full_name || document.responsible?.email || 'Sin asignar'}</td>
                     <td data-label="Fecha">{formatDate(document.created_at)}</td>
-                    <td>
-                      <button className="icon-button table-action" onClick={() => handleOpenFile(document)} aria-label={`Abrir ${document.title}`} title="Abrir archivo">
-                        <Download size={17} />
-                      </button>
-                    </td>
+                    <td><button className="icon-button table-action" onClick={(event) => handleOpenFile(document, event)} aria-label={`Abrir ${document.title}`} title="Abrir archivo"><Download size={17} /></button></td>
                   </tr>
                 ))}
               </tbody>
@@ -215,11 +184,8 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      <DocumentFormModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={load}
-      />
+      <DocumentFormModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={load} />
+      <DocumentDetailDrawer documentId={selectedDocumentId} onClose={() => setSelectedDocumentId(null)} onChanged={load} />
     </section>
   )
 }

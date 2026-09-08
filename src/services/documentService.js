@@ -30,28 +30,34 @@ export function validateDocumentFile(file) {
   }
 }
 
+const documentSelect = `
+  id,
+  company_id,
+  module_id,
+  responsible_id,
+  created_by,
+  title,
+  description,
+  document_type,
+  norm,
+  status,
+  file_name,
+  file_path,
+  mime_type,
+  file_size,
+  approved_at,
+  created_at,
+  updated_at,
+  module:modules(id, name, code),
+  responsible:profiles!documents_responsible_id_fkey(id, full_name, email),
+  creator:profiles!documents_created_by_fkey(id, full_name, email)
+`
+
 export async function listDocuments({ companyId, filters = {} }) {
   const supabase = requireSupabase()
   let query = supabase
     .from('documents')
-    .select(`
-      id,
-      title,
-      description,
-      document_type,
-      norm,
-      status,
-      file_name,
-      file_path,
-      mime_type,
-      file_size,
-      approved_at,
-      created_at,
-      updated_at,
-      module:modules(id, name, code),
-      responsible:profiles!documents_responsible_id_fkey(id, full_name, email),
-      creator:profiles!documents_created_by_fkey(id, full_name, email)
-    `)
+    .select(documentSelect)
     .eq('company_id', companyId)
     .order('updated_at', { ascending: false })
 
@@ -79,7 +85,7 @@ export async function listCompanyMembers(companyId) {
   const supabase = requireSupabase()
   const { data, error } = await supabase
     .from('company_members')
-    .select('role, user:profiles(id, full_name, email)')
+    .select('role, joined_at, user:profiles(id, full_name, email)')
     .eq('company_id', companyId)
     .order('joined_at')
 
@@ -143,4 +149,79 @@ export async function openDocumentFile(filePath) {
 
   if (error) throw error
   window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+}
+
+export async function getDocumentDetail(documentId) {
+  const supabase = requireSupabase()
+  const [documentResult, commentsResult, activityResult] = await Promise.all([
+    supabase.from('documents').select(documentSelect).eq('id', documentId).single(),
+    supabase
+      .from('document_comments')
+      .select('id, comment, created_at, author:profiles(id, full_name, email)')
+      .eq('document_id', documentId)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('document_activity')
+      .select('id, action, from_status, to_status, details, created_at, actor:profiles(id, full_name, email)')
+      .eq('document_id', documentId)
+      .order('created_at', { ascending: false }),
+  ])
+
+  if (documentResult.error) throw documentResult.error
+  if (commentsResult.error) throw commentsResult.error
+  if (activityResult.error) throw activityResult.error
+
+  return {
+    document: documentResult.data,
+    comments: commentsResult.data ?? [],
+    activity: activityResult.data ?? [],
+  }
+}
+
+export async function updateDocumentStatus(documentId, status) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('documents')
+    .update({ status })
+    .eq('id', documentId)
+    .select('id, status, approved_at, updated_at')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateDocumentMetadata(documentId, values) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('documents')
+    .update({
+      title: values.title.trim(),
+      description: values.description.trim() || null,
+      document_type: values.documentType,
+      norm: values.norm || null,
+      module_id: values.moduleId || null,
+      responsible_id: values.responsibleId || null,
+    })
+    .eq('id', documentId)
+    .select('id, updated_at')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function addDocumentComment({ documentId, authorId, comment }) {
+  const supabase = requireSupabase()
+  const cleanedComment = comment.trim()
+  if (!cleanedComment) throw new Error('Escribí una observación antes de guardar.')
+
+  const { data, error } = await supabase
+    .from('document_comments')
+    .insert({ document_id: documentId, author_id: authorId, comment: cleanedComment })
+    .select('id')
+    .single()
+
+  if (error) throw error
+  return data
 }
