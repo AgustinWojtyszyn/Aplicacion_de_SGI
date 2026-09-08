@@ -15,6 +15,9 @@
 .drawer-summary > p { margin: 16px 0; color: var(--muted); font-size: .86rem; line-height: 1.6; }
 .drawer-actions { display: flex; flex-wrap: wrap; gap: 9px; }
 .drawer-actions .secondary-button { background: #eff5f3; }
+.danger-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 14px; color: #a92f2f; background: #fff5f5; border: 1px solid #f0caca; border-radius: 10px; font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
+.danger-button:hover:not(:disabled) { background: #ffeaea; border-color: #dfaaaa; transform: translateY(-1px); }
+.danger-button:disabled { opacity: .55; cursor: wait; }
 .drawer-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 17px; }
 .drawer-section-heading span, .drawer-section-heading h3 { display: block; }
 .drawer-section-heading span { color: #819691; font-size: .59rem; font-weight: 850; letter-spacing: .12em; }
