@@ -1,23 +1,25 @@
-import { FileCheck2, ShieldCheck } from 'lucide-react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import AppShell from './components/AppShell'
+import ProtectedRoute from './components/ProtectedRoute'
+import { AuthProvider } from './context/AuthContext'
+import DashboardPage from './pages/DashboardPage'
+import DocumentsPage from './pages/DocumentsPage'
+import LoginPage from './pages/LoginPage'
 
 export default function App() {
   return (
-    <main className="bootstrap-screen">
-      <section className="bootstrap-card">
-        <div className="brand-mark" aria-hidden="true">
-          <FileCheck2 size={30} />
-        </div>
-        <p className="eyebrow">SF HIGIENE · SISTEMA DE GESTIÓN</p>
-        <h1>Gestión documental clara, segura y trazable.</h1>
-        <p className="bootstrap-copy">
-          Estamos construyendo la base operativa de la plataforma SGI para centralizar
-          documentación, responsables y seguimiento.
-        </p>
-        <div className="bootstrap-status">
-          <ShieldCheck size={18} />
-          <span>Etapa 1 · Base de plataforma + Gestión Documental</span>
-        </div>
-      </section>
-    </main>
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppShell />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/documents" element={<DocumentsPage />} />
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </AuthProvider>
   )
 }
