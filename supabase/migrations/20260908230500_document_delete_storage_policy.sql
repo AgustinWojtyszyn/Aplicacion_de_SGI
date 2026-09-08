@@ -11,13 +11,13 @@ using (
       public.safe_storage_company_id(name),
       array['admin'::public.company_role, 'responsible'::public.company_role]
     )
-    or exists (
-      select 1
-      from public.documents d
-      where d.file_path = name
-        and d.created_by = auth.uid()
-        and d.status = 'draft'
-        and public.is_company_member(d.company_id)
+    or (
+      public.is_company_member(public.safe_storage_company_id(name))
+      and not exists (
+        select 1
+        from public.documents d
+        where d.file_path = name
+      )
     )
   )
 );
