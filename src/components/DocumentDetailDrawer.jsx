@@ -35,6 +35,7 @@ function activityCopy(item) {
     return `Cambió el estado de ${from} a ${to}`
   }
   if (item.action === 'responsible_changed') return 'Cambió el responsable'
+  if (item.action === 'metadata_updated') return 'Actualizó los datos del documento'
   return 'Actualizó el documento'
 }
 
@@ -188,7 +189,7 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged })
                   <div><dt>Tipo</dt><dd>{document.document_type}</dd></div>
                   <div><dt>Norma</dt><dd>{document.norm || 'General'}</dd></div>
                   <div><dt>Módulo</dt><dd>{document.module?.name || 'General'}</dd></div>
-                  <div><dt>Responsable</dt><dd>{personLabel(document.responsible) || 'Sin asignar'}</dd></div>
+                  <div><dt>Responsable</dt><dd>{document.responsible ? personLabel(document.responsible) : 'Sin asignar'}</dd></div>
                   <div><dt>Creado por</dt><dd>{personLabel(document.creator)}</dd></div>
                   <div><dt>Creación</dt><dd>{formatDateTime(document.created_at)}</dd></div>
                   <div className="metadata-wide"><dt>Archivo</dt><dd>{document.file_name}</dd></div>

@@ -143,12 +143,26 @@ export async function createDocument({ companyId, userId, values, file }) {
 
 export async function openDocumentFile(filePath) {
   const supabase = requireSupabase()
-  const { data, error } = await supabase.storage
-    .from(DOCUMENT_BUCKET)
-    .createSignedUrl(filePath, 60)
+  // Open the tab while we still have the user's click gesture, otherwise browsers may block it.
+  const previewWindow = window.open('', '_blank')
 
-  if (error) throw error
-  window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  try {
+    const { data, error } = await supabase.storage
+      .from(DOCUMENT_BUCKET)
+      .createSignedUrl(filePath, 60)
+
+    if (error) throw error
+
+    if (previewWindow) {
+      previewWindow.opener = null
+      previewWindow.location.href = data.signedUrl
+    } else {
+      window.location.assign(data.signedUrl)
+    }
+  } catch (error) {
+    previewWindow?.close()
+    throw error
+  }
 }
 
 export async function getDocumentDetail(documentId) {

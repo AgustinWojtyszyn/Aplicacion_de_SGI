@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
-  const { configured, user, membership, loading, signIn } = useAuth()
+  const { configured, user, loading, signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -12,7 +12,8 @@ export default function LoginPage() {
 
   useEffect(() => setError(''), [email, password])
 
-  if (!loading && user && membership) {
+  // ProtectedRoute decides whether the authenticated user has company access.
+  if (!loading && user) {
     return <Navigate to="/dashboard" replace />
   }
 

@@ -118,7 +118,7 @@ export default function DashboardPage() {
               return <div key={status}><span className={`legend-dot legend-${status}`} /><span>{meta.label}</span><strong>{value}</strong></div>
             })}
           </div>
-          <div className="assigned-callout"><div><span>Pendientes asignados a vos</span><strong>{stats.mine}</strong></div><Link to="/documents?assigned=me">Revisar</Link></div>
+          <div className="assigned-callout"><div><span>Pendientes asignados a vos</span><strong>{stats.mine}</strong></div><Link to="/documents">Revisar</Link></div>
         </article>
       </div>
 
