@@ -1,9 +1,10 @@
-import { Download, FileText, MessageSquarePlus, Pencil, Save, X } from 'lucide-react'
+import { Download, FileText, MessageSquarePlus, Pencil, Save, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { DOCUMENT_STATUSES, DOCUMENT_TYPE_OPTIONS, NORM_OPTIONS } from '../lib/constants'
 import { useAuth } from '../context/AuthContext'
 import {
   addDocumentComment,
+  deleteDocument,
   getDocumentDetail,
   listCompanyMembers,
   openDocumentFile,
@@ -40,7 +41,7 @@ function activityCopy(item) {
 }
 
 export default function DocumentDetailDrawer({ documentId, onClose, onChanged }) {
-  const { company, user, modules } = useAuth()
+  const { company, user, modules, role } = useAuth()
   const [detail, setDetail] = useState(null)
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
@@ -56,6 +57,13 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged })
     if (document?.status === 'in_progress') return 'approved'
     return null
   }, [document?.status])
+
+  const canDelete = Boolean(
+    document && (
+      role === 'admin'
+      || (document.created_by === user?.id && document.status === 'draft')
+    ),
+  )
 
   async function load() {
     if (!documentId) return
@@ -125,6 +133,28 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged })
     setComment('')
   }
 
+  async function handleDelete() {
+    if (!document || !canDelete || saving) return
+
+    const confirmed = window.confirm(
+      `¿Eliminar "${document.title}"?\n\nEsta acción elimina el registro, sus observaciones y el archivo asociado. No se puede deshacer.`,
+    )
+    if (!confirmed) return
+
+    setSaving(true)
+    setError('')
+    try {
+      await deleteDocument({ documentId: document.id, filePath: document.file_path })
+      onChanged?.()
+      onClose?.()
+    } catch (deleteError) {
+      console.error(deleteError)
+      setError(deleteError.message || 'No se pudo eliminar el documento.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="drawer-layer">
       <button className="drawer-backdrop" onClick={onClose} aria-label="Cerrar detalle" />
@@ -159,6 +189,11 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged })
                 {nextStatus && (
                   <button className="primary-button" onClick={handleStatusChange} disabled={saving}>
                     {nextStatus === 'in_progress' ? 'Enviar a proceso' : 'Marcar aprobado'}
+                  </button>
+                )}
+                {canDelete && (
+                  <button className="danger-button" onClick={handleDelete} disabled={saving}>
+                    <Trash2 size={17} /> {saving ? 'Procesando…' : 'Eliminar documento'}
                   </button>
                 )}
               </div>
