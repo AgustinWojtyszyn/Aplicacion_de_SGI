@@ -3,7 +3,7 @@ export function canManageUsers(role) {
 }
 
 export function canManageDocument({ role, userId, document }) {
-  if (!document || !userId) return false
+  if (!document || !userId || document.status !== 'draft') return false
   if (role === 'admin' || role === 'responsible') return true
   return document.created_by === userId || document.responsible_id === userId
 }
