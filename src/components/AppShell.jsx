@@ -1,9 +1,9 @@
-import { FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, X } from 'lucide-react'
-import { useState } from 'react'
+import { FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, UsersRound, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-const navigation = [
+const baseNavigation = [
   { to: '/dashboard', label: 'Resumen', icon: LayoutDashboard },
   { to: '/documents', label: 'Documentos', icon: FileText },
 ]
@@ -20,6 +20,12 @@ function initials(name, email) {
 export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const { profile, company, role, signOut } = useAuth()
+
+  const navigation = useMemo(() => (
+    role === 'admin'
+      ? [...baseNavigation, { to: '/users', label: 'Usuarios', icon: UsersRound }]
+      : baseNavigation
+  ), [role])
 
   const closeMenu = () => setMenuOpen(false)
 

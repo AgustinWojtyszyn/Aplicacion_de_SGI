@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import AdminRoute from './components/AdminRoute'
 import AppShell from './components/AppShell'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import DashboardPage from './pages/DashboardPage'
 import DocumentsPage from './pages/DocumentsPage'
 import LoginPage from './pages/LoginPage'
+import UsersPage from './pages/UsersPage'
 
 export default function App() {
   return (
@@ -16,6 +18,9 @@ export default function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="/users" element={<UsersPage />} />
+            </Route>
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
