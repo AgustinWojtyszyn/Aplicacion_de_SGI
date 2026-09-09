@@ -2,6 +2,7 @@ import { Download, FileText, MessageSquarePlus, Pencil, Save, Trash2, X } from '
 import { useEffect, useMemo, useState } from 'react'
 import { DOCUMENT_STATUSES, DOCUMENT_TYPE_OPTIONS, NORM_OPTIONS } from '../lib/constants'
 import { useAuth } from '../context/AuthContext'
+import { canDeleteDocument, canManageDocument } from '../lib/permissions'
 import {
   addDocumentComment,
   deleteDocument,
@@ -58,12 +59,8 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged })
     return null
   }, [document?.status])
 
-  const canDelete = Boolean(
-    document && (
-      role === 'admin'
-      || (document.created_by === user?.id && document.status === 'draft')
-    ),
-  )
+  const canManage = canManageDocument({ role, userId: user?.id, document })
+  const canDelete = canDeleteDocument({ role, userId: user?.id, document })
 
   async function load() {
     if (!documentId) return
@@ -117,12 +114,13 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged })
   }
 
   async function handleStatusChange() {
-    if (!nextStatus) return
+    if (!nextStatus || !canManage) return
     await runChange(() => updateDocumentStatus(documentId, nextStatus))
   }
 
   async function handleMetadataSave(event) {
     event.preventDefault()
+    if (!canManage) return
     await runChange(() => updateDocumentMetadata(documentId, editValues))
     setEditMode(false)
   }
@@ -186,7 +184,7 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged })
                 <button className="secondary-button" onClick={() => openDocumentFile(document.file_path)}>
                   <Download size={17} /> Abrir archivo
                 </button>
-                {nextStatus && (
+                {nextStatus && canManage && (
                   <button className="primary-button" onClick={handleStatusChange} disabled={saving}>
                     {nextStatus === 'in_progress' ? 'Enviar a proceso' : 'Marcar aprobado'}
                   </button>
@@ -204,7 +202,7 @@ export default function DocumentDetailDrawer({ documentId, onClose, onChanged })
             <section className="drawer-section">
               <div className="drawer-section-heading">
                 <div><span>INFORMACIÓN</span><h3>Datos del documento</h3></div>
-                {document.status !== 'approved' && !editMode && (
+                {canManage && document.status !== 'approved' && !editMode && (
                   <button className="text-action" onClick={() => setEditMode(true)}><Pencil size={15} /> Editar</button>
                 )}
               </div>

@@ -2,6 +2,7 @@ import { FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, UsersRound, X } f
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { canManageUsers, roleLabel } from '../lib/permissions'
 
 const baseNavigation = [
   { to: '/dashboard', label: 'Resumen', icon: LayoutDashboard },
@@ -22,7 +23,7 @@ export default function AppShell() {
   const { profile, company, role, signOut } = useAuth()
 
   const navigation = useMemo(() => (
-    role === 'admin'
+    canManageUsers(role)
       ? [...baseNavigation, { to: '/users', label: 'Usuarios', icon: UsersRound }]
       : baseNavigation
   ), [role])
@@ -64,7 +65,7 @@ export default function AppShell() {
           <div className="avatar">{initials(profile?.full_name, profile?.email)}</div>
           <div className="sidebar-user-copy">
             <strong>{profile?.full_name || profile?.email || 'Usuario'}</strong>
-            <span>{role === 'admin' ? 'Administrador' : role === 'responsible' ? 'Responsable' : 'Miembro'}</span>
+            <span>{roleLabel(role)}</span>
           </div>
           <button className="icon-button" onClick={signOut} title="Cerrar sesión" aria-label="Cerrar sesión">
             <LogOut size={18} />
