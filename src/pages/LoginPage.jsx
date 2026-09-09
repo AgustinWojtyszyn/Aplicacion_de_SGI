@@ -4,13 +4,18 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
-  const { configured, user, loading, signIn } = useAuth()
+  const { configured, user, loading, signIn, requestPasswordReset } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [resetMode, setResetMode] = useState(false)
 
-  useEffect(() => setError(''), [email, password])
+  useEffect(() => {
+    setError('')
+    setNotice('')
+  }, [email, password, resetMode])
 
   // ProtectedRoute decides whether the authenticated user has company access.
   if (!loading && user) {
@@ -21,12 +26,20 @@ export default function LoginPage() {
     event.preventDefault()
     setSubmitting(true)
     setError('')
+    setNotice('')
 
     try {
-      await signIn({ email: email.trim(), password })
+      if (resetMode) {
+        await requestPasswordReset(email)
+        setNotice('Si el correo está registrado, vas a recibir un enlace para crear una nueva contraseña.')
+      } else {
+        await signIn({ email: email.trim(), password })
+      }
     } catch (authError) {
       console.error(authError)
-      setError('No pudimos iniciar sesión. Revisá tu correo y contraseña.')
+      setError(resetMode
+        ? 'No pudimos enviar el correo de recuperación. Intentá nuevamente.'
+        : 'No pudimos iniciar sesión. Revisá tu correo y contraseña.')
     } finally {
       setSubmitting(false)
     }
@@ -54,8 +67,8 @@ export default function LoginPage() {
           <div className="login-card-heading">
             <div className="mini-icon"><LockKeyhole size={20} /></div>
             <div>
-              <span>Acceso al sistema</span>
-              <h2>Iniciar sesión</h2>
+              <span>{resetMode ? 'Recuperación de acceso' : 'Acceso al sistema'}</span>
+              <h2>{resetMode ? 'Restablecer contraseña' : 'Iniciar sesión'}</h2>
             </div>
           </div>
 
@@ -77,23 +90,37 @@ export default function LoginPage() {
                   required
                 />
               </label>
-              <label>
-                Contraseña
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                  minLength={6}
-                  required
-                />
-              </label>
+
+              {!resetMode && (
+                <label>
+                  Contraseña
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
+                    minLength={6}
+                    required
+                  />
+                </label>
+              )}
 
               {error && <div className="form-error" role="alert">{error}</div>}
+              {notice && <div className="auth-notice" role="status">{notice}</div>}
 
               <button className="primary-button login-submit" disabled={submitting} type="submit">
-                {submitting ? 'Ingresando…' : 'Ingresar'}
+                {submitting
+                  ? resetMode ? 'Enviando…' : 'Ingresando…'
+                  : resetMode ? 'Enviar enlace' : 'Ingresar'}
+              </button>
+
+              <button
+                type="button"
+                className="login-text-action"
+                onClick={() => setResetMode((current) => !current)}
+              >
+                {resetMode ? 'Volver al inicio de sesión' : '¿Olvidaste tu contraseña?'}
               </button>
             </form>
           )}

@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext'
 import DashboardPage from './pages/DashboardPage'
 import DocumentsPage from './pages/DocumentsPage'
 import LoginPage from './pages/LoginPage'
+import SetPasswordPage from './pages/SetPasswordPage'
 import UsersPage from './pages/UsersPage'
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/dashboard" replace />} />

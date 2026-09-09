@@ -19,8 +19,9 @@ async function loadWorkspace(user) {
         .maybeSingle(),
       supabase
         .from('company_members')
-        .select('role, company:companies(id, name, slug)')
+        .select('role, is_active, company:companies(id, name, slug)')
         .eq('user_id', user.id)
+        .eq('is_active', true)
         .maybeSingle(),
     ])
 
@@ -45,6 +46,7 @@ async function loadWorkspace(user) {
     membership: membership
       ? {
           role: membership.role,
+          isActive: membership.is_active,
           company: membership.company,
         }
       : null,
@@ -129,6 +131,21 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }, [])
 
+  const requestPasswordReset = useCallback(async (email) => {
+    const supabase = requireSupabase()
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/set-password`,
+    })
+    if (error) throw error
+  }, [])
+
+  const updatePassword = useCallback(async (password) => {
+    const supabase = requireSupabase()
+    const { data, error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+    return data
+  }, [])
+
   const refreshWorkspace = useCallback(async () => {
     if (!session?.user) return
     setLoading(true)
@@ -149,6 +166,8 @@ export function AuthProvider({ children }) {
       configured: supabaseConfigured,
       signIn,
       signOut,
+      requestPasswordReset,
+      updatePassword,
       refreshWorkspace,
     }),
     [
@@ -160,6 +179,8 @@ export function AuthProvider({ children }) {
       workspaceError,
       signIn,
       signOut,
+      requestPasswordReset,
+      updatePassword,
       refreshWorkspace,
     ],
   )
