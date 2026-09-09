@@ -41,3 +41,28 @@ export async function updateCompanyUserAccess({ companyId, userId, role, isActiv
 
   return data
 }
+
+export async function inviteCompanyUser({ companyId, email, fullName, role }) {
+  if (!COMPANY_ROLES.includes(role)) throw new Error('Rol inválido.')
+
+  const supabase = requireSupabase()
+  const { data, error } = await supabase.functions.invoke('invite-user', {
+    body: {
+      companyId,
+      email: email.trim().toLowerCase(),
+      fullName: fullName.trim(),
+      role,
+      redirectTo: `${window.location.origin}/set-password`,
+    },
+  })
+
+  if (error) {
+    const message = data?.error || error.message || 'No se pudo enviar la invitación.'
+    if (/already|registered|exists/i.test(message)) {
+      throw new Error('Ese correo ya tiene una cuenta en Supabase.')
+    }
+    throw new Error(message)
+  }
+
+  return data
+}

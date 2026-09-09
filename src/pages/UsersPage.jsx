@@ -1,8 +1,9 @@
-import { RefreshCw, ShieldCheck, UserCheck, UsersRound, UserX } from 'lucide-react'
+import { RefreshCw, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import {
   COMPANY_ROLES,
+  inviteCompanyUser,
   listCompanyUsers,
   ROLE_LABELS,
   updateCompanyUserAccess,
@@ -19,6 +20,9 @@ export default function UsersPage() {
   const [updatingId, setUpdatingId] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviting, setInviting] = useState(false)
+  const [inviteValues, setInviteValues] = useState({ fullName: '', email: '', role: 'member' })
 
   const activeCount = useMemo(
     () => members.filter((member) => member.is_active).length,
@@ -43,6 +47,25 @@ export default function UsersPage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [company?.id])
+
+  async function handleInvite(event) {
+    event.preventDefault()
+    setInviting(true)
+    setError('')
+    setNotice('')
+    try {
+      await inviteCompanyUser({ companyId: company.id, ...inviteValues })
+      setInviteValues({ fullName: '', email: '', role: 'member' })
+      setInviteOpen(false)
+      setNotice(`Invitación enviada a ${inviteValues.email.trim().toLowerCase()}.`)
+      await load()
+    } catch (inviteError) {
+      console.error(inviteError)
+      setError(inviteError.message || 'No se pudo enviar la invitación.')
+    } finally {
+      setInviting(false)
+    }
+  }
 
   async function saveAccess(member, changes) {
     setUpdatingId(member.user_id)
@@ -75,10 +98,55 @@ export default function UsersPage() {
           <h1>Usuarios</h1>
           <p>Roles y acceso al espacio de trabajo de {company?.name || 'SF Higiene'}.</p>
         </div>
-        <button className="secondary-button" onClick={load} disabled={loading}>
-          <RefreshCw size={17} /> Actualizar
-        </button>
+        <div className="users-heading-actions">
+          <button className="secondary-button" onClick={load} disabled={loading}>
+            <RefreshCw size={17} /> Actualizar
+          </button>
+          <button className="primary-button" onClick={() => setInviteOpen((open) => !open)}>
+            <UserPlus size={17} /> Invitar usuario
+          </button>
+        </div>
       </header>
+
+      {inviteOpen && (
+        <form className="invite-user-panel" onSubmit={handleInvite}>
+          <div className="invite-user-copy">
+            <strong>Invitar a SF Higiene</strong>
+            <span>La persona recibirá un correo para establecer su contraseña.</span>
+          </div>
+          <label className="field">
+            <span>Nombre</span>
+            <input
+              value={inviteValues.fullName}
+              onChange={(event) => setInviteValues((current) => ({ ...current, fullName: event.target.value }))}
+              placeholder="Nombre y apellido"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Correo</span>
+            <input
+              type="email"
+              value={inviteValues.email}
+              onChange={(event) => setInviteValues((current) => ({ ...current, email: event.target.value }))}
+              placeholder="persona@sfhigiene.com"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Rol inicial</span>
+            <select
+              value={inviteValues.role}
+              onChange={(event) => setInviteValues((current) => ({ ...current, role: event.target.value }))}
+            >
+              {COMPANY_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
+            </select>
+          </label>
+          <button className="primary-button invite-submit" disabled={inviting}>
+            {inviting ? 'Enviando…' : 'Enviar invitación'}
+          </button>
+        </form>
+      )}
 
       <div className="users-stats">
         <div className="user-stat-card">
