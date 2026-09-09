@@ -1,21 +1,25 @@
-import { FileCheck2, LockKeyhole, ShieldCheck } from 'lucide-react'
+import { FileCheck2, LockKeyhole, ShieldCheck, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
-  const { configured, user, loading, signIn, requestPasswordReset } = useAuth()
+  const { configured, user, loading, signIn, signUp, requestPasswordReset } = useAuth()
+  const [mode, setMode] = useState('login')
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [resetMode, setResetMode] = useState(false)
+
+  const resetMode = mode === 'reset'
+  const registerMode = mode === 'register'
 
   useEffect(() => {
     setError('')
     setNotice('')
-  }, [email, password, resetMode])
+  }, [email, password, fullName, mode])
 
   // ProtectedRoute decides whether the authenticated user has company access.
   if (!loading && user) {
@@ -32,18 +36,33 @@ export default function LoginPage() {
       if (resetMode) {
         await requestPasswordReset(email)
         setNotice('Si el correo está registrado, vas a recibir un enlace para crear una nueva contraseña.')
+      } else if (registerMode) {
+        const data = await signUp({ fullName, email, password })
+        if (!data.session) {
+          setNotice('Cuenta creada. Revisá tu correo para confirmar el registro. Luego un administrador deberá habilitar tu acceso.')
+        }
       } else {
         await signIn({ email: email.trim(), password })
       }
     } catch (authError) {
       console.error(authError)
-      setError(resetMode
-        ? 'No pudimos enviar el correo de recuperación. Intentá nuevamente.'
-        : 'No pudimos iniciar sesión. Revisá tu correo y contraseña.')
+      if (resetMode) {
+        setError('No pudimos enviar el correo de recuperación. Intentá nuevamente.')
+      } else if (registerMode) {
+        setError(authError.message || 'No pudimos crear la cuenta. Revisá los datos e intentá nuevamente.')
+      } else {
+        setError('No pudimos iniciar sesión. Revisá tu correo y contraseña.')
+      }
     } finally {
       setSubmitting(false)
     }
   }
+
+  const heading = resetMode
+    ? { kicker: 'Recuperación de acceso', title: 'Restablecer contraseña' }
+    : registerMode
+      ? { kicker: 'Registro público', title: 'Crear cuenta' }
+      : { kicker: 'Acceso al sistema', title: 'Iniciar sesión' }
 
   return (
     <main className="login-screen">
@@ -58,17 +77,17 @@ export default function LoginPage() {
         </p>
         <div className="login-feature">
           <ShieldCheck size={19} />
-          <span>Acceso privado · Gestión documental interna</span>
+          <span>Registro abierto · documentación protegida por permisos</span>
         </div>
       </section>
 
       <section className="login-panel">
         <div className="login-card">
           <div className="login-card-heading">
-            <div className="mini-icon"><LockKeyhole size={20} /></div>
+            <div className="mini-icon">{registerMode ? <UserPlus size={20} /> : <LockKeyhole size={20} />}</div>
             <div>
-              <span>{resetMode ? 'Recuperación de acceso' : 'Acceso al sistema'}</span>
-              <h2>{resetMode ? 'Restablecer contraseña' : 'Iniciar sesión'}</h2>
+              <span>{heading.kicker}</span>
+              <h2>{heading.title}</h2>
             </div>
           </div>
 
@@ -79,6 +98,21 @@ export default function LoginPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="login-form">
+              {registerMode && (
+                <label>
+                  Nombre y apellido
+                  <input
+                    type="text"
+                    autoComplete="name"
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                    placeholder="Nombre completo"
+                    minLength={2}
+                    required
+                  />
+                </label>
+              )}
+
               <label>
                 Correo electrónico
                 <input
@@ -96,11 +130,11 @@ export default function LoginPage() {
                   Contraseña
                   <input
                     type="password"
-                    autoComplete="current-password"
+                    autoComplete={registerMode ? 'new-password' : 'current-password'}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="••••••••"
-                    minLength={6}
+                    minLength={registerMode ? 8 : 6}
                     required
                   />
                 </label>
@@ -111,21 +145,30 @@ export default function LoginPage() {
 
               <button className="primary-button login-submit" disabled={submitting} type="submit">
                 {submitting
-                  ? resetMode ? 'Enviando…' : 'Ingresando…'
-                  : resetMode ? 'Enviar enlace' : 'Ingresar'}
+                  ? resetMode ? 'Enviando…' : registerMode ? 'Creando…' : 'Ingresando…'
+                  : resetMode ? 'Enviar enlace' : registerMode ? 'Crear cuenta' : 'Ingresar'}
               </button>
 
-              <button
-                type="button"
-                className="login-text-action"
-                onClick={() => setResetMode((current) => !current)}
-              >
-                {resetMode ? 'Volver al inicio de sesión' : '¿Olvidaste tu contraseña?'}
-              </button>
+              {mode === 'login' ? (
+                <>
+                  <button type="button" className="login-text-action" onClick={() => setMode('register')}>
+                    ¿No tenés cuenta? Registrate
+                  </button>
+                  <button type="button" className="login-text-action" onClick={() => setMode('reset')}>
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="login-text-action" onClick={() => setMode('login')}>
+                  Volver al inicio de sesión
+                </button>
+              )}
             </form>
           )}
 
-          <p className="login-help">El acceso es administrado por SF Higiene. No hay registro público.</p>
+          <p className="login-help">
+            El registro es público. El acceso a la documentación de SF Higiene requiere habilitación administrativa.
+          </p>
         </div>
       </section>
     </main>
