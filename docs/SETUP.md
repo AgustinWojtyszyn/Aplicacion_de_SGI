@@ -1,11 +1,11 @@
-# Puesta en marcha · SF Higiene SGI
+# Puesta en marcha · IntegraFlow
 
 ## 1. Requisitos
 
 - Node.js 22 recomendado.
-- Un proyecto de Supabase.
+- Un proyecto Supabase.
 - Acceso al repositorio GitHub.
-- Render para el despliegue web cuando se habilite producción.
+- Render únicamente cuando se habilite el despliegue final.
 
 ## 2. Instalar el proyecto
 
@@ -27,63 +27,75 @@ Nunca subir `.env` ni una `service_role` al repositorio o al frontend.
 
 ## 3. Base de datos
 
-Ejecutar las migraciones en orden:
+Aplicar las migraciones en este orden:
 
 1. `supabase/migrations/20260908221500_stage1_foundation.sql`
 2. `supabase/migrations/20260908230000_stage1_integrity_hardening.sql`
 3. `supabase/migrations/20260908230500_document_delete_storage_policy.sql`
 4. `supabase/migrations/20260909170000_user_access_management.sql`
+5. `supabase/migrations/20260909213000_stage2_sgi_workflow.sql`
+6. `supabase/migrations/20260909214500_stage2_permissions_hardening.sql`
+7. `supabase/migrations/20260909215500_stage2_review_lock.sql`
+8. `supabase/migrations/20260909220500_public_registration.sql`
 
-La base crea perfiles, SF Higiene, miembros/roles, módulos, documentos, observaciones, actividad, Storage privado y RLS. La última migración incorpora activación/desactivación de membresías y protege al último administrador activo.
+Estas migraciones crean y endurecen perfiles, membresías, roles, módulos, documentos, comentarios, actividad, control de versiones, requisitos ISO/SGI, notificaciones internas, Storage privado y RLS.
 
-### Aplicación con Supabase CLI
+### Supabase CLI
 
-Si el proyecto está vinculado con Supabase CLI:
+Si el proyecto está vinculado:
 
 ```bash
 npx supabase link --project-ref TU_PROJECT_REF
 npx supabase db push
 ```
 
-También pueden ejecutarse los SQL desde el SQL Editor de Supabase, respetando el orden anterior.
+También pueden ejecutarse los SQL manualmente desde el SQL Editor, respetando exactamente el orden anterior.
 
-## 4. Primer usuario administrador
+## 4. Primer administrador
 
-Crear el primer usuario desde **Supabase → Authentication → Users**.
+La instalación actual conserva un bootstrap controlado para inicializar el primer administrador del espacio de trabajo.
 
-Al iniciar sesión por primera vez, la app llama a `bootstrap_sf_higiene_admin()`.
+- El bootstrap solo funciona mientras todavía no exista ningún miembro.
+- Después deja de conceder privilegios automáticamente.
+- Los usuarios nuevos quedan como miembros pendientes/inactivos hasta que un administrador los habilita.
 
-- Si SF Higiene todavía no tiene ningún miembro, ese primer usuario se convierte en `admin`.
-- En cuanto existe un miembro, la función deja de conceder permisos automáticamente.
+## 5. Registro público y usuarios
 
-Esto evita que cuentas posteriores puedan autoconcederse acceso administrativo.
+El registro desde `/login` es público.
 
-## 5. Usuarios posteriores
+Después de registrarse:
 
-Los usuarios posteriores se gestionan desde **Usuarios** dentro de la aplicación.
+1. el usuario confirma su correo si el proyecto Supabase tiene confirmación habilitada;
+2. la cuenta queda registrada pero sin acceso a documentación;
+3. un administrador entra a **Usuarios** y activa la membresía;
+4. recién entonces RLS permite acceder al espacio de trabajo.
 
-El administrador puede:
+El administrador también puede enviar invitaciones desde la propia aplicación mediante la Edge Function `invite-user`.
 
-- enviar una invitación por correo;
-- elegir el rol inicial (`admin`, `responsible` o `member`);
-- cambiar el rol luego;
-- activar o desactivar el acceso.
-
-La invitación se procesa en `supabase/functions/invite-user`, donde Supabase permite usar privilegios administrativos sin exponer la `service_role` al navegador.
-
-Publicar la función:
+Publicarla si se utilizará ese flujo:
 
 ```bash
-npx supabase functions deploy invite-user
+npx supabase functions deploy invite-user --project-ref TU_PROJECT_REF
 ```
 
-En **Authentication → URL Configuration → Redirect URLs** agregar las URLs autorizadas para establecer contraseña, por ejemplo:
+## 6. URLs de Auth
+
+En **Supabase → Authentication → URL Configuration** configurar el Site URL y las Redirect URLs.
+
+Para desarrollo:
 
 ```text
+http://localhost:3000
 http://localhost:3000/set-password
 ```
 
-## 6. Desarrollo local
+Cuando exista la URL de producción, agregar también:
+
+```text
+https://TU-DOMINIO/set-password
+```
+
+## 7. Desarrollo local
 
 ```bash
 npm run dev
@@ -91,36 +103,30 @@ npm run dev
 
 Abrir `http://localhost:3000`.
 
-La guía detallada del circuito de usuarios está en `docs/USER_ACCESS_TESTING.md`.
-
-## 7. Verificaciones
+## 8. Verificaciones
 
 ```bash
 npm run test:run
 npm run build
 ```
 
-GitHub Actions ejecuta ambos comandos automáticamente en cada push a `main`.
+GitHub Actions ejecuta ambas verificaciones automáticamente en cada push a `main`.
 
-## 8. Render
+## 9. Storage
 
-El repositorio incluye `render.yaml`.
+El bucket `sgi-documents` es privado.
 
-En Render configurar las variables:
+Los documentos se almacenan dentro del espacio correspondiente y se abren mediante URLs firmadas de corta duración. Las políticas de Storage y PostgreSQL validan membresía activa y permisos.
+
+## 10. Deploy final
+
+El repositorio incluye `render.yaml` con el servicio `integraflow`.
+
+En Render configurar:
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-El deploy se construye como sitio estático Vite y reescribe las rutas hacia `index.html` para que React Router funcione al recargar.
+El frontend se publica como sitio estático Vite y las rutas se reescriben a `index.html` para que React Router funcione al recargar.
 
-## 9. Storage
-
-El bucket `sgi-documents` es **privado**.
-
-Los documentos se guardan con esta estructura:
-
-```text
-<company_id>/<document_id>/<timestamp>-<archivo>
-```
-
-Los archivos se abren mediante URLs firmadas de corta duración. Las políticas RLS de Storage validan la pertenencia activa del usuario a la empresa.
+Antes de desplegar, seguir `docs/PRODUCTION_CHECKLIST.md`.

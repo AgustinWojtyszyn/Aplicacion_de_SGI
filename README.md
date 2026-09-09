@@ -1,64 +1,72 @@
-# SF Higiene · Plataforma SGI
+# IntegraFlow
 
-Plataforma web interna para centralizar la **gestión documental de SF Higiene** y construir sobre una base segura el futuro Sistema de Gestión Integrado.
+**Gestión documental, SGI, cumplimiento y trazabilidad en un solo flujo.**
 
-> Estado actual: **Etapa 1 · Base de plataforma + Gestión Documental**.
+IntegraFlow es una plataforma web para centralizar documentación, responsables, versiones, revisiones, aprobaciones, requisitos ISO y alertas dentro de un Sistema de Gestión Integrado.
 
-## Qué incluye esta etapa
+> Estado actual: **casi listo para producción**. La base operativa y la mayor parte del flujo SGI/ISO ya están implementados.
 
-- Inicio de sesión privado.
-- Empresa, perfiles, roles, módulos y responsables.
-- Carga de PDF, Word, Excel e imágenes.
-- Documentos con título, descripción, tipo, norma, módulo y responsable.
-- Flujo `Borrador → En proceso → Aprobado`.
-- Observaciones internas.
-- Historial de actividad documental.
-- Búsqueda y filtros por estado, módulo, norma, tipo y fecha.
-- Apertura segura de archivos mediante URLs firmadas.
-- Dashboard con documentos por estado y pendientes principales.
-- Supabase RLS y Storage privado.
-- Diseño responsive.
+## Funcionalidades principales
 
-## Arquitectura
+- Registro público de usuarios con habilitación administrativa posterior.
+- Autenticación y recuperación de contraseña con Supabase Auth.
+- Roles `admin`, `responsible` y `member`.
+- Gestión documental con PDF, Word, Excel e imágenes.
+- Estados `Borrador → En revisión → Aprobado`.
+- Revisor y aprobador designados.
+- Control formal de versiones de archivos.
+- Historial de actividad y trazabilidad.
+- Comentarios y observaciones internas.
+- Fechas objetivo de revisión y documentos vencidos.
+- Centro de alertas internas.
+- Dashboard SGI con cobertura, pendientes y métricas.
+- Estructura ISO 9001, ISO 14001, ISO 45001 y SGI Integrado.
+- Capítulos 4 a 10 y asociación documental a requisitos.
+- Búsqueda y filtros.
+- Storage privado con URLs firmadas.
+- RLS en PostgreSQL para proteger información por membresía y rol.
+- Panel administrativo de usuarios.
+
+## Flujo documental
 
 ```text
-Usuario
+Borrador
+   │
+   ├── nueva versión
+   ├── responsable
+   └── requisito ISO
    │
    ▼
-React + Vite
+En revisión
    │
-   ├──────── Supabase Auth
+   ├── revisor
+   ├── observaciones / devolución
+   └── aprobador
    │
-   └──────── Supabase
-               ├── PostgreSQL + RLS
-               └── Storage privado
+   ▼
+Aprobado
 ```
 
-La aplicación **no utiliza una `service_role` en el navegador**. La autorización se resuelve en base de datos mediante RLS y funciones controladas.
+Durante revisión y luego de la aprobación, la metadata sensible queda bloqueada para preservar la trazabilidad.
+
+## Seguridad
+
+- La aplicación no expone `service_role` en el navegador.
+- Los documentos se almacenan en un bucket privado.
+- El acceso se valida con RLS y funciones controladas en PostgreSQL.
+- Una cuenta registrada no obtiene acceso a documentación hasta ser habilitada por un administrador.
+- Se protege al último administrador activo para evitar que el espacio de trabajo quede sin administración.
 
 ## Stack
 
 - React 18
 - Vite 5
 - React Router 6
-- Supabase JS
-- Supabase Auth
-- PostgreSQL
-- Supabase Storage
+- Supabase JS / Auth / PostgreSQL / Storage
 - Lucide React
 - Vitest + Testing Library
 - GitHub Actions
 - Render
-
-## Estados documentales
-
-| Estado | Uso en Etapa 1 |
-| --- | --- |
-| Borrador | Documento en elaboración. Permite modificar metadata y agregar observaciones. |
-| En proceso | Documento en seguimiento o pendiente de validación. |
-| Aprobado | Documento vigente. La metadata queda bloqueada para edición. |
-
-El flujo formal de revisión/aprobación por roles separados y el control de versiones pertenecen a **Etapa 2**.
 
 ## Desarrollo local
 
@@ -79,13 +87,7 @@ VITE_SUPABASE_ANON_KEY=
 
 ## Base de datos
 
-Las migraciones se encuentran en `supabase/migrations/`.
-
-Aplicarlas en orden antes de usar la aplicación contra un proyecto Supabase nuevo.
-
-La primera sesión autenticada puede inicializar al primer administrador de SF Higiene. El bootstrap deja de conceder acceso automáticamente después de crear el primer miembro de la empresa.
-
-Más detalles: [`docs/SETUP.md`](docs/SETUP.md).
+Las migraciones viven en `supabase/migrations/` y deben aplicarse en orden. La guía actualizada está en [`docs/SETUP.md`](docs/SETUP.md).
 
 ## Tests y build
 
@@ -94,21 +96,23 @@ npm run test:run
 npm run build
 ```
 
-GitHub Actions ejecuta ambas verificaciones en los pushes y pull requests contra `main`.
+GitHub Actions ejecuta ambas verificaciones automáticamente en cada push a `main`.
 
-## Deploy
+## Estado funcional
 
-El repositorio incluye `render.yaml` para un deploy estático de Vite en Render. Configurar allí las dos variables `VITE_*` de Supabase.
+El detalle de la implementación SGI está en [`docs/STAGE2_STATUS.md`](docs/STAGE2_STATUS.md).
 
-## Alcance contractual de Etapa 1
+Solo quedan dos automatizaciones para el cierre completo:
 
-Los criterios de aceptación están documentados en [`docs/STAGE1_ACCEPTANCE.md`](docs/STAGE1_ACCEPTANCE.md).
+1. envío automático de emails por revisión, aprobación, observaciones y vencimientos;
+2. job programado que genere recordatorios de vencimiento sin depender de que alguien abra la aplicación.
 
-### Próxima etapa
+El resto del circuito funciona dentro de la web.
 
-Etapa 2 incorporará SGI completo, ISO 9001 / 14001 / 45001, estructura por capítulos, control formal de versiones, revisiones, aprobaciones, alertas y métricas de cumplimiento.
+## Preparación para producción
+
+Antes del deploy final, seguir [`docs/PRODUCTION_CHECKLIST.md`](docs/PRODUCTION_CHECKLIST.md).
 
 ---
 
-**SF Higiene · Sistema de Gestión**  
-Desarrollo por etapas · 2026
+**IntegraFlow** · Gestión documental y procesos integrados · 2026
