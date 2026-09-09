@@ -1,6 +1,12 @@
 # Criterios de aceptación · Etapa 1
 
-Este documento separa explícitamente lo comprometido en la primera entrega de las funciones de la Etapa 2.
+> **Estado: CERRADA ✅**  
+> **Fecha de cierre:** 09/09/2026  
+> **Última validación funcional:** tests automatizados + build de producción en CI, ambos exitosos.
+
+La Etapa 1 queda formalmente cerrada a nivel de desarrollo. Todo el alcance comprometido para esta entrega está implementado, documentado y cubierto por controles de seguridad y calidad.
+
+La aplicación de migraciones pendientes y el despliegue de la Edge Function `invite-user` corresponden a la activación/configuración del entorno Supabase y no constituyen funcionalidades pendientes de desarrollo de esta etapa.
 
 ## Base de plataforma
 
@@ -82,9 +88,9 @@ Este documento separa explícitamente lo comprometido en la primera entrega de l
 
 ---
 
-# No incluido todavía · Etapa 2
+# Próximo alcance · Etapa 2
 
-Estas funciones deben incorporarse en la etapa SGI / ISO y no se consideran parte del cierre de Etapa 1:
+Estas funciones quedan expresamente fuera de la Etapa 1 cerrada y forman parte del siguiente bloque de desarrollo:
 
 - organización completa por capítulos y requisitos ISO 9001;
 - organización completa por capítulos y requisitos ISO 14001;
