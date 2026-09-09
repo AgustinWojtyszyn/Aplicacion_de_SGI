@@ -7,6 +7,14 @@ import { listSgiRequirements } from '../services/sgiService'
 
 const norms = ['ISO 9001', 'ISO 14001', 'ISO 45001', 'SGI']
 
+function documentsUrl({ norm, requirementId = '', chapter = '' }) {
+  const params = new URLSearchParams()
+  if (norm) params.set('norm', norm)
+  if (requirementId) params.set('requirement', requirementId)
+  if (chapter) params.set('chapter', String(chapter))
+  return `/documents?${params.toString()}`
+}
+
 export default function SgiPage() {
   const { company } = useAuth()
   const [requirements, setRequirements] = useState([])
@@ -17,36 +25,111 @@ export default function SgiPage() {
 
   async function load() {
     if (!company?.id) return
-    setLoading(true); setError('')
+    setLoading(true)
+    setError('')
     try {
       const [nextRequirements, nextDocuments] = await Promise.all([
         listSgiRequirements(company.id),
         listDocuments({ companyId: company.id }),
       ])
-      setRequirements(nextRequirements); setDocuments(nextDocuments)
-    } catch (e) { setError(e.message || 'No se pudo cargar el SGI.') }
-    finally { setLoading(false) }
+      setRequirements(nextRequirements)
+      setDocuments(nextDocuments)
+    } catch (loadError) {
+      setError(loadError.message || 'No se pudo cargar el SGI.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(() => { load() }, [company?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [company?.id])
 
   const visible = requirements.filter((item) => item.norm === selectedNorm)
   const normStats = useMemo(() => Object.fromEntries(norms.map((norm) => {
-    const reqs = requirements.filter((r) => r.norm === norm)
-    const covered = reqs.filter((r) => documents.some((d) => d.requirement_id === r.id && d.status === 'approved')).length
-    return [norm, { total: reqs.length, covered, percent: reqs.length ? Math.round((covered / reqs.length) * 100) : 0 }]
+    const normRequirements = requirements.filter((requirement) => requirement.norm === norm)
+    const covered = normRequirements.filter((requirement) => (
+      documents.some((document) => document.requirement_id === requirement.id && document.status === 'approved')
+    )).length
+    return [norm, {
+      total: normRequirements.length,
+      covered,
+      percent: normRequirements.length ? Math.round((covered / normRequirements.length) * 100) : 0,
+    }]
   })), [requirements, documents])
 
-  return <section className="page-stack sgi-page">
-    <header className="page-heading"><div><p className="eyebrow">SISTEMA DE GESTIÓN INTEGRADO</p><h1>SGI e ISO</h1><p>Documentación organizada por norma, capítulo y requisito.</p></div></header>
-    {error && <div className="page-error">{error}</div>}
-    <div className="norm-tabs">{norms.map((norm) => <button key={norm} className={selectedNorm === norm ? 'norm-tab active' : 'norm-tab'} onClick={() => setSelectedNorm(norm)}><ShieldCheck size={17} /><span>{norm}</span><strong>{normStats[norm]?.percent || 0}%</strong></button>)}</div>
-    <article className="sgi-summary-card"><div><span>CUMPLIMIENTO DOCUMENTAL</span><strong>{normStats[selectedNorm]?.percent || 0}%</strong><small>{normStats[selectedNorm]?.covered || 0} de {normStats[selectedNorm]?.total || 0} capítulos con al menos un documento aprobado</small></div><div className="sgi-progress"><span style={{ width: `${normStats[selectedNorm]?.percent || 0}%` }} /></div></article>
-    <div className="requirement-list">{loading ? <div className="dashboard-loading"><span className="loader-dot" /> Cargando estructura…</div> : visible.map((requirement) => {
-      const related = documents.filter((d) => d.requirement_id === requirement.id)
-      const approved = related.filter((d) => d.status === 'approved').length
-      const pending = related.length - approved
-      return <article className="requirement-card" key={requirement.id}><div className="requirement-chapter">{requirement.chapter}</div><div className="requirement-copy"><span>{requirement.code}</span><h2>{requirement.title}</h2><p>{requirement.description}</p><div className="requirement-meta"><span><FileText size={14} /> {related.length} documento{related.length === 1 ? '' : 's'}</span><span><CheckCircle2 size={14} /> {approved} aprobados</span>{pending > 0 && <span>{pending} pendientes</span>}</div></div><Link to="/documents" title="Ver documentos"><ChevronRight size={20} /></Link></article>
-    })}</div>
-  </section>
+  return (
+    <section className="page-stack sgi-page">
+      <header className="page-heading">
+        <div>
+          <p className="eyebrow">SISTEMA DE GESTIÓN INTEGRADO</p>
+          <h1>SGI e ISO</h1>
+          <p>Documentación organizada por norma, capítulo y requisito.</p>
+        </div>
+      </header>
+
+      {error && <div className="page-error">{error}</div>}
+
+      <div className="norm-tabs">
+        {norms.map((norm) => (
+          <button
+            key={norm}
+            className={selectedNorm === norm ? 'norm-tab active' : 'norm-tab'}
+            onClick={() => setSelectedNorm(norm)}
+          >
+            <ShieldCheck size={17} />
+            <span>{norm === 'SGI' ? 'SGI Integrado' : norm}</span>
+            <strong>{normStats[norm]?.percent || 0}%</strong>
+          </button>
+        ))}
+      </div>
+
+      <article className="sgi-summary-card">
+        <div className="sgi-summary-heading">
+          <div>
+            <span>CUMPLIMIENTO DOCUMENTAL</span>
+            <strong>{normStats[selectedNorm]?.percent || 0}%</strong>
+            <small>{normStats[selectedNorm]?.covered || 0} de {normStats[selectedNorm]?.total || 0} requisitos con al menos un documento aprobado</small>
+          </div>
+          <Link className="secondary-button" to={documentsUrl({ norm: selectedNorm })}>
+            <FileText size={16} /> Ver documentos de la norma
+          </Link>
+        </div>
+        <div className="sgi-progress"><span style={{ width: `${normStats[selectedNorm]?.percent || 0}%` }} /></div>
+      </article>
+
+      <div className="requirement-list">
+        {loading ? (
+          <div className="dashboard-loading"><span className="loader-dot" /> Cargando estructura…</div>
+        ) : visible.map((requirement) => {
+          const related = documents.filter((document) => document.requirement_id === requirement.id)
+          const approved = related.filter((document) => document.status === 'approved').length
+          const pending = related.length - approved
+          return (
+            <article className="requirement-card" key={requirement.id}>
+              <div className="requirement-chapter">{requirement.chapter}</div>
+              <div className="requirement-copy">
+                <span>{requirement.code}</span>
+                <h2>{requirement.title}</h2>
+                <p>{requirement.description}</p>
+                <div className="requirement-meta">
+                  <span><FileText size={14} /> {related.length} documento{related.length === 1 ? '' : 's'}</span>
+                  <span><CheckCircle2 size={14} /> {approved} aprobados</span>
+                  {pending > 0 && <span>{pending} pendientes</span>}
+                </div>
+              </div>
+              <Link
+                to={documentsUrl({ norm: requirement.norm, requirementId: requirement.id, chapter: requirement.chapter })}
+                title={`Ver documentos del capítulo ${requirement.chapter}`}
+                aria-label={`Ver documentos de ${requirement.norm}, capítulo ${requirement.chapter}`}
+              >
+                <ChevronRight size={20} />
+              </Link>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
 }

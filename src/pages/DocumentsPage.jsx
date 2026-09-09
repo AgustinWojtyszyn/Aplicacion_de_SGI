@@ -1,5 +1,6 @@
 import { Download, FilePlus2, FileText, RefreshCw, Search, SlidersHorizontal } from 'lucide-react'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import DocumentDetailDrawer from '../components/DocumentDetailDrawer'
 import DocumentFormModal from '../components/DocumentFormModal'
 import StatusBadge from '../components/StatusBadge'
@@ -12,9 +13,17 @@ const emptyFilters = {
   status: '',
   moduleId: '',
   norm: '',
+  requirementId: '',
   documentType: '',
   dateFrom: '',
   dateTo: '',
+}
+
+function routeFilters(searchParams) {
+  return {
+    norm: searchParams.get('norm') || '',
+    requirementId: searchParams.get('requirement') || '',
+  }
 }
 
 function formatDate(value) {
@@ -29,19 +38,28 @@ function formatBytes(bytes = 0) {
 
 export default function DocumentsPage() {
   const { company, modules } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const queryString = searchParams.toString()
   const [documents, setDocuments] = useState([])
-  const [filters, setFilters] = useState(emptyFilters)
+  const [filters, setFilters] = useState(() => ({ ...emptyFilters, ...routeFilters(searchParams) }))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [selectedDocumentId, setSelectedDocumentId] = useState(null)
-  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(Boolean(searchParams.get('norm') || searchParams.get('requirement')))
   const deferredSearch = useDeferredValue(filters.search)
 
   const activeFilterCount = useMemo(
     () => Object.entries(filters).filter(([key, value]) => key !== 'search' && Boolean(value)).length,
     [filters],
   )
+
+  const routeContext = useMemo(() => {
+    if (!filters.norm) return ''
+    const chapter = searchParams.get('chapter')
+    if (filters.requirementId && chapter) return `${filters.norm} · Capítulo ${chapter}`
+    return filters.norm === 'SGI' ? 'SGI Integrado' : filters.norm
+  }, [filters.norm, filters.requirementId, queryString]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     if (!company?.id) return
@@ -52,7 +70,9 @@ export default function DocumentsPage() {
         companyId: company.id,
         filters: { ...filters, search: deferredSearch },
       })
-      setDocuments(data)
+      setDocuments(filters.requirementId
+        ? data.filter((document) => document.requirement_id === filters.requirementId)
+        : data)
     } catch (loadError) {
       console.error(loadError)
       setError(loadError.message || 'No se pudieron cargar los documentos.')
@@ -62,12 +82,32 @@ export default function DocumentsPage() {
   }
 
   useEffect(() => {
+    const nextRouteFilters = routeFilters(searchParams)
+    setFilters((current) => {
+      if (current.norm === nextRouteFilters.norm && current.requirementId === nextRouteFilters.requirementId) return current
+      return { ...current, ...nextRouteFilters }
+    })
+    if (nextRouteFilters.norm || nextRouteFilters.requirementId) setFiltersOpen(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryString])
+
+  useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [company?.id, deferredSearch, filters.status, filters.moduleId, filters.norm, filters.documentType, filters.dateFrom, filters.dateTo])
+  }, [company?.id, deferredSearch, filters.status, filters.moduleId, filters.norm, filters.requirementId, filters.documentType, filters.dateFrom, filters.dateTo])
 
   function setFilter(field, value) {
+    if (field === 'norm') {
+      setSearchParams({})
+      setFilters((current) => ({ ...current, norm: value, requirementId: '' }))
+      return
+    }
     setFilters((current) => ({ ...current, [field]: value }))
+  }
+
+  function clearFilters() {
+    setSearchParams({})
+    setFilters((current) => ({ ...emptyFilters, search: current.search }))
   }
 
   async function handleOpenFile(document, event) {
@@ -86,7 +126,7 @@ export default function DocumentsPage() {
         <div>
           <p className="eyebrow">GESTIÓN DOCUMENTAL</p>
           <h1>Documentos</h1>
-          <p>Archivos controlados, responsables y estado actual en un único lugar.</p>
+          <p>{routeContext ? `Vista filtrada: ${routeContext}.` : 'Archivos controlados, responsables y estado actual en un único lugar.'}</p>
         </div>
         <button className="primary-button page-primary-action" onClick={() => setCreateOpen(true)}>
           <FilePlus2 size={18} />
@@ -145,14 +185,19 @@ export default function DocumentsPage() {
           </label>
           <label className="field"><span>Desde</span><input type="date" value={filters.dateFrom} onChange={(event) => setFilter('dateFrom', event.target.value)} /></label>
           <label className="field"><span>Hasta</span><input type="date" value={filters.dateTo} onChange={(event) => setFilter('dateTo', event.target.value)} /></label>
-          {activeFilterCount > 0 && <button className="clear-filters" onClick={() => setFilters((current) => ({ ...emptyFilters, search: current.search }))}>Limpiar filtros</button>}
+          {activeFilterCount > 0 && <button className="clear-filters" onClick={clearFilters}>Limpiar filtros</button>}
         </div>
       )}
 
       {error && <div className="page-error" role="alert">{error}</div>}
 
       <div className="documents-surface">
-        <div className="documents-surface-header"><div><strong>{loading ? 'Cargando…' : `${documents.length} documento${documents.length === 1 ? '' : 's'}`}</strong><span>Seleccioná un documento para ver seguimiento e historial</span></div></div>
+        <div className="documents-surface-header">
+          <div>
+            <strong>{loading ? 'Cargando…' : `${documents.length} documento${documents.length === 1 ? '' : 's'}`}</strong>
+            <span>{routeContext ? `Mostrando solamente ${routeContext}` : 'Seleccioná un documento para ver seguimiento e historial'}</span>
+          </div>
+        </div>
 
         {loading ? (
           <div className="documents-loading"><span className="loader-dot" /><p>Cargando documentación…</p></div>
@@ -160,7 +205,7 @@ export default function DocumentsPage() {
           <div className="documents-empty">
             <div className="empty-icon"><FileText size={26} /></div>
             <strong>No hay documentos para mostrar</strong>
-            <p>{filters.search || activeFilterCount ? 'Probá cambiando los filtros.' : 'Cargá el primer documento de SF Higiene para comenzar.'}</p>
+            <p>{filters.search || activeFilterCount ? 'No hay resultados para este filtro. Podés cargar documentación o cambiar la selección.' : 'Cargá el primer documento para comenzar.'}</p>
             {!filters.search && activeFilterCount === 0 && <button className="primary-button" onClick={() => setCreateOpen(true)}>Cargar primer documento</button>}
           </div>
         ) : (
