@@ -14,6 +14,18 @@ Este documento separa explícitamente lo comprometido en la primera entrega de l
 - [x] PostgreSQL + RLS.
 - [x] Storage privado con políticas por empresa.
 
+## Usuarios y acceso
+
+- [x] Panel de usuarios exclusivo para administradores.
+- [x] Invitación de usuarios por correo mediante Edge Function segura.
+- [x] Asignación y cambio de rol.
+- [x] Activación / desactivación de acceso.
+- [x] Protección para conservar al menos un administrador activo.
+- [x] Primera contraseña desde enlace de invitación.
+- [x] Recuperación de contraseña desde Login.
+- [x] Ruta de administración protegida además de ocultarse en la navegación.
+- [x] Acciones documentales visibles según rol, autor y responsable.
+
 ## Gestión documental
 
 - [x] Alta de documentos.
@@ -56,10 +68,13 @@ Este documento separa explícitamente lo comprometido en la primera entrega de l
 - [x] Módulo debe pertenecer a la misma empresa.
 - [x] `company_id`, `created_by` y `file_path` no pueden cambiar una vez creado el documento.
 - [x] Primer administrador con bootstrap de uso único.
+- [x] Usuarios desactivados dejan de contar como miembros válidos para RLS.
 
 ## Calidad
 
 - [x] Tests básicos de componentes y validación de archivos.
+- [x] Tests de capacidades por rol.
+- [x] Validación de roles antes de operaciones de usuarios.
 - [x] Build de producción automatizado en CI.
 - [x] Tests automatizados en CI.
 - [x] Configuración de Render preparada.

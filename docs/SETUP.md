@@ -31,29 +31,18 @@ Ejecutar las migraciones en orden:
 
 1. `supabase/migrations/20260908221500_stage1_foundation.sql`
 2. `supabase/migrations/20260908230000_stage1_integrity_hardening.sql`
+3. `supabase/migrations/20260908230500_document_delete_storage_policy.sql`
+4. `supabase/migrations/20260909170000_user_access_management.sql`
 
-La primera migración crea:
-
-- perfiles;
-- empresa SF Higiene;
-- miembros y roles;
-- módulos iniciales;
-- documentos;
-- observaciones;
-- historial de actividad;
-- bucket privado `sgi-documents`;
-- RLS y políticas de Storage;
-- datos iniciales de módulos.
-
-La segunda agrega validaciones de integridad y refuerza el historial documental.
+La base crea perfiles, SF Higiene, miembros/roles, módulos, documentos, observaciones, actividad, Storage privado y RLS. La última migración incorpora activación/desactivación de membresías y protege al último administrador activo.
 
 ### Aplicación con Supabase CLI
 
 Si el proyecto está vinculado con Supabase CLI:
 
 ```bash
-supabase link --project-ref TU_PROJECT_REF
-supabase db push
+npx supabase link --project-ref TU_PROJECT_REF
+npx supabase db push
 ```
 
 También pueden ejecutarse los SQL desde el SQL Editor de Supabase, respetando el orden anterior.
@@ -71,33 +60,28 @@ Esto evita que cuentas posteriores puedan autoconcederse acceso administrativo.
 
 ## 5. Usuarios posteriores
 
-Crear las cuentas desde Authentication. Después asociarlas a SF Higiene en `company_members`.
+Los usuarios posteriores se gestionan desde **Usuarios** dentro de la aplicación.
 
-Ejemplo de consulta para obtener IDs:
+El administrador puede:
 
-```sql
-select id, email
-from public.profiles
-order by email;
+- enviar una invitación por correo;
+- elegir el rol inicial (`admin`, `responsible` o `member`);
+- cambiar el rol luego;
+- activar o desactivar el acceso.
+
+La invitación se procesa en `supabase/functions/invite-user`, donde Supabase permite usar privilegios administrativos sin exponer la `service_role` al navegador.
+
+Publicar la función:
+
+```bash
+npx supabase functions deploy invite-user
 ```
 
-Ejemplo para asignar una cuenta existente como miembro:
+En **Authentication → URL Configuration → Redirect URLs** agregar las URLs autorizadas para establecer contraseña, por ejemplo:
 
-```sql
-insert into public.company_members (company_id, user_id, role)
-select c.id, p.id, 'member'::public.company_role
-from public.companies c
-join public.profiles p on lower(p.email) = lower('usuario@empresa.com')
-where c.slug = 'sf-higiene'
-on conflict (company_id, user_id) do update
-set role = excluded.role;
+```text
+http://localhost:3000/set-password
 ```
-
-Roles de Etapa 1:
-
-- `admin`: administración del espacio.
-- `responsible`: responsable operativo/documental.
-- `member`: usuario interno.
 
 ## 6. Desarrollo local
 
@@ -106,6 +90,8 @@ npm run dev
 ```
 
 Abrir `http://localhost:3000`.
+
+La guía detallada del circuito de usuarios está en `docs/USER_ACCESS_TESTING.md`.
 
 ## 7. Verificaciones
 
@@ -137,4 +123,4 @@ Los documentos se guardan con esta estructura:
 <company_id>/<document_id>/<timestamp>-<archivo>
 ```
 
-Los archivos se abren mediante URLs firmadas de corta duración. Las políticas RLS de Storage validan la pertenencia del usuario a la empresa.
+Los archivos se abren mediante URLs firmadas de corta duración. Las políticas RLS de Storage validan la pertenencia activa del usuario a la empresa.
