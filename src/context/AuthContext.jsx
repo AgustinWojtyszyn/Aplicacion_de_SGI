@@ -125,6 +125,27 @@ export function AuthProvider({ children }) {
     return data
   }, [])
 
+  const signUp = useCallback(async ({ fullName, email, password }) => {
+    const cleanName = fullName.trim()
+    const cleanEmail = email.trim().toLowerCase()
+
+    if (cleanName.length < 2) throw new Error('Ingresá tu nombre completo.')
+    if (password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
+
+    const supabase = requireSupabase()
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: { full_name: cleanName },
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    })
+
+    if (error) throw error
+    return data
+  }, [])
+
   const signOut = useCallback(async () => {
     const supabase = requireSupabase()
     const { error } = await supabase.auth.signOut()
@@ -165,6 +186,7 @@ export function AuthProvider({ children }) {
       workspaceError,
       configured: supabaseConfigured,
       signIn,
+      signUp,
       signOut,
       requestPasswordReset,
       updatePassword,
@@ -178,6 +200,7 @@ export function AuthProvider({ children }) {
       loading,
       workspaceError,
       signIn,
+      signUp,
       signOut,
       requestPasswordReset,
       updatePassword,
