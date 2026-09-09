@@ -1,0 +1,230 @@
+:root {
+  --ink: #10233f;
+  --muted: #687b98;
+  --surface: #ffffff;
+  --surface-soft: #f4f7fb;
+  --line: #dfe7f2;
+  --brand: #176bff;
+  --brand-deep: #1047bd;
+  --brand-soft: #eaf2ff;
+  --warning: #a76a11;
+  --danger: #a83d47;
+  --shadow: 0 20px 55px rgba(25, 56, 105, 0.12);
+}
+
+html,
+body,
+.app-shell,
+.screen-loader,
+.access-screen {
+  background: var(--surface-soft);
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-logo-symbol {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 8px 16px rgba(23, 107, 255, 0.16));
+}
+
+.brand-logo-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  color: #10233f;
+  font-size: 1.2rem;
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+}
+
+.brand-logo-wordmark strong {
+  color: #2d80ff;
+  font: inherit;
+}
+
+.brand-logo-light .brand-logo-wordmark {
+  color: #ffffff;
+}
+
+.brand-logo-light .brand-logo-wordmark strong {
+  color: #5fcbff;
+}
+
+.brand-logo-compact .brand-logo-symbol {
+  width: 40px;
+  height: 40px;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #176bff, #0f55d8);
+  box-shadow: 0 10px 24px rgba(23, 107, 255, 0.18);
+}
+
+.primary-button:hover {
+  background: linear-gradient(135deg, #0f5fe9, #0d43ae);
+}
+
+.secondary-button,
+.icon-button:hover {
+  background: #edf3fb;
+}
+
+.login-screen {
+  background: #f3f7fc;
+}
+
+.login-intro {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(28, 205, 163, 0.34), transparent 36%),
+    radial-gradient(circle at 82% 78%, rgba(56, 196, 255, 0.2), transparent 42%),
+    linear-gradient(145deg, #07162f 0%, #0c3470 56%, #0d4db1 100%);
+}
+
+.login-intro .eyebrow {
+  color: #84dfff;
+}
+
+.login-brand-logo {
+  margin-bottom: 34px;
+}
+
+.login-brand-logo .brand-logo-symbol {
+  width: 62px;
+  height: 62px;
+}
+
+.login-brand-logo .brand-logo-wordmark {
+  font-size: clamp(1.55rem, 3vw, 2.05rem);
+}
+
+.login-intro h1 {
+  max-width: 10ch;
+  font-size: clamp(3rem, 6.2vw, 5.9rem);
+}
+
+.login-intro > p:not(.eyebrow) {
+  color: #d8e8ff;
+}
+
+.login-feature {
+  color: #d8e8ff;
+}
+
+.login-card {
+  border-color: #e0e8f3;
+  box-shadow: 0 28px 70px rgba(21, 50, 96, 0.14);
+}
+
+.mini-icon {
+  color: #176bff;
+  background: #eaf2ff;
+}
+
+.login-form input:focus,
+.password-form input:focus {
+  border-color: #4b8fff;
+  box-shadow: 0 0 0 3px rgba(23, 107, 255, 0.11);
+}
+
+.sidebar {
+  color: #eef5ff;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(30, 143, 255, 0.18), transparent 28%),
+    linear-gradient(180deg, #07162d 0%, #091d3a 100%);
+  border-right-color: rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-brand {
+  min-height: 64px;
+  justify-content: space-between;
+}
+
+.sidebar-logo .brand-logo-symbol {
+  width: 42px;
+  height: 42px;
+}
+
+.sidebar-logo .brand-logo-wordmark {
+  font-size: 1.08rem;
+}
+
+.nav-section-label {
+  color: #6581ad;
+}
+
+.nav-link {
+  color: #9eb4d3;
+}
+
+.nav-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.nav-link-active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(23, 107, 255, 0.72), rgba(17, 178, 178, 0.42));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-user {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.avatar {
+  color: #10233f;
+  background: linear-gradient(135deg, #d9e9ff, #c8f4e8);
+}
+
+.topbar {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom-color: #dfe7f2;
+}
+
+.stage-pill {
+  color: #165bd1;
+  background: linear-gradient(135deg, #eaf2ff, #e6fbf5);
+  border: 1px solid #d8e7fb;
+}
+
+.access-card,
+.password-card {
+  border-color: #dfe7f2;
+  box-shadow: 0 24px 62px rgba(21, 50, 96, 0.12);
+}
+
+.access-brand-logo,
+.password-brand-logo {
+  margin-bottom: 28px;
+}
+
+.access-brand-logo .brand-logo-symbol,
+.password-brand-logo .brand-logo-symbol {
+  width: 52px;
+  height: 52px;
+}
+
+@media (max-width: 900px) {
+  .sidebar-logo .brand-logo-wordmark {
+    font-size: 1.02rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .login-brand-logo .brand-logo-symbol {
+    width: 52px;
+    height: 52px;
+  }
+
+  .login-brand-logo .brand-logo-wordmark {
+    font-size: 1.45rem;
+  }
+}

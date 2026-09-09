@@ -9,5 +9,6 @@ import './styles/dashboard.css'
 import './styles/users.css'
 import './styles/auth-flow.css'
 import './styles/sgi.css'
+import './styles/brand.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(<React.StrictMode><BrowserRouter><App /></BrowserRouter></React.StrictMode>)

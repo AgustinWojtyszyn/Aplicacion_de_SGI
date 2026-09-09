@@ -1,4 +1,5 @@
-import { LogOut, UserRoundCheck } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 
 export default function AccessPendingPage({ error = '' }) {
@@ -7,11 +8,11 @@ export default function AccessPendingPage({ error = '' }) {
   return (
     <main className="access-screen">
       <section className="access-card">
-        <div className="brand-mark"><UserRoundCheck size={28} /></div>
-        <p className="eyebrow">ACCESO INTERNO</p>
-        <h1>Tu cuenta todavía no tiene acceso al espacio de SF Higiene.</h1>
+        <BrandLogo className="access-brand-logo" />
+        <p className="eyebrow">ACCESO PENDIENTE</p>
+        <h1>Tu cuenta está creada, pero todavía no tiene acceso a un espacio de trabajo.</h1>
         <p>
-          Sesión iniciada como <strong>{profile?.email || 'usuario autenticado'}</strong>. Un administrador debe asociar la cuenta a la empresa.
+          Sesión iniciada como <strong>{profile?.email || 'usuario autenticado'}</strong>. Un administrador debe habilitar tu cuenta antes de que puedas acceder a documentación interna.
         </p>
         {error && <div className="form-error">{error}</div>}
         <div className="access-actions">

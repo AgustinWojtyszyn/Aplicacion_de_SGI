@@ -1,6 +1,7 @@
-import { KeyRound, ShieldCheck } from 'lucide-react'
+import { KeyRound } from 'lucide-react'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 
 export default function SetPasswordPage() {
@@ -26,6 +27,7 @@ export default function SetPasswordPage() {
     return (
       <main className="password-screen">
         <section className="password-card password-card-centered">
+          <BrandLogo className="password-brand-logo" />
           <div className="password-icon"><KeyRound size={24} /></div>
           <h1>El enlace no es válido</h1>
           <p>Puede haber vencido o ya haber sido utilizado. Solicitá una nueva invitación o recuperación.</p>
@@ -63,10 +65,10 @@ export default function SetPasswordPage() {
   return (
     <main className="password-screen">
       <section className="password-card">
-        <div className="password-icon"><ShieldCheck size={24} /></div>
-        <p className="eyebrow">SF HIGIENE · ACCESO</p>
+        <BrandLogo className="password-brand-logo" />
+        <p className="eyebrow">ACCESO SEGURO</p>
         <h1>Creá tu contraseña</h1>
-        <p>Usá una contraseña de al menos 8 caracteres para completar el acceso al SGI.</p>
+        <p>Usá una contraseña de al menos 8 caracteres para completar el acceso a IntegraFlow.</p>
 
         <form className="password-form" onSubmit={handleSubmit}>
           <label>

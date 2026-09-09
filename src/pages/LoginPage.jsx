@@ -1,6 +1,7 @@
-import { FileCheck2, LockKeyhole, ShieldCheck, UserPlus } from 'lucide-react'
+import { LockKeyhole, ShieldCheck, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
@@ -21,10 +22,7 @@ export default function LoginPage() {
     setNotice('')
   }, [email, password, fullName, mode])
 
-  // ProtectedRoute decides whether the authenticated user has company access.
-  if (!loading && user) {
-    return <Navigate to="/dashboard" replace />
-  }
+  if (!loading && user) return <Navigate to="/dashboard" replace />
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -46,13 +44,9 @@ export default function LoginPage() {
       }
     } catch (authError) {
       console.error(authError)
-      if (resetMode) {
-        setError('No pudimos enviar el correo de recuperación. Intentá nuevamente.')
-      } else if (registerMode) {
-        setError(authError.message || 'No pudimos crear la cuenta. Revisá los datos e intentá nuevamente.')
-      } else {
-        setError('No pudimos iniciar sesión. Revisá tu correo y contraseña.')
-      }
+      if (resetMode) setError('No pudimos enviar el correo de recuperación. Intentá nuevamente.')
+      else if (registerMode) setError(authError.message || 'No pudimos crear la cuenta. Revisá los datos e intentá nuevamente.')
+      else setError('No pudimos iniciar sesión. Revisá tu correo y contraseña.')
     } finally {
       setSubmitting(false)
     }
@@ -62,22 +56,20 @@ export default function LoginPage() {
     ? { kicker: 'Recuperación de acceso', title: 'Restablecer contraseña' }
     : registerMode
       ? { kicker: 'Registro público', title: 'Crear cuenta' }
-      : { kicker: 'Acceso al sistema', title: 'Iniciar sesión' }
+      : { kicker: 'Acceso seguro', title: 'Iniciar sesión' }
 
   return (
     <main className="login-screen">
       <section className="login-intro">
-        <div className="login-brand-mark">
-          <FileCheck2 size={28} />
-        </div>
-        <p className="eyebrow">SF HIGIENE · SGI</p>
-        <h1>Documentación bajo control.</h1>
+        <BrandLogo light className="login-brand-logo" />
+        <p className="eyebrow">GESTIÓN DOCUMENTAL · SGI · CUMPLIMIENTO</p>
+        <h1>Todo tu sistema de gestión, en un solo flujo.</h1>
         <p>
-          Un único espacio para organizar documentos, responsables y estados de gestión con una base segura y trazable.
+          IntegraFlow centraliza documentos, versiones, responsables, revisiones, aprobaciones, requisitos ISO y alertas en una plataforma segura y trazable.
         </p>
         <div className="login-feature">
           <ShieldCheck size={19} />
-          <span>Registro abierto · documentación protegida por permisos</span>
+          <span>Registro abierto · acceso a la información protegido por permisos</span>
         </div>
       </section>
 
@@ -167,7 +159,7 @@ export default function LoginPage() {
           )}
 
           <p className="login-help">
-            El registro es público. El acceso a la documentación de SF Higiene requiere habilitación administrativa.
+            El registro es público. El acceso a cada espacio de trabajo requiere habilitación administrativa.
           </p>
         </div>
       </section>
