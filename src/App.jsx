@@ -6,27 +6,23 @@ import { AuthProvider } from './context/AuthContext'
 import DashboardPage from './pages/DashboardPage'
 import DocumentsPage from './pages/DocumentsPage'
 import LoginPage from './pages/LoginPage'
+import NotificationsPage from './pages/NotificationsPage'
 import SetPasswordPage from './pages/SetPasswordPage'
+import SgiPage from './pages/SgiPage'
 import UsersPage from './pages/UsersPage'
 
 export default function App() {
-  return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/set-password" element={<SetPasswordPage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AppShell />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/documents" element={<DocumentsPage />} />
-            <Route element={<AdminRoute />}>
-              <Route path="/users" element={<UsersPage />} />
-            </Route>
-          </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </AuthProvider>
-  )
+  return <AuthProvider><Routes>
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/set-password" element={<SetPasswordPage />} />
+    <Route element={<ProtectedRoute />}><Route element={<AppShell />}>
+      <Route index element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/sgi" element={<SgiPage />} />
+      <Route path="/documents" element={<DocumentsPage />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
+      <Route element={<AdminRoute />}><Route path="/users" element={<UsersPage />} /></Route>
+    </Route></Route>
+    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+  </Routes></AuthProvider>
 }

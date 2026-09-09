@@ -8,11 +8,6 @@ import './styles/document-detail.css'
 import './styles/dashboard.css'
 import './styles/users.css'
 import './styles/auth-flow.css'
+import './styles/sgi.css'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </React.StrictMode>,
-)
+ReactDOM.createRoot(document.getElementById('root')).render(<React.StrictMode><BrowserRouter><App /></BrowserRouter></React.StrictMode>)
