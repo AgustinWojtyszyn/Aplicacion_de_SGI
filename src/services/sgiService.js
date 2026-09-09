@@ -38,3 +38,24 @@ export async function markNotificationRead(id) {
 
   if (error) throw error
 }
+
+export async function getSgiDashboardMetrics(companyId) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase.rpc('get_sgi_dashboard_metrics', {
+    p_company_id: companyId,
+  })
+
+  if (error) {
+    const missingRpc = error.code === '42883'
+      || error.code === 'PGRST202'
+      || error.message?.includes('get_sgi_dashboard_metrics')
+
+    if (missingRpc) {
+      console.warn('Dashboard SGI avanzado pendiente de migración.', error)
+      return null
+    }
+    throw error
+  }
+
+  return data ?? null
+}
