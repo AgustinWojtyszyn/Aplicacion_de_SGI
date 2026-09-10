@@ -3,6 +3,7 @@ import AdminRoute from './components/AdminRoute'
 import AppShell from './components/AppShell'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
+import CompanyGatePage from './pages/CompanyGatePage'
 import DashboardPage from './pages/DashboardPage'
 import DocumentsPage from './pages/DocumentsPage'
 import LoginPage from './pages/LoginPage'
@@ -13,16 +14,17 @@ import UsersPage from './pages/UsersPage'
 
 export default function App() {
   return <AuthProvider><Routes>
-    <Route path="/login" element={<LoginPage />} />
+    <Route path="/" element={<CompanyGatePage />} />
+    <Route path="/login" element={<Navigate to="/" replace />} />
+    <Route path="/login/:companySlug" element={<LoginPage />} />
     <Route path="/set-password" element={<SetPasswordPage />} />
     <Route element={<ProtectedRoute />}><Route element={<AppShell />}>
-      <Route index element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/sgi" element={<SgiPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
       <Route element={<AdminRoute />}><Route path="/users" element={<UsersPage />} /></Route>
     </Route></Route>
-    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    <Route path="*" element={<Navigate to="/" replace />} />
   </Routes></AuthProvider>
 }
