@@ -247,6 +247,8 @@ using (public.is_platform_admin(auth.uid()))
 with check (public.is_platform_admin(auth.uid()));
 
 revoke all on function public.list_login_companies() from public;
+revoke all on function public.is_platform_admin(uuid) from public;
+revoke all on function public.create_company_workspace(text, text) from public;
 grant execute on function public.list_login_companies() to anon, authenticated;
 grant execute on function public.is_platform_admin(uuid) to authenticated;
 grant execute on function public.create_company_workspace(text, text) to authenticated;
