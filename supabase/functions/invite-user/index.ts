@@ -57,28 +57,34 @@ Deno.serve(async (request) => {
     return json({ error: 'invalid_invitation' }, 400)
   }
 
-  const { data: callerMembership, error: membershipError } = await adminClient
+  // Administrators are global in IntegraFlow: an active admin membership in
+  // any company authorizes administration of all company workspaces.
+  const { data: adminMemberships, error: membershipError } = await adminClient
     .from('company_members')
-    .select('role, is_active')
-    .eq('company_id', companyId)
+    .select('company_id')
     .eq('user_id', authData.user.id)
-    .maybeSingle()
+    .eq('role', 'admin')
+    .eq('is_active', true)
+    .limit(1)
 
   if (membershipError) return json({ error: 'membership_check_failed' }, 500)
-  if (callerMembership?.role !== 'admin' || callerMembership.is_active !== true) {
-    return json({ error: 'admin_required' }, 403)
-  }
+  if (!adminMemberships?.length) return json({ error: 'admin_required' }, 403)
 
   const { data: company, error: companyError } = await adminClient
     .from('companies')
-    .select('id, name')
+    .select('id, name, slug, is_active')
     .eq('id', companyId)
+    .eq('is_active', true)
     .maybeSingle()
 
   if (companyError || !company) return json({ error: 'company_not_found' }, 404)
 
   const inviteOptions: { data: Record<string, string>; redirectTo?: string } = {
-    data: { full_name: fullName, company_name: company.name },
+    data: {
+      full_name: fullName,
+      company_name: company.name,
+      company_slug: company.slug,
+    },
   }
   if (redirectTo) inviteOptions.redirectTo = redirectTo
 
@@ -118,6 +124,7 @@ Deno.serve(async (request) => {
 
   return json({
     ok: true,
+    company: { id: company.id, name: company.name, slug: company.slug },
     user: { id: invited.user.id, email, full_name: fullName || null },
     membership,
   }, 201)
