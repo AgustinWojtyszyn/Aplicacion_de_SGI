@@ -3,6 +3,7 @@ import AdminRoute from './components/AdminRoute'
 import AppShell from './components/AppShell'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
+import CompaniesPage from './pages/CompaniesPage'
 import CompanyGatePage from './pages/CompanyGatePage'
 import DashboardPage from './pages/DashboardPage'
 import DocumentsPage from './pages/DocumentsPage'
@@ -23,7 +24,10 @@ export default function App() {
       <Route path="/sgi" element={<SgiPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
-      <Route element={<AdminRoute />}><Route path="/users" element={<UsersPage />} /></Route>
+      <Route element={<AdminRoute />}>
+        <Route path="/users" element={<UsersPage />} />
+        <Route path="/companies" element={<CompaniesPage />} />
+      </Route>
     </Route></Route>
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes></AuthProvider>
