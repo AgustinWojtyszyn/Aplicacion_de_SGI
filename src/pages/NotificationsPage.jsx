@@ -18,7 +18,10 @@ export default function NotificationsPage() {
     if (!company?.id) return
     setLoading(true); setError('')
     try {
-      const [nextNotifications, nextDocuments] = await Promise.all([listNotifications(), listDocuments({ companyId: company.id })])
+      const [nextNotifications, nextDocuments] = await Promise.all([
+        listNotifications(company.id),
+        listDocuments({ companyId: company.id }),
+      ])
       setNotifications(nextNotifications); setDocuments(nextDocuments)
     } catch (e) { setError(e.message || 'No se pudieron cargar las alertas.') }
     finally { setLoading(false) }
@@ -28,8 +31,8 @@ export default function NotificationsPage() {
   const overdue = useMemo(() => documents.filter((d) => d.status !== 'approved' && d.review_due_at && new Date(d.review_due_at) < new Date()), [documents])
   async function markRead(id) { try { await markNotificationRead(id); setNotifications((items) => items.map((n) => n.id === id ? { ...n, read_at: new Date().toISOString() } : n)) } catch (e) { setError(e.message) } }
 
-  return <section className="page-stack alerts-page"><header className="page-heading"><div><p className="eyebrow">SEGUIMIENTO</p><h1>Alertas y notificaciones</h1><p>Revisiones, aprobaciones, cambios solicitados y vencimientos.</p></div></header>{error && <div className="page-error">{error}</div>}
+  return <section className="page-stack alerts-page"><header className="page-heading"><div><p className="eyebrow">SEGUIMIENTO · {company?.name}</p><h1>Alertas y notificaciones</h1><p>Revisiones, aprobaciones, cambios solicitados y vencimientos de este espacio.</p></div></header>{error && <div className="page-error">{error}</div>}
     {overdue.length > 0 && <article className="overdue-panel"><header><FileWarning size={20} /><div><strong>{overdue.length} documento{overdue.length === 1 ? '' : 's'} vencido{overdue.length === 1 ? '' : 's'}</strong><span>Superaron su fecha objetivo de revisión.</span></div></header>{overdue.map((d) => <div className="overdue-row" key={d.id}><span>{d.title}</span><small><Clock3 size={13} /> {formatDate(d.review_due_at)}</small><Link to="/documents">Revisar</Link></div>)}</article>}
-    <div className="notification-list">{loading ? <div className="dashboard-loading"><span className="loader-dot" /> Cargando…</div> : notifications.length === 0 ? <div className="dashboard-empty"><BellRing size={24} /><strong>Sin notificaciones</strong><span>Los eventos del flujo SGI aparecerán acá.</span></div> : notifications.map((item) => <article key={item.id} className={`notification-card ${item.read_at ? 'read' : 'unread'}`}><div className="notification-icon"><BellRing size={18} /></div><div><strong>{item.title}</strong><p>{item.message}</p><span>{formatDate(item.created_at)}</span></div><div className="notification-actions">{item.document_id && <Link to="/documents">Abrir</Link>}{!item.read_at && <button className="icon-button" onClick={() => markRead(item.id)} title="Marcar leída"><Check size={17} /></button>}</div></article>)}</div>
+    <div className="notification-list">{loading ? <div className="dashboard-loading"><span className="loader-dot" /> Cargando…</div> : notifications.length === 0 ? <div className="dashboard-empty"><BellRing size={24} /><strong>Sin notificaciones</strong><span>Los eventos del flujo SGI de {company?.name} aparecerán acá.</span></div> : notifications.map((item) => <article key={item.id} className={`notification-card ${item.read_at ? 'read' : 'unread'}`}><div className="notification-icon"><BellRing size={18} /></div><div><strong>{item.title}</strong><p>{item.message}</p><span>{formatDate(item.created_at)}</span></div><div className="notification-actions">{item.document_id && <Link to="/documents">Abrir</Link>}{!item.read_at && <button className="icon-button" onClick={() => markRead(item.id)} title="Marcar leída"><Check size={17} /></button>}</div></article>)}</div>
   </section>
 }
