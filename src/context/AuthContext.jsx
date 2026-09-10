@@ -1,56 +1,90 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { requireSupabase, supabaseConfigured } from '../lib/supabase'
+import { readSelectedCompany, rememberSelectedCompany } from '../services/tenantService'
 
 const AuthContext = createContext(null)
 
+async function loadModules(companyId) {
+  if (!companyId) return []
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('modules')
+    .select('id, name, code, description')
+    .eq('company_id', companyId)
+    .eq('is_active', true)
+    .order('name')
+
+  if (error) throw error
+  return data ?? []
+}
+
 async function loadWorkspace(user) {
   const supabase = requireSupabase()
+  const preferredCompany = readSelectedCompany()
 
-  // The very first authenticated user can safely bootstrap the initial SF Higiene admin.
-  // Once a member exists, the RPC returns false and never grants access automatically.
-  await supabase.rpc('bootstrap_sf_higiene_admin')
+  const [profileResult, membershipsResult, adminResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('company_members')
+      .select('role, is_active, company:companies(id, name, slug, is_active)')
+      .eq('user_id', user.id)
+      .eq('is_active', true),
+    supabase.rpc('is_platform_admin'),
+  ])
 
-  const [{ data: profile, error: profileError }, { data: membership, error: membershipError }] =
-    await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .eq('id', user.id)
-        .maybeSingle(),
-      supabase
-        .from('company_members')
-        .select('role, is_active, company:companies(id, name, slug)')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .maybeSingle(),
-    ])
+  if (profileResult.error) throw profileResult.error
+  if (membershipsResult.error) throw membershipsResult.error
+  if (adminResult.error) throw adminResult.error
 
-  if (profileError) throw profileError
-  if (membershipError) throw membershipError
+  const isPlatformAdmin = Boolean(adminResult.data)
+  const memberships = (membershipsResult.data ?? []).filter((item) => item.company?.is_active !== false)
 
-  let modules = []
-  if (membership?.company?.id) {
+  let companies = memberships.map((item) => item.company).filter(Boolean)
+  if (isPlatformAdmin) {
     const { data, error } = await supabase
-      .from('modules')
-      .select('id, name, code, description')
-      .eq('company_id', membership.company.id)
+      .from('companies')
+      .select('id, name, slug, is_active')
       .eq('is_active', true)
       .order('name')
-
     if (error) throw error
-    modules = data ?? []
+    companies = data ?? []
   }
 
+  const preferredMatch = preferredCompany?.slug
+    ? companies.find((item) => item.slug === preferredCompany.slug)
+    : null
+  const selectedCompany = preferredMatch ?? companies[0] ?? null
+  const selectedMembership = selectedCompany
+    ? memberships.find((item) => item.company?.id === selectedCompany.id)
+    : null
+
+  let workspaceError = ''
+  if (!isPlatformAdmin && preferredCompany?.slug && !preferredMatch) {
+    workspaceError = `Tu cuenta no está habilitada para ${preferredCompany.name || 'la empresa seleccionada'}. Volvé al acceso inicial y elegí tu empresa.`
+  }
+
+  const membership = selectedCompany
+    ? isPlatformAdmin
+      ? { role: 'admin', isActive: true, company: selectedCompany }
+      : selectedMembership
+        ? { role: selectedMembership.role, isActive: selectedMembership.is_active, company: selectedCompany }
+        : null
+    : null
+
+  const modules = selectedCompany ? await loadModules(selectedCompany.id) : []
+
   return {
-    profile,
-    membership: membership
-      ? {
-          role: membership.role,
-          isActive: membership.is_active,
-          company: membership.company,
-        }
-      : null,
+    profile: profileResult.data,
+    membership,
+    company: selectedCompany,
+    companies,
     modules,
+    isPlatformAdmin,
+    workspaceError,
   }
 }
 
@@ -58,7 +92,11 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [membership, setMembership] = useState(null)
+  const [company, setCompany] = useState(null)
+  const [companies, setCompanies] = useState([])
   const [modules, setModules] = useState([])
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
+  const [preferredCompany, setPreferredCompany] = useState(() => readSelectedCompany())
   const [loading, setLoading] = useState(true)
   const [workspaceError, setWorkspaceError] = useState('')
 
@@ -69,7 +107,10 @@ export function AuthProvider({ children }) {
     if (!nextSession?.user) {
       setProfile(null)
       setMembership(null)
+      setCompany(null)
+      setCompanies([])
       setModules([])
+      setIsPlatformAdmin(false)
       setLoading(false)
       return
     }
@@ -78,13 +119,21 @@ export function AuthProvider({ children }) {
       const workspace = await loadWorkspace(nextSession.user)
       setProfile(workspace.profile)
       setMembership(workspace.membership)
+      setCompany(workspace.company)
+      setCompanies(workspace.companies)
       setModules(workspace.modules)
+      setIsPlatformAdmin(workspace.isPlatformAdmin)
+      setWorkspaceError(workspace.workspaceError)
+      setPreferredCompany(readSelectedCompany())
     } catch (error) {
-      console.error('Failed to load SGI workspace', error)
+      console.error('Failed to load IntegraFlow workspace', error)
       setWorkspaceError(error.message || 'No se pudo cargar el espacio de trabajo.')
       setProfile(null)
       setMembership(null)
+      setCompany(null)
+      setCompanies([])
       setModules([])
+      setIsPlatformAdmin(false)
     } finally {
       setLoading(false)
     }
@@ -118,27 +167,38 @@ export function AuthProvider({ children }) {
     }
   }, [hydrate])
 
-  const signIn = useCallback(async ({ email, password }) => {
+  const signIn = useCallback(async ({ email, password, company: selectedCompany }) => {
+    if (!selectedCompany?.slug) throw new Error('Seleccioná una empresa antes de ingresar.')
+    rememberSelectedCompany(selectedCompany)
+    setPreferredCompany(selectedCompany)
+
     const supabase = requireSupabase()
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     return data
   }, [])
 
-  const signUp = useCallback(async ({ fullName, email, password }) => {
+  const signUp = useCallback(async ({ fullName, email, password, company: selectedCompany }) => {
     const cleanName = fullName.trim()
     const cleanEmail = email.trim().toLowerCase()
 
+    if (!selectedCompany?.slug) throw new Error('Seleccioná una empresa antes de registrarte.')
     if (cleanName.length < 2) throw new Error('Ingresá tu nombre completo.')
     if (password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
+
+    rememberSelectedCompany(selectedCompany)
+    setPreferredCompany(selectedCompany)
 
     const supabase = requireSupabase()
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
       password,
       options: {
-        data: { full_name: cleanName },
-        emailRedirectTo: `${window.location.origin}/login`,
+        data: {
+          full_name: cleanName,
+          company_slug: selectedCompany.slug,
+        },
+        emailRedirectTo: `${window.location.origin}/login/${selectedCompany.slug}`,
       },
     })
 
@@ -167,6 +227,25 @@ export function AuthProvider({ children }) {
     return data
   }, [])
 
+  const switchCompany = useCallback(async (companyId) => {
+    if (!isPlatformAdmin) throw new Error('Solo un administrador puede cambiar de empresa.')
+    const nextCompany = companies.find((item) => item.id === companyId)
+    if (!nextCompany) throw new Error('Empresa no disponible.')
+
+    setLoading(true)
+    setWorkspaceError('')
+    try {
+      const nextModules = await loadModules(nextCompany.id)
+      rememberSelectedCompany(nextCompany)
+      setPreferredCompany(nextCompany)
+      setCompany(nextCompany)
+      setMembership({ role: 'admin', isActive: true, company: nextCompany })
+      setModules(nextModules)
+    } finally {
+      setLoading(false)
+    }
+  }, [companies, isPlatformAdmin])
+
   const refreshWorkspace = useCallback(async () => {
     if (!session?.user) return
     setLoading(true)
@@ -179,15 +258,19 @@ export function AuthProvider({ children }) {
       user: session?.user ?? null,
       profile,
       membership,
-      company: membership?.company ?? null,
+      company,
+      companies,
       role: membership?.role ?? null,
       modules,
+      isPlatformAdmin,
+      preferredCompany,
       loading,
       workspaceError,
       configured: supabaseConfigured,
       signIn,
       signUp,
       signOut,
+      switchCompany,
       requestPasswordReset,
       updatePassword,
       refreshWorkspace,
@@ -196,12 +279,17 @@ export function AuthProvider({ children }) {
       session,
       profile,
       membership,
+      company,
+      companies,
       modules,
+      isPlatformAdmin,
+      preferredCompany,
       loading,
       workspaceError,
       signIn,
       signUp,
       signOut,
+      switchCompany,
       requestPasswordReset,
       updatePassword,
       refreshWorkspace,
