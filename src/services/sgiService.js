@@ -17,14 +17,17 @@ export async function listSgiRequirements(companyId, norm = '') {
   return data ?? []
 }
 
-export async function listNotifications() {
+export async function listNotifications(companyId) {
   const supabase = requireSupabase()
-  const { data, error } = await supabase
+  let query = supabase
     .from('sgi_notifications')
-    .select('id, kind, title, message, read_at, created_at, document_id')
+    .select('id, company_id, kind, title, message, read_at, created_at, document_id')
     .order('created_at', { ascending: false })
     .limit(50)
 
+  if (companyId) query = query.eq('company_id', companyId)
+
+  const { data, error } = await query
   if (error) throw error
   return data ?? []
 }
