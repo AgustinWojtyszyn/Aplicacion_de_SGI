@@ -11,5 +11,6 @@ import './styles/users.css'
 import './styles/auth-flow.css'
 import './styles/sgi.css'
 import './styles/brand.css'
+import './styles/tenants.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(<React.StrictMode><BrowserRouter><App /></BrowserRouter></React.StrictMode>)
