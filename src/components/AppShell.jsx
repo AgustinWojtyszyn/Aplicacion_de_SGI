@@ -22,7 +22,13 @@ export default function AppShell() {
   const [switchingCompany, setSwitchingCompany] = useState(false)
   const { profile, company, companies, role, isPlatformAdmin, switchCompany, signOut } = useAuth()
   const navigation = useMemo(
-    () => canManageUsers(role) ? [...baseNavigation, { to: '/users', label: 'Usuarios', icon: UsersRound }] : baseNavigation,
+    () => canManageUsers(role)
+      ? [
+          ...baseNavigation,
+          { to: '/users', label: 'Usuarios', icon: UsersRound },
+          { to: '/companies', label: 'Empresas', icon: Building2 },
+        ]
+      : baseNavigation,
     [role],
   )
   const closeMenu = () => setMenuOpen(false)
