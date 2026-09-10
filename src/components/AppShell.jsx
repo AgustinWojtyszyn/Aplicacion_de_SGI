@@ -1,4 +1,4 @@
-import { BellRing, FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, UsersRound, X } from 'lucide-react'
+import { BellRing, Building2, FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, UsersRound, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -19,12 +19,26 @@ function initials(name, email) {
 
 export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const { profile, company, role, signOut } = useAuth()
+  const [switchingCompany, setSwitchingCompany] = useState(false)
+  const { profile, company, companies, role, isPlatformAdmin, switchCompany, signOut } = useAuth()
   const navigation = useMemo(
     () => canManageUsers(role) ? [...baseNavigation, { to: '/users', label: 'Usuarios', icon: UsersRound }] : baseNavigation,
     [role],
   )
   const closeMenu = () => setMenuOpen(false)
+
+  async function handleCompanyChange(event) {
+    const companyId = event.target.value
+    if (!companyId || companyId === company?.id) return
+    setSwitchingCompany(true)
+    try {
+      await switchCompany(companyId)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setSwitchingCompany(false)
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -48,7 +62,7 @@ export default function AppShell() {
           <div className="avatar">{initials(profile?.full_name, profile?.email)}</div>
           <div className="sidebar-user-copy">
             <strong>{profile?.full_name || profile?.email || 'Usuario'}</strong>
-            <span>{roleLabel(role)}</span>
+            <span>{isPlatformAdmin ? 'Administrador global' : roleLabel(role)}</span>
           </div>
           <button className="icon-button" onClick={signOut} aria-label="Cerrar sesión"><LogOut size={18} /></button>
         </div>
@@ -57,13 +71,24 @@ export default function AppShell() {
       {menuOpen && <button className="sidebar-backdrop" onClick={closeMenu} aria-label="Cerrar menú" />}
 
       <div className="app-main">
-        <header className="topbar">
+        <header className="topbar tenant-topbar">
           <button className="icon-button mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={22} /></button>
-          <div>
+          <div className="workspace-title">
             <span className="topbar-kicker">ESPACIO DE TRABAJO</span>
             <strong>{company?.name || 'Gestión integrada'}</strong>
           </div>
-          <div className="stage-pill">ISO 9001 · 14001 · 45001</div>
+
+          {isPlatformAdmin && companies.length > 0 ? (
+            <label className="company-switcher">
+              <Building2 size={16} />
+              <span>Empresa</span>
+              <select value={company?.id || ''} onChange={handleCompanyChange} disabled={switchingCompany}>
+                {companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </label>
+          ) : (
+            <div className="stage-pill">ISO 9001 · 14001 · 45001</div>
+          )}
         </header>
         <main className="page-content"><Outlet /></main>
       </div>
