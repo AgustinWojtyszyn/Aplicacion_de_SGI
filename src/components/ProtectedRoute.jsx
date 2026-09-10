@@ -3,10 +3,10 @@ import { useAuth } from '../context/AuthContext'
 import AccessPendingPage from '../pages/AccessPendingPage'
 
 export default function ProtectedRoute() {
-  const { configured, user, membership, loading, workspaceError } = useAuth()
+  const { configured, user, membership, loading, workspaceError, preferredCompany } = useAuth()
 
   if (!configured) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/" replace />
   }
 
   if (loading) {
@@ -19,7 +19,8 @@ export default function ProtectedRoute() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    const loginPath = preferredCompany?.slug ? `/login/${preferredCompany.slug}` : '/'
+    return <Navigate to={loginPath} replace />
   }
 
   if (workspaceError || !membership) {
