@@ -4,15 +4,20 @@ Usar esta lista antes de considerar el sistema listo para entrega o deploy final
 
 ## Base de datos
 
-- [ ] Ejecutar las 8 migraciones en orden.
+- [ ] Ejecutar las 11 migraciones en orden.
 - [ ] Confirmar que existen `sgi_requirements`, `document_versions` y `sgi_notifications`.
 - [ ] Confirmar que `documents` tiene `requirement_id`, `reviewer_id`, `approver_id`, `review_due_at` y `current_version`.
+- [ ] Confirmar que existen empresas y membresías multiempresa.
 - [ ] Verificar RLS con un usuario activo y otro pendiente/inactivo.
+- [ ] Verificar aislamiento usando usuarios de dos empresas distintas.
 
 ## Auth y usuarios
 
-- [ ] Confirmar que el registro público crea la cuenta sin exponer documentación.
-- [ ] Confirmar que un administrador puede activar/desactivar usuarios.
+- [ ] Confirmar que `/` muestra la selección de empresa antes del login.
+- [ ] Confirmar que el registro público queda asociado a la empresa seleccionada sin exponer documentación.
+- [ ] Confirmar que un administrador de empresa puede gestionar usuarios de su espacio.
+- [ ] Confirmar que solo el administrador global ve y administra **Empresas**.
+- [ ] Confirmar que el administrador global puede cambiar de empresa desde la barra superior.
 - [ ] Confirmar que un usuario pendiente ve la pantalla de acceso pendiente.
 - [ ] Probar recuperación de contraseña.
 - [ ] Probar invitación administrativa si se usará `invite-user`.
@@ -40,8 +45,10 @@ Usar esta lista antes de considerar el sistema listo para entrega o deploy final
 
 ## Frontend
 
-- [ ] Revisar login, recuperación y alta pública con branding IntegraFlow.
+- [ ] Revisar selección de empresa, login, recuperación y alta pública con branding IntegraFlow.
 - [ ] Revisar sidebar, favicon y título del navegador.
+- [ ] Verificar que un admin de empresa no vea **Empresas**.
+- [ ] Verificar que el cambio de empresa del admin global refresque dashboard, documentos y alertas.
 - [ ] Probar en resoluciones de escritorio habituales.
 - [ ] Confirmar que no quedan errores en consola.
 - [ ] Confirmar que no se muestran nombres de producto antiguos en pantallas públicas.
@@ -57,6 +64,16 @@ npm run build
 - [ ] Tests verdes.
 - [ ] Build de producción exitoso.
 - [ ] GitHub Actions verde sobre `main`.
+
+## Guion mínimo para la reunión
+
+- [ ] Mostrar selector de empresa antes del login.
+- [ ] Ingresar como administrador global y cambiar entre dos empresas.
+- [ ] Mostrar que la documentación cambia con el espacio activo.
+- [ ] Crear o abrir un documento y recorrer versión → revisión → aprobación.
+- [ ] Mostrar matriz SGI/ISO y dashboard.
+- [ ] Mostrar un usuario pendiente y su posterior habilitación.
+- [ ] Ingresar como usuario no global y comprobar que no puede administrar otras empresas.
 
 ## Deploy final
 
