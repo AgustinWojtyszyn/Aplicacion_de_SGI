@@ -57,18 +57,23 @@ Deno.serve(async (request) => {
     return json({ error: 'invalid_invitation' }, 400)
   }
 
-  // Administrators are global in IntegraFlow: an active admin membership in
-  // any company authorizes administration of all company workspaces.
-  const { data: adminMemberships, error: membershipError } = await adminClient
-    .from('company_members')
-    .select('company_id')
-    .eq('user_id', authData.user.id)
-    .eq('role', 'admin')
-    .eq('is_active', true)
-    .limit(1)
+  const [{ data: platformAdmin }, { data: companyAdmin }] = await Promise.all([
+    adminClient
+      .from('platform_admins')
+      .select('user_id')
+      .eq('user_id', authData.user.id)
+      .maybeSingle(),
+    adminClient
+      .from('company_members')
+      .select('user_id')
+      .eq('company_id', companyId)
+      .eq('user_id', authData.user.id)
+      .eq('role', 'admin')
+      .eq('is_active', true)
+      .maybeSingle(),
+  ])
 
-  if (membershipError) return json({ error: 'membership_check_failed' }, 500)
-  if (!adminMemberships?.length) return json({ error: 'admin_required' }, 403)
+  if (!platformAdmin && !companyAdmin) return json({ error: 'admin_required' }, 403)
 
   const { data: company, error: companyError } = await adminClient
     .from('companies')
