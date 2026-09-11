@@ -13,7 +13,7 @@ export default class AppErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('IntegraFlow render error', error, info)
+    console.error('EP Consultora render error', error, info)
   }
 
   render() {
@@ -26,7 +26,7 @@ export default class AppErrorBoundary extends Component {
           <p className="eyebrow">RECUPERACIÓN DE PANTALLA</p>
           <h1>No pudimos mostrar esta sección.</h1>
           <p>
-            La sesión sigue protegida. Podés recargar la aplicación o volver al acceso inicial para continuar la demostración.
+            La sesión sigue protegida. Podés recargar la aplicación o volver al acceso inicial para continuar.
           </p>
           <div className="access-actions">
             <button className="primary-button" type="button" onClick={() => window.location.reload()}>
