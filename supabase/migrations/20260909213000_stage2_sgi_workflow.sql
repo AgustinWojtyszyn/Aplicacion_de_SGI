@@ -90,7 +90,7 @@ cross join (
     ('SGI', 9, 'SGI-9', 'Evaluación del desempeño', 'Seguimiento, medición, auditorías y revisión por la dirección.'),
     ('SGI', 10, 'SGI-10', 'Mejora continua', 'Incidentes, no conformidades, acciones correctivas y mejora integrada.')
 ) as seed(norm, chapter, code, title, description)
-where c.slug = 'sf-higiene'
+where c.slug = 'ep-consultora'
 on conflict (company_id, norm, code) do update
 set chapter = excluded.chapter,
     title = excluded.title,
