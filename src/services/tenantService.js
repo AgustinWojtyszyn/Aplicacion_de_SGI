@@ -1,6 +1,6 @@
 import { requireSupabase } from '../lib/supabase'
 
-export const COMPANY_SELECTION_KEY = 'integraflow.selected-company'
+export const COMPANY_SELECTION_KEY = 'ep-consultora.selected-company'
 
 export function rememberSelectedCompany(company) {
   if (!company?.slug) return
