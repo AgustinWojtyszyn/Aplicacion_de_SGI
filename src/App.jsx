@@ -26,6 +26,8 @@ export default function App() {
       <Route path="/notifications" element={<NotificationsPage />} />
       <Route element={<AdminRoute />}>
         <Route path="/users" element={<UsersPage />} />
+      </Route>
+      <Route element={<AdminRoute platformOnly />}>
         <Route path="/companies" element={<CompaniesPage />} />
       </Route>
     </Route></Route>
