@@ -96,7 +96,7 @@ export default function UsersPage() {
         <div>
           <p className="eyebrow">ADMINISTRACIÓN</p>
           <h1>Usuarios</h1>
-          <p>Roles y acceso al espacio de trabajo de {company?.name || 'SF Higiene'}.</p>
+          <p>Roles y acceso al espacio de trabajo de {company?.name || 'la empresa seleccionada'}.</p>
         </div>
         <div className="users-heading-actions">
           <button className="secondary-button" onClick={load} disabled={loading}>
@@ -111,7 +111,7 @@ export default function UsersPage() {
       {inviteOpen && (
         <form className="invite-user-panel" onSubmit={handleInvite}>
           <div className="invite-user-copy">
-            <strong>Invitar a SF Higiene</strong>
+            <strong>Invitar a {company?.name || 'esta empresa'}</strong>
             <span>La persona recibirá un correo para establecer su contraseña.</span>
           </div>
           <label className="field">
@@ -129,7 +129,7 @@ export default function UsersPage() {
               type="email"
               value={inviteValues.email}
               onChange={(event) => setInviteValues((current) => ({ ...current, email: event.target.value }))}
-              placeholder="persona@sfhigiene.com"
+              placeholder="persona@empresa.com"
               required
             />
           </label>
