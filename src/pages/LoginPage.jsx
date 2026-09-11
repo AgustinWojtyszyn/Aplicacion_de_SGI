@@ -105,7 +105,7 @@ export default function LoginPage() {
         <p className="eyebrow">GESTIÓN DOCUMENTAL · SGI · CUMPLIMIENTO</p>
         <h1>{company ? `${company.name}, en un solo flujo.` : 'Todo tu sistema de gestión, en un solo flujo.'}</h1>
         <p>
-          IntegraFlow centraliza documentos, versiones, responsables, revisiones, aprobaciones, requisitos ISO y alertas en una plataforma segura y trazable.
+          EP Consultora centraliza documentos, versiones, responsables, revisiones, aprobaciones, requisitos ISO y alertas en una plataforma segura y trazable.
         </p>
         {company && (
           <div className="selected-tenant-chip">
