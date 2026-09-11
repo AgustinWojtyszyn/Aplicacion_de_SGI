@@ -6,9 +6,8 @@ alter table public.companies
 create index if not exists companies_active_name_idx
   on public.companies(is_active, name);
 
--- A platform administrator is any active company administrator. This preserves
--- the existing admin role while allowing administrators to supervise every
--- company workspace from the same account.
+-- Transitional platform-admin behavior. The later EP Consultora platform-admin
+-- migration replaces this with an explicit platform_admins table.
 create or replace function public.is_platform_admin(
   p_user_id uuid default auth.uid()
 )
@@ -28,9 +27,6 @@ as $$
     );
 $$;
 
--- Normal users remain restricted to active memberships. Administrators are
--- intentionally allowed through any company-scoped RLS policy so they can
--- inspect and manage all workspaces.
 create or replace function public.is_company_member(
   p_company_id uuid,
   p_user_id uuid default auth.uid()
@@ -104,8 +100,6 @@ as $$
     );
 $$;
 
--- Safe, minimal company directory exposed before authentication. No internal
--- data, users or documents are returned by this function.
 create or replace function public.list_login_companies()
 returns table (
   id uuid,
@@ -123,9 +117,6 @@ as $$
   order by c.name;
 $$;
 
--- Public signups are attached as pending members to the company selected in
--- the pre-login flow. They still receive no company data until an admin
--- activates the membership.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -167,9 +158,8 @@ begin
 end;
 $$;
 
--- Platform admins can create another isolated workspace. The operational
--- modules and SGI requirement catalogue are copied from the original template
--- so a new company is immediately usable without sharing any documents.
+-- Transitional workspace creation. The later EP Consultora migration replaces
+-- template copying with direct per-company seeding.
 create or replace function public.create_company_workspace(
   p_name text,
   p_slug text
@@ -207,7 +197,7 @@ begin
 
   select c.id into v_template_company_id
   from public.companies c
-  where c.slug = 'sf-higiene'
+  where c.slug = 'ep-consultora'
   limit 1;
 
   if v_template_company_id is not null then
@@ -231,8 +221,6 @@ exception
 end;
 $$;
 
--- Notifications were originally user-scoped. Administrators also need a
--- complete audit view while operating another company workspace.
 drop policy if exists sgi_notifications_platform_admin_select on public.sgi_notifications;
 create policy sgi_notifications_platform_admin_select
 on public.sgi_notifications for select
