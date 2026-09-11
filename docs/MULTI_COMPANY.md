@@ -1,16 +1,39 @@
 # Multiempresa · flujo de acceso y aislamiento
 
-IntegraFlow usa un modelo multiempresa. Cada organización tiene su propio espacio documental y SGI, mientras que los administradores pueden supervisar todos los espacios.
+EP Consultora usa un modelo multiempresa. Cada organización tiene su propio espacio documental y SGI.
+
+## Roles administrativos
+
+- **Administrador global de EP Consultora**: crea empresas, puede recorrer todos los espacios y asigna el primer administrador de cada cliente.
+- **Administrador de empresa**: gestiona usuarios y documentación únicamente dentro de su empresa.
+- **Responsable / miembro**: opera dentro de las capacidades asignadas en su empresa.
+
+Los administradores de empresa no son administradores globales.
 
 ## Flujo de acceso
 
-1. La ruta `/` muestra únicamente el directorio de empresas activas (`id`, `name`, `slug`).
+1. La ruta `/` muestra únicamente el directorio mínimo de empresas activas (`id`, `name`, `slug`).
 2. El usuario elige su empresa antes de autenticarse.
 3. El login queda en `/login/:companySlug`.
 4. El registro público guarda `company_slug` en los metadatos de Auth.
 5. El trigger de alta crea una membresía `member` inactiva para esa empresa.
-6. Un administrador habilita la cuenta desde `Usuarios`.
-7. Una cuenta normal solo puede abrir el espacio de una empresa donde tenga una membresía activa.
+6. Un administrador de esa empresa habilita la cuenta desde `Usuarios`.
+7. Una cuenta normal solo puede abrir espacios donde tenga una membresía activa.
+
+## Alta de empresas
+
+El administrador global dispone de `/companies` (`Empresas` en la navegación).
+
+Al crear un espacio debe completar:
+
+- nombre de la empresa;
+- identificador/slug de acceso;
+- nombre del primer administrador;
+- correo del primer administrador.
+
+El sistema crea el espacio, carga módulos y requisitos SGI/ISO base y envía una invitación al primer administrador con rol `admin` para esa empresa.
+
+Después, ese administrador puede invitar usuarios adicionales o habilitar registros públicos pendientes desde `Usuarios`.
 
 ## Aislamiento
 
@@ -18,37 +41,37 @@ Los documentos, módulos, requisitos SGI y archivos de Storage están vinculados
 
 - Usuarios normales: RLS exige membresía activa de la empresa.
 - Responsables: mantienen sus permisos funcionales dentro del espacio habilitado.
-- Administradores: se consideran administradores globales y pueden cambiar de empresa desde el selector superior.
-- El cambio de empresa modifica el contexto activo; las consultas del frontend siguen filtrando por el `company_id` seleccionado.
+- Administradores de empresa: administran solo su propio espacio.
+- Administradores globales: pueden supervisar todas las empresas y cambiar el contexto activo desde la barra superior.
 - Los documentos nunca se copian al crear otra empresa.
 
-## Alta de empresas
+## Migraciones necesarias
 
-Los administradores disponen de `/companies` (`Empresas` en la navegación).
+Aplicar todas las migraciones del repositorio en orden. Para el modelo multiempresa actual son especialmente relevantes:
 
-Al crear un espacio:
+- `supabase/migrations/20260910194000_multi_company_tenant_access.sql`
+- `supabase/migrations/20260911103000_ep_consultora_platform_admins.sql`
 
-- se crea una nueva fila en `companies`;
-- se copian los módulos base del espacio plantilla;
-- se copia el catálogo de requisitos ISO/SGI;
-- no se copian usuarios, documentos, versiones ni notificaciones.
+La última migración separa administradores globales de administradores de empresa y elimina la dependencia de una empresa plantilla fija.
 
-## Migración necesaria
+## Edge Function de invitaciones
 
-Aplicar, después de las migraciones anteriores del repositorio:
+El flujo de primer administrador y las invitaciones desde `Usuarios` usan:
 
-`supabase/migrations/20260910194000_multi_company_tenant_access.sql`
+```bash
+npx supabase functions deploy invite-user --project-ref TU_PROJECT_REF
+```
 
-Si se utilizan invitaciones desde la pantalla `Usuarios`, volver a desplegar la Edge Function `invite-user` para que un administrador global pueda invitar usuarios a la empresa actualmente seleccionada.
+La función autoriza al administrador global para cualquier empresa y al administrador de empresa únicamente para su propio espacio.
 
 ## Prueba mínima recomendada
 
-1. Ingresar como administrador.
-2. Crear una segunda empresa desde `Empresas`.
-3. Cerrar sesión y confirmar que ambas aparecen antes del login.
-4. Registrar un usuario seleccionando la segunda empresa.
-5. Confirmar que queda pendiente y no puede leer documentación.
-6. Habilitarlo desde `Usuarios` mientras el administrador tiene seleccionada la segunda empresa.
-7. Crear un documento en cada empresa.
-8. Ingresar como usuario normal y confirmar que solo ve el documento de su empresa.
-9. Ingresar como administrador, cambiar de empresa desde el selector superior y confirmar que puede ver ambos espacios por separado.
+1. Ingresar como administrador global.
+2. Crear una segunda empresa desde `Empresas`, incluyendo el correo de su primer administrador.
+3. Confirmar que ese correo recibe la invitación y puede establecer contraseña.
+4. Ingresar con ese administrador y verificar que ve `Usuarios`, pero no `Empresas`.
+5. Registrar un usuario público en esa empresa y confirmar que queda pendiente.
+6. Habilitarlo desde `Usuarios`.
+7. Crear documentos en dos empresas distintas.
+8. Confirmar que el usuario normal solo ve documentación de su empresa.
+9. Confirmar que el administrador global sí puede cambiar entre espacios.
