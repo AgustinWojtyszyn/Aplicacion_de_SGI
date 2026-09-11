@@ -126,7 +126,7 @@ export function AuthProvider({ children }) {
       setWorkspaceError(workspace.workspaceError)
       setPreferredCompany(readSelectedCompany())
     } catch (error) {
-      console.error('Failed to load IntegraFlow workspace', error)
+      console.error('Failed to load EP Consultora workspace', error)
       setWorkspaceError(error.message || 'No se pudo cargar el espacio de trabajo.')
       setProfile(null)
       setMembership(null)
@@ -228,7 +228,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const switchCompany = useCallback(async (companyId) => {
-    if (!isPlatformAdmin) throw new Error('Solo un administrador puede cambiar de empresa.')
+    if (!isPlatformAdmin) throw new Error('Solo un administrador global puede cambiar de empresa.')
     const nextCompany = companies.find((item) => item.id === companyId)
     if (!nextCompany) throw new Error('Empresa no disponible.')
 
@@ -260,19 +260,19 @@ export function AuthProvider({ children }) {
       membership,
       company,
       companies,
-      role: membership?.role ?? null,
       modules,
+      role: membership?.role ?? null,
       isPlatformAdmin,
       preferredCompany,
+      configured: supabaseConfigured,
       loading,
       workspaceError,
-      configured: supabaseConfigured,
       signIn,
       signUp,
       signOut,
-      switchCompany,
       requestPasswordReset,
       updatePassword,
+      switchCompany,
       refreshWorkspace,
     }),
     [
@@ -289,9 +289,9 @@ export function AuthProvider({ children }) {
       signIn,
       signUp,
       signOut,
-      switchCompany,
       requestPasswordReset,
       updatePassword,
+      switchCompany,
       refreshWorkspace,
     ],
   )
@@ -301,6 +301,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) throw new Error('useAuth must be used inside AuthProvider')
+  if (!context) throw new Error('useAuth debe usarse dentro de AuthProvider.')
   return context
 }
