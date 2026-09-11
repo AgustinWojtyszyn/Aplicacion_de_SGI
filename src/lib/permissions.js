@@ -2,6 +2,10 @@ export function canManageUsers(role) {
   return role === 'admin'
 }
 
+export function canManageCompanies({ role, isPlatformAdmin }) {
+  return role === 'admin' && Boolean(isPlatformAdmin)
+}
+
 export function canManageDocument({ role, userId, document }) {
   if (!document || !userId || document.status !== 'draft') return false
   if (role === 'admin' || role === 'responsible') return true
