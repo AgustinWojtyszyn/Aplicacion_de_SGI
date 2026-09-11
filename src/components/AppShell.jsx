@@ -2,7 +2,7 @@ import { BellRing, Building2, FileText, LayoutDashboard, LogOut, Menu, ShieldChe
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { canManageUsers, roleLabel } from '../lib/permissions'
+import { canManageCompanies, canManageUsers, roleLabel } from '../lib/permissions'
 import BrandLogo from './BrandLogo'
 
 const baseNavigation = [
@@ -21,16 +21,12 @@ export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [switchingCompany, setSwitchingCompany] = useState(false)
   const { profile, company, companies, role, isPlatformAdmin, switchCompany, signOut } = useAuth()
-  const navigation = useMemo(
-    () => canManageUsers(role)
-      ? [
-          ...baseNavigation,
-          { to: '/users', label: 'Usuarios', icon: UsersRound },
-          { to: '/companies', label: 'Empresas', icon: Building2 },
-        ]
-      : baseNavigation,
-    [role],
-  )
+  const navigation = useMemo(() => {
+    const items = [...baseNavigation]
+    if (canManageUsers(role)) items.push({ to: '/users', label: 'Usuarios', icon: UsersRound })
+    if (canManageCompanies({ role, isPlatformAdmin })) items.push({ to: '/companies', label: 'Empresas', icon: Building2 })
+    return items
+  }, [role, isPlatformAdmin])
   const closeMenu = () => setMenuOpen(false)
 
   async function handleCompanyChange(event) {
@@ -87,8 +83,8 @@ export default function AppShell() {
           {isPlatformAdmin && companies.length > 0 ? (
             <label className="company-switcher">
               <Building2 size={16} />
-              <span>Empresa</span>
-              <select value={company?.id || ''} onChange={handleCompanyChange} disabled={switchingCompany}>
+              <span>{switchingCompany ? 'Cambiando…' : 'Empresa'}</span>
+              <select value={company?.id || ''} onChange={handleCompanyChange} disabled={switchingCompany} aria-label="Cambiar empresa activa">
                 {companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </label>
