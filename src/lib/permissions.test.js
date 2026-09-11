@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canDeleteDocument,
+  canManageCompanies,
   canManageDocument,
   canManageUsers,
   roleLabel,
@@ -18,6 +19,13 @@ describe('role permissions', () => {
     expect(canManageUsers('admin')).toBe(true)
     expect(canManageUsers('responsible')).toBe(false)
     expect(canManageUsers('member')).toBe(false)
+  })
+
+  it('reserves company workspace administration for platform admins', () => {
+    expect(canManageCompanies({ role: 'admin', isPlatformAdmin: true })).toBe(true)
+    expect(canManageCompanies({ role: 'admin', isPlatformAdmin: false })).toBe(false)
+    expect(canManageCompanies({ role: 'responsible', isPlatformAdmin: true })).toBe(false)
+    expect(canManageCompanies({ role: 'member', isPlatformAdmin: true })).toBe(false)
   })
 
   it('lets admins and responsible roles manage any company document', () => {
