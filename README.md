@@ -1,16 +1,19 @@
-# IntegraFlow
+# EP Consultora
 
 **Gestión documental, SGI, cumplimiento y trazabilidad en un solo flujo.**
 
-IntegraFlow es una plataforma web para centralizar documentación, responsables, versiones, revisiones, aprobaciones, requisitos ISO y alertas dentro de un Sistema de Gestión Integrado.
+EP Consultora es una plataforma web multiempresa para centralizar documentación, responsables, versiones, revisiones, aprobaciones, requisitos ISO y alertas dentro de un Sistema de Gestión Integrado.
 
 > Estado actual: **casi listo para producción**. La base operativa y la mayor parte del flujo SGI/ISO ya están implementados.
 
 ## Funcionalidades principales
 
-- Registro público de usuarios con habilitación administrativa posterior.
+- Acceso multiempresa con espacios aislados por cliente.
+- Registro público asociado a una empresa con habilitación administrativa posterior.
+- Alta de empresas desde administración global con invitación automática del primer administrador.
 - Autenticación y recuperación de contraseña con Supabase Auth.
-- Roles `admin`, `responsible` y `member`.
+- Roles `admin`, `responsible` y `member` dentro de cada empresa.
+- Administradores globales de EP Consultora separados de los administradores de clientes.
 - Gestión documental con PDF, Word, Excel e imágenes.
 - Estados `Borrador → En revisión → Aprobado`.
 - Revisor y aprobador designados.
@@ -24,7 +27,7 @@ IntegraFlow es una plataforma web para centralizar documentación, responsables,
 - Capítulos 4 a 10 y asociación documental a requisitos.
 - Búsqueda y filtros.
 - Storage privado con URLs firmadas.
-- RLS en PostgreSQL para proteger información por membresía y rol.
+- RLS en PostgreSQL para proteger información por empresa, membresía y rol.
 - Panel administrativo de usuarios.
 
 ## Flujo documental
@@ -55,14 +58,15 @@ Durante revisión y luego de la aprobación, la metadata sensible queda bloquead
 - Los documentos se almacenan en un bucket privado.
 - El acceso se valida con RLS y funciones controladas en PostgreSQL.
 - Una cuenta registrada no obtiene acceso a documentación hasta ser habilitada por un administrador.
-- Se protege al último administrador activo para evitar que el espacio de trabajo quede sin administración.
+- Los administradores de una empresa no obtienen permisos globales sobre otros clientes.
+- Se protege al último administrador activo para evitar que un espacio de trabajo quede sin administración.
 
 ## Stack
 
 - React 18
 - Vite 5
 - React Router 6
-- Supabase JS / Auth / PostgreSQL / Storage
+- Supabase JS / Auth / PostgreSQL / Storage / Edge Functions
 - Lucide React
 - Vitest + Testing Library
 - GitHub Actions
@@ -102,12 +106,7 @@ GitHub Actions ejecuta ambas verificaciones automáticamente en cada push a `mai
 
 El detalle de la implementación SGI está en [`docs/STAGE2_STATUS.md`](docs/STAGE2_STATUS.md).
 
-Solo quedan dos automatizaciones para el cierre completo:
-
-1. envío automático de emails por revisión, aprobación, observaciones y vencimientos;
-2. job programado que genere recordatorios de vencimiento sin depender de que alguien abra la aplicación.
-
-El resto del circuito funciona dentro de la web.
+Queda como mejora posterior el envío automático de emails para eventos del flujo documental. Las notificaciones internas y los recordatorios de vencimientos ya forman parte de la aplicación.
 
 ## Preparación para producción
 
@@ -115,4 +114,4 @@ Antes del deploy final, seguir [`docs/PRODUCTION_CHECKLIST.md`](docs/PRODUCTION_
 
 ---
 
-**IntegraFlow** · Gestión documental y procesos integrados · 2026
+**EP Consultora** · Gestión documental y procesos integrados · 2026
