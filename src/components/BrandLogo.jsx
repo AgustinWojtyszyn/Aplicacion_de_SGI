@@ -6,7 +6,7 @@ export default function BrandLogo({ compact = false, light = false, className = 
   const greenId = `${id}-green`
 
   return (
-    <div className={`brand-logo ${compact ? 'brand-logo-compact' : ''} ${light ? 'brand-logo-light' : ''} ${className}`.trim()} aria-label="IntegraFlow">
+    <div className={`brand-logo ${compact ? 'brand-logo-compact' : ''} ${light ? 'brand-logo-light' : ''} ${className}`.trim()} aria-label="EP Consultora">
       <svg className="brand-logo-symbol" viewBox="0 0 72 72" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id={blueId} x1="8" y1="8" x2="58" y2="60" gradientUnits="userSpaceOnUse">
@@ -32,7 +32,7 @@ export default function BrandLogo({ compact = false, light = false, className = 
       </svg>
       {!compact && (
         <span className="brand-logo-wordmark" aria-hidden="true">
-          <span>Integra</span><strong>Flow</strong>
+          <strong>EP</strong><span> Consultora</span>
         </span>
       )}
     </div>
