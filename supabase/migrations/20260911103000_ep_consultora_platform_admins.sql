@@ -22,33 +22,52 @@ order by cm.joined_at asc, cm.user_id asc
 limit 1
 on conflict (user_id) do nothing;
 
--- Remove the legacy client-specific seed name from an already-installed DB.
+-- Normalize the original seed workspace in installations created before the
+-- product became multiempresa. The oldest workspace is only renamed when the
+-- canonical EP Consultora workspace does not already exist.
 do $$
 declare
-  v_legacy_id uuid;
+  v_company_id uuid;
 begin
-  select id into v_legacy_id
-  from public.companies
-  where slug = 'sf-higiene' or lower(name) = 'sf higiene'
-  limit 1;
+  if not exists (
+    select 1 from public.companies where slug = 'ep-consultora'
+  ) then
+    select c.id
+      into v_company_id
+    from public.companies c
+    order by c.created_at asc, c.id asc
+    limit 1;
 
-  if v_legacy_id is not null then
-    if not exists (select 1 from public.companies where slug = 'ep-consultora' and id <> v_legacy_id) then
+    if v_company_id is not null then
       update public.companies
-      set name = 'EP Consultora', slug = 'ep-consultora', is_active = true
-      where id = v_legacy_id;
-    else
-      update public.companies
-      set name = 'Espacio migrado',
-          slug = 'espacio-migrado-' || left(v_legacy_id::text, 8),
-          is_active = false
-      where id = v_legacy_id;
+      set name = 'EP Consultora',
+          slug = 'ep-consultora',
+          is_active = true
+      where id = v_company_id;
     end if;
   end if;
 end;
 $$;
 
-drop function if exists public.bootstrap_sf_higiene_admin();
+-- Remove superseded no-argument bootstrap helpers without retaining any
+-- client-specific identifier in the current codebase.
+do $$
+declare
+  v_function record;
+begin
+  for v_function in
+    select p.proname
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname like 'bootstrap_%_admin'
+      and p.proname <> 'bootstrap_ep_consultora_admin'
+      and pg_get_function_identity_arguments(p.oid) = ''
+  loop
+    execute format('drop function if exists public.%I()', v_function.proname);
+  end loop;
+end;
+$$;
 
 create or replace function public.is_platform_admin(
   p_user_id uuid default auth.uid()
