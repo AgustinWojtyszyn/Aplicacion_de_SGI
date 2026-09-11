@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: integraflow
+    name: ep-consultora
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
