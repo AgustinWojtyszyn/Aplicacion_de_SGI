@@ -14,7 +14,7 @@ La aplicación de migraciones pendientes y el despliegue de la Edge Function `in
 - [x] Interfaz responsive desktop / móvil.
 - [x] Supabase Auth.
 - [x] Sesiones persistentes y rutas protegidas.
-- [x] Empresa SF Higiene.
+- [x] Arquitectura multiempresa.
 - [x] Roles `admin`, `responsible` y `member`.
 - [x] Módulos iniciales.
 - [x] PostgreSQL + RLS.
@@ -73,7 +73,7 @@ La aplicación de migraciones pendientes y el despliegue de la Edge Function `in
 - [x] Responsable debe pertenecer a la misma empresa.
 - [x] Módulo debe pertenecer a la misma empresa.
 - [x] `company_id`, `created_by` y `file_path` no pueden cambiar una vez creado el documento.
-- [x] Primer administrador con bootstrap de uso único.
+- [x] Administración global separada de la administración de cada empresa.
 - [x] Usuarios desactivados dejan de contar como miembros válidos para RLS.
 
 ## Calidad
@@ -90,7 +90,7 @@ La aplicación de migraciones pendientes y el despliegue de la Edge Function `in
 
 # Próximo alcance · Etapa 2
 
-Estas funciones quedan expresamente fuera de la Etapa 1 cerrada y forman parte del siguiente bloque de desarrollo:
+Estas funciones forman parte del bloque SGI avanzado:
 
 - organización completa por capítulos y requisitos ISO 9001;
 - organización completa por capítulos y requisitos ISO 14001;
@@ -102,5 +102,4 @@ Estas funciones quedan expresamente fuera de la Etapa 1 cerrada y forman parte d
 - notificaciones automáticas por vencimiento o revisión;
 - alertas de cumplimiento;
 - KPI de tiempos de aprobación;
-- dashboard de cumplimiento por norma;
-- gestión de flota y mantenimiento vehicular.
+- dashboard de cumplimiento por norma.
