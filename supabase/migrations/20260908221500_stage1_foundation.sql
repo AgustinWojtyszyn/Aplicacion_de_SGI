@@ -316,7 +316,7 @@ after insert or update on public.documents
 for each row execute function public.log_document_activity();
 
 insert into public.companies (name, slug)
-values ('SF Higiene', 'sf-higiene')
+values ('EP Consultora', 'ep-consultora')
 on conflict (slug) do update set name = excluded.name;
 
 insert into public.modules (company_id, name, code, description)
@@ -330,12 +330,12 @@ cross join (
     ('Seguridad y Salud', 'SST', 'Documentación de seguridad y salud en el trabajo.'),
     ('Administración', 'ADMIN', 'Documentación administrativa y de soporte.')
 ) as seed(name, code, description)
-where c.slug = 'sf-higiene'
+where c.slug = 'ep-consultora'
 on conflict (company_id, code) do update
   set name = excluded.name,
       description = excluded.description;
 
-create or replace function public.bootstrap_sf_higiene_admin()
+create or replace function public.bootstrap_ep_consultora_admin()
 returns boolean
 language plpgsql
 security definer
@@ -348,14 +348,14 @@ begin
     raise exception 'not_authenticated';
   end if;
 
-  perform pg_advisory_xact_lock(hashtext('sf-higiene-admin-bootstrap')::bigint);
+  perform pg_advisory_xact_lock(hashtext('ep-consultora-admin-bootstrap')::bigint);
 
   select id into v_company_id
   from public.companies
-  where slug = 'sf-higiene';
+  where slug = 'ep-consultora';
 
   if v_company_id is null then
-    raise exception 'sf_higiene_company_missing';
+    raise exception 'ep_consultora_company_missing';
   end if;
 
   if public.is_company_member(v_company_id, auth.uid()) then
@@ -630,6 +630,6 @@ grant usage, select on sequence public.document_activity_id_seq to authenticated
 grant execute on function public.is_company_member(uuid, uuid) to authenticated;
 grant execute on function public.has_company_role(uuid, public.company_role[], uuid) to authenticated;
 grant execute on function public.shares_company(uuid, uuid) to authenticated;
-grant execute on function public.bootstrap_sf_higiene_admin() to authenticated;
+grant execute on function public.bootstrap_ep_consultora_admin() to authenticated;
 
 commit;
