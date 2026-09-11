@@ -1,11 +1,11 @@
-# Puesta en marcha · IntegraFlow
+# Puesta en marcha · EP Consultora
 
 ## 1. Requisitos
 
 - Node.js 22 recomendado.
 - Un proyecto Supabase.
 - Acceso al repositorio GitHub.
-- Render únicamente cuando se habilite el despliegue final.
+- Render para el frontend de producción.
 
 ## 2. Instalar el proyecto
 
@@ -27,7 +27,7 @@ Nunca subir `.env` ni una `service_role` al repositorio o al frontend.
 
 ## 3. Base de datos
 
-Aplicar las **11 migraciones** en este orden:
+Aplicar las **12 migraciones** en este orden:
 
 1. `supabase/migrations/20260908221500_stage1_foundation.sql`
 2. `supabase/migrations/20260908230000_stage1_integrity_hardening.sql`
@@ -40,8 +40,11 @@ Aplicar las **11 migraciones** en este orden:
 9. `supabase/migrations/20260909223000_sgi_dashboard_metrics.sql`
 10. `supabase/migrations/20260909224000_sgi_due_reminders.sql`
 11. `supabase/migrations/20260910194000_multi_company_tenant_access.sql`
+12. `supabase/migrations/20260911103000_ep_consultora_platform_admins.sql`
 
-Estas migraciones crean y endurecen perfiles, empresas y membresías, roles, módulos, documentos, comentarios, actividad, control de versiones, requisitos ISO/SGI, notificaciones internas, métricas del dashboard, recordatorios, Storage privado, aislamiento multiempresa y RLS.
+Estas migraciones crean y endurecen perfiles, empresas y membresías, roles, módulos, documentos, comentarios, actividad, control de versiones, requisitos ISO/SGI, notificaciones internas, métricas, recordatorios, Storage privado, aislamiento multiempresa y RLS.
+
+La migración 12 separa explícitamente al **administrador global de EP Consultora** de los administradores de cada empresa cliente.
 
 ### Supabase CLI
 
@@ -54,19 +57,34 @@ npx supabase db push
 
 También pueden ejecutarse los SQL manualmente desde el SQL Editor, respetando exactamente el orden anterior.
 
-## 4. Primer administrador
+## 4. Administración global
 
-La instalación conserva un bootstrap controlado para inicializar el primer administrador.
+La tabla `platform_admins` identifica a quienes pueden crear y supervisar empresas desde EP Consultora.
 
-- El bootstrap solo funciona mientras todavía no exista ningún miembro.
-- Después deja de conceder privilegios automáticamente.
-- El administrador global puede crear y recorrer los espacios de las distintas empresas.
-- Un administrador de empresa administra usuarios y documentación de su propio espacio, pero no la configuración global de empresas.
-- Los usuarios nuevos quedan como miembros pendientes/inactivos hasta que un administrador los habilita.
+En una instalación existente, la migración 12 conserva el acceso promoviendo como administrador global únicamente al administrador activo más antiguo cuando todavía no existe ninguno explícito.
 
-## 5. Acceso multiempresa, registro público y usuarios
+Un administrador de empresa mantiene rol `admin` dentro de su espacio, pero no puede administrar el catálogo global de empresas ni abrir otros clientes.
 
-El acceso comienza en `/`, donde la persona selecciona su empresa antes de autenticarse.
+## 5. Crear una empresa y su primer administrador
+
+Desde **Empresas**, el administrador global completa:
+
+1. nombre de la empresa;
+2. slug/identificador de acceso;
+3. nombre del primer administrador;
+4. correo del primer administrador.
+
+EP Consultora crea el espacio, carga la estructura base SGI/ISO y utiliza la Edge Function `invite-user` para enviar la invitación del primer administrador.
+
+Publicar la función:
+
+```bash
+npx supabase functions deploy invite-user --project-ref TU_PROJECT_REF
+```
+
+El primer administrador crea su contraseña desde `/set-password` y, una vez dentro, puede gestionar los usuarios de su empresa desde **Usuarios**.
+
+## 6. Registro público
 
 Cada empresa utiliza su propia ruta de acceso:
 
@@ -78,22 +96,12 @@ Desde esa pantalla el registro es público y queda asociado a la empresa selecci
 
 Después de registrarse:
 
-1. el usuario confirma su correo si el proyecto Supabase tiene confirmación habilitada;
-2. la cuenta queda registrada pero sin acceso a documentación;
-3. un administrador entra a **Usuarios** y activa la membresía;
-4. recién entonces RLS permite acceder al espacio de trabajo correspondiente.
+1. el usuario confirma su correo si Supabase tiene confirmación habilitada;
+2. la cuenta queda registrada con membresía pendiente/inactiva;
+3. un administrador de esa empresa entra a **Usuarios** y activa la membresía;
+4. recién entonces RLS permite acceder a la documentación de ese espacio.
 
-El administrador global puede cambiar la empresa activa desde la barra superior y acceder a todos los espacios habilitados. Los usuarios comunes permanecen limitados a sus membresías activas.
-
-El administrador también puede enviar invitaciones desde la propia aplicación mediante la Edge Function `invite-user`.
-
-Publicarla si se utilizará ese flujo:
-
-```bash
-npx supabase functions deploy invite-user --project-ref TU_PROJECT_REF
-```
-
-## 6. URLs de Auth
+## 7. URLs de Auth
 
 En **Supabase → Authentication → URL Configuration** configurar el Site URL y las Redirect URLs.
 
@@ -105,11 +113,9 @@ http://localhost:3000/set-password
 http://localhost:3000/login/SLUG-DE-EMPRESA
 ```
 
-Agregar una URL de login por cada empresa utilizada durante pruebas si la confirmación de correo debe regresar directamente a su espacio.
+Cuando exista la URL de producción, agregar también el dominio público, `/set-password` y las rutas `/login/<slug>` utilizadas.
 
-Cuando exista la URL de producción, agregar también el dominio público, `/set-password` y las rutas `/login/<slug>` que se utilicen.
-
-## 7. Desarrollo local
+## 8. Desarrollo local
 
 ```bash
 npm run dev
@@ -117,7 +123,7 @@ npm run dev
 
 Abrir `http://localhost:3000`.
 
-## 8. Verificaciones
+## 9. Verificaciones
 
 ```bash
 npm run test:run
@@ -126,15 +132,15 @@ npm run build
 
 GitHub Actions ejecuta ambas verificaciones automáticamente en cada push a `main`.
 
-## 9. Storage
+## 10. Storage
 
 El bucket `sgi-documents` es privado.
 
 Los documentos se almacenan dentro del espacio correspondiente y se abren mediante URLs firmadas de corta duración. Las políticas de Storage y PostgreSQL validan empresa, membresía activa y permisos.
 
-## 10. Deploy final
+## 11. Deploy en Render
 
-El repositorio incluye `render.yaml` con el servicio `integraflow`.
+El repositorio incluye `render.yaml` para `ep-consultora`.
 
 En Render configurar:
 
