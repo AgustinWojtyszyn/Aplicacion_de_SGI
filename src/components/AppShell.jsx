@@ -13,7 +13,7 @@ const baseNavigation = [
 ]
 
 function initials(name, email) {
-  const source = name?.trim() || email?.split('@')[0] || 'IF'
+  const source = name?.trim() || email?.split('@')[0] || 'EP'
   return source.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('')
 }
 
