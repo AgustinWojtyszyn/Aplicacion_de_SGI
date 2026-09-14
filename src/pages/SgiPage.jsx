@@ -59,6 +59,23 @@ export default function SgiPage() {
     }]
   })), [requirements, documents])
 
+  const chapterStats = useMemo(() => {
+    const grouped = new Map()
+    visible.forEach((requirement) => {
+      const key = String(requirement.chapter || '—')
+      if (!grouped.has(key)) grouped.set(key, { chapter: key, total: 0, covered: 0, pending: 0 })
+      const item = grouped.get(key)
+      const related = documents.filter((document) => document.requirement_id === requirement.id)
+      const covered = related.some((document) => document.status === 'approved')
+      item.total += 1
+      item.covered += covered ? 1 : 0
+      item.pending += covered ? 0 : 1
+    })
+    return Array.from(grouped.values())
+      .map((item) => ({ ...item, percent: item.total ? Math.round((item.covered / item.total) * 100) : 0 }))
+      .sort((a, b) => Number(a.chapter) - Number(b.chapter))
+  }, [visible, documents])
+
   return (
     <section className="page-stack sgi-page">
       <header className="page-heading">
@@ -98,6 +115,22 @@ export default function SgiPage() {
         </div>
         <div className="sgi-progress"><span style={{ width: `${normStats[selectedNorm]?.percent || 0}%` }} /></div>
       </article>
+
+      <section className="compliance-matrix" aria-label={`Matriz de cumplimiento ${selectedNorm}`}>
+        <div className="compliance-matrix-heading">
+          <div><span>MATRIZ DE CUMPLIMIENTO</span><h2>{selectedNorm === 'SGI' ? 'SGI Integrado' : selectedNorm} por capítulo</h2></div>
+          <small>El porcentaje cuenta requisitos con al menos una evidencia aprobada.</small>
+        </div>
+        <div className="compliance-matrix-grid">
+          {chapterStats.map((item) => (
+            <Link key={item.chapter} to={documentsUrl({ norm: selectedNorm, chapter: item.chapter })} className="compliance-chapter-card">
+              <div className="compliance-chapter-top"><span>Cap. {item.chapter}</span><strong>{item.percent}%</strong></div>
+              <div className="compliance-chapter-track"><span style={{ width: `${item.percent}%` }} /></div>
+              <div className="compliance-chapter-meta"><span>{item.covered}/{item.total} cubiertos</span><span>{item.pending} pendientes</span></div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <div className="requirement-list">
         {loading ? (
