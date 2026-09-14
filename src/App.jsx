@@ -5,7 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import CompaniesPage from './pages/CompaniesPage'
 import CompanyGatePage from './pages/CompanyGatePage'
-import DashboardPage from './pages/DashboardPage'
+import DashboardWorkspacePage from './pages/DashboardWorkspacePage'
 import DocumentsPage from './pages/DocumentsPage'
 import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
@@ -20,7 +20,7 @@ export default function App() {
     <Route path="/login/:companySlug" element={<LoginPage />} />
     <Route path="/set-password" element={<SetPasswordPage />} />
     <Route element={<ProtectedRoute />}><Route element={<AppShell />}>
-      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/dashboard" element={<DashboardWorkspacePage />} />
       <Route path="/sgi" element={<SgiPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
