@@ -14,6 +14,7 @@ import './styles/auth-flow.css'
 import './styles/sgi.css'
 import './styles/brand.css'
 import './styles/tenants.css'
+import './styles/work-entries.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
