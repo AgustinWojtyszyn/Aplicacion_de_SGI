@@ -1,15 +1,34 @@
-import { AlertTriangle, CheckCircle2, Circle, Clock3, FileText, ShieldAlert, ShieldCheck, UserMinus, UsersRound } from 'lucide-react'
+import { AlertTriangle, Banknote, BriefcaseBusiness, CheckCircle2, Circle, Clock3, FileText, ShieldAlert, ShieldCheck, TrendingUp, UserMinus, UsersRound } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardPage from './DashboardPage'
 import { useAuth } from '../context/AuthContext'
 import { listDocuments } from '../services/documentService'
 import { listSgiRequirements } from '../services/sgiService'
+import { calculateWorkTotals, listWorkEntries } from '../services/workService'
+
+function firstDayOfCurrentMonth() {
+  const date = new Date()
+  date.setDate(1)
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency', currency: 'ARS', maximumFractionDigits: 0,
+  }).format(Number(value) || 0)
+}
+
+function formatHours(value) {
+  return `${(Number(value) || 0).toLocaleString('es-AR', { maximumFractionDigits: 1 })} h`
+}
 
 export default function DashboardWorkspacePage() {
   const { company } = useAuth()
   const [documents, setDocuments] = useState([])
   const [requirements, setRequirements] = useState([])
+  const [workEntries, setWorkEntries] = useState([])
 
   useEffect(() => {
     if (!company?.id) return
@@ -20,6 +39,10 @@ export default function DashboardWorkspacePage() {
       setDocuments(nextDocuments)
       setRequirements(nextRequirements)
     }).catch((error) => console.error('No se pudo cargar el resumen operativo', error))
+
+    listWorkEntries({ companyId: company.id, dateFrom: firstDayOfCurrentMonth() })
+      .then(setWorkEntries)
+      .catch((error) => console.error('No se pudo cargar el resumen de trabajos', error))
   }, [company?.id])
 
   const steps = useMemo(() => {
@@ -47,6 +70,7 @@ export default function DashboardWorkspacePage() {
     return { overdue, pending, unassigned, uncovered, upcoming }
   }, [documents, requirements])
 
+  const workTotals = useMemo(() => calculateWorkTotals(workEntries), [workEntries])
   const completed = steps.filter((step) => step.done).length
   const percent = Math.round((completed / steps.length) * 100)
 
@@ -55,6 +79,13 @@ export default function DashboardWorkspacePage() {
     { label: 'Pendientes de aprobación', value: attention.pending, to: '/documents', icon: Clock3 },
     { label: 'Sin responsable', value: attention.unassigned, to: '/documents', icon: UserMinus },
     { label: 'Requisitos sin evidencia aprobada', value: attention.uncovered, to: '/sgi', icon: ShieldAlert },
+  ]
+
+  const workCards = [
+    { label: 'Trabajos del mes', value: workTotals.count, icon: BriefcaseBusiness },
+    { label: 'Horas del mes', value: formatHours(workTotals.hours), icon: Clock3 },
+    { label: 'Costo acumulado', value: formatMoney(workTotals.cost), icon: Banknote },
+    { label: 'Monto acumulado', value: formatMoney(workTotals.amount), icon: TrendingUp },
   ]
 
   return (
@@ -81,6 +112,21 @@ export default function DashboardWorkspacePage() {
           </div>
         </section>
       )}
+
+      <section className="work-dashboard-panel" aria-label="Resumen de trabajos del mes">
+        <div className="work-dashboard-heading">
+          <div><span>OPERACIÓN DEL MES</span><h2>Trabajos diarios</h2></div>
+          <Link to="/work">Ver y gestionar trabajos</Link>
+        </div>
+        <div className="work-dashboard-grid">
+          {workCards.map(({ label, value, icon: Icon }) => (
+            <Link to="/work" className="work-dashboard-card" key={label}>
+              <Icon size={19} />
+              <div><span>{label}</span><strong>{value}</strong></div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <section className="attention-panel" aria-label="Elementos que necesitan atención">
         <div className="attention-heading">
