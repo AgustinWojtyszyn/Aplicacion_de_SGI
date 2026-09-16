@@ -1,9 +1,10 @@
-import { RefreshCw, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from 'lucide-react'
+import { RefreshCw, Search, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import {
   COMPANY_ROLES,
   inviteCompanyUser,
+  listAllCompanyUsers,
   listCompanyUsers,
   ROLE_LABELS,
   updateCompanyUserAccess,
@@ -13,9 +14,20 @@ function personName(membership) {
   return membership.user?.full_name || membership.user?.email || 'Usuario'
 }
 
+function formatDate(value) {
+  if (!value) return 'Sin fecha'
+  return new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function membershipKey(member) {
+  return `${member.company_id}:${member.user_id}`
+}
+
 export default function UsersPage() {
-  const { company, user } = useAuth()
+  const { company, user, isPlatformAdmin } = useAuth()
   const [members, setMembers] = useState([])
+  const [scope, setScope] = useState('company')
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState('')
   const [error, setError] = useState('')
@@ -24,8 +36,21 @@ export default function UsersPage() {
   const [inviting, setInviting] = useState(false)
   const [inviteValues, setInviteValues] = useState({ fullName: '', email: '', role: 'member' })
 
-  const activeCount = useMemo(
-    () => members.filter((member) => member.is_active).length,
+  const visibleMembers = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    if (!term) return members
+    return members.filter((member) => [
+      member.user?.full_name,
+      member.user?.email,
+      member.company?.name,
+      ROLE_LABELS[member.role],
+    ].some((value) => value?.toLowerCase().includes(term)))
+  }, [members, search])
+
+  const uniqueUsers = useMemo(() => new Set(members.map((member) => member.user_id)).size, [members])
+  const activeCount = useMemo(() => members.filter((member) => member.is_active).length, [members])
+  const adminCount = useMemo(
+    () => members.filter((member) => member.role === 'admin' && member.is_active).length,
     [members],
   )
 
@@ -34,7 +59,11 @@ export default function UsersPage() {
     setLoading(true)
     setError('')
     try {
-      setMembers(await listCompanyUsers(company.id))
+      if (scope === 'all' && isPlatformAdmin) {
+        setMembers(await listAllCompanyUsers())
+      } else {
+        setMembers(await listCompanyUsers(company.id))
+      }
     } catch (loadError) {
       console.error(loadError)
       setError(loadError.message || 'No se pudieron cargar los usuarios.')
@@ -46,7 +75,11 @@ export default function UsersPage() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [company?.id])
+  }, [company?.id, scope, isPlatformAdmin])
+
+  useEffect(() => {
+    if (!isPlatformAdmin && scope !== 'company') setScope('company')
+  }, [isPlatformAdmin, scope])
 
   async function handleInvite(event) {
     event.preventDefault()
@@ -54,10 +87,11 @@ export default function UsersPage() {
     setError('')
     setNotice('')
     try {
+      const invitedEmail = inviteValues.email.trim().toLowerCase()
       await inviteCompanyUser({ companyId: company.id, ...inviteValues })
       setInviteValues({ fullName: '', email: '', role: 'member' })
       setInviteOpen(false)
-      setNotice(`Invitación enviada a ${inviteValues.email.trim().toLowerCase()}.`)
+      setNotice(`Invitación enviada a ${invitedEmail} para ${company.name}.`)
       await load()
     } catch (inviteError) {
       console.error(inviteError)
@@ -68,20 +102,22 @@ export default function UsersPage() {
   }
 
   async function saveAccess(member, changes) {
-    setUpdatingId(member.user_id)
+    const targetCompanyId = member.company_id || company.id
+    const key = membershipKey({ ...member, company_id: targetCompanyId })
+    setUpdatingId(key)
     setError('')
     setNotice('')
     try {
       const updated = await updateCompanyUserAccess({
-        companyId: company.id,
+        companyId: targetCompanyId,
         userId: member.user_id,
         role: changes.role ?? member.role,
         isActive: changes.isActive ?? member.is_active,
       })
       setMembers((current) => current.map((item) => (
-        item.user_id === updated.user_id ? updated : item
+        membershipKey(item) === membershipKey(updated) ? updated : item
       )))
-      setNotice(`Acceso actualizado para ${personName(updated)}.`)
+      setNotice(`Acceso actualizado para ${personName(updated)} en ${updated.company?.name || company.name}.`)
     } catch (saveError) {
       console.error(saveError)
       setError(saveError.message || 'No se pudo actualizar el acceso.')
@@ -95,18 +131,46 @@ export default function UsersPage() {
       <header className="page-heading users-heading">
         <div>
           <p className="eyebrow">ADMINISTRACIÓN</p>
-          <h1>Usuarios</h1>
-          <p>Roles y acceso al espacio de trabajo de {company?.name || 'la empresa seleccionada'}.</p>
+          <h1>Gestión de usuarios</h1>
+          <p>
+            {scope === 'all'
+              ? 'Administración global de usuarios y accesos por empresa.'
+              : `Roles y acceso al espacio de trabajo de ${company?.name || 'la empresa seleccionada'}.`}
+          </p>
         </div>
         <div className="users-heading-actions">
           <button className="secondary-button" onClick={load} disabled={loading}>
             <RefreshCw size={17} /> Actualizar
           </button>
           <button className="primary-button" onClick={() => setInviteOpen((open) => !open)}>
-            <UserPlus size={17} /> Invitar usuario
+            <UserPlus size={17} /> Invitar a {company?.name || 'empresa'}
           </button>
         </div>
       </header>
+
+      <section className="users-control-section" aria-labelledby="users-scope-title">
+        <div className="users-section-title">
+          <div>
+            <span>ALCANCE</span>
+            <h2 id="users-scope-title">Qué usuarios querés administrar</h2>
+          </div>
+          {isPlatformAdmin && (
+            <div className="users-scope-switch" role="group" aria-label="Alcance de usuarios">
+              <button type="button" className={scope === 'company' ? 'active' : ''} onClick={() => setScope('company')}>Empresa actual</button>
+              <button type="button" className={scope === 'all' ? 'active' : ''} onClick={() => setScope('all')}>Todas las empresas</button>
+            </div>
+          )}
+        </div>
+        <label className="users-search">
+          <Search size={17} />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por nombre, correo, empresa o rol"
+          />
+        </label>
+      </section>
 
       {inviteOpen && (
         <form className="invite-user-panel" onSubmit={handleInvite}>
@@ -139,7 +203,7 @@ export default function UsersPage() {
               value={inviteValues.role}
               onChange={(event) => setInviteValues((current) => ({ ...current, role: event.target.value }))}
             >
-              {COMPANY_ROLES.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
+              {COMPANY_ROLES.map((itemRole) => <option key={itemRole} value={itemRole}>{ROLE_LABELS[itemRole]}</option>)}
             </select>
           </label>
           <button className="primary-button invite-submit" disabled={inviting}>
@@ -148,49 +212,58 @@ export default function UsersPage() {
         </form>
       )}
 
-      <div className="users-stats">
-        <div className="user-stat-card">
-          <UsersRound size={20} />
-          <div><strong>{members.length}</strong><span>usuarios</span></div>
+      <section aria-labelledby="users-summary-title">
+        <div className="users-section-title users-summary-heading">
+          <div><span>RESUMEN</span><h2 id="users-summary-title">Estado de accesos</h2></div>
         </div>
-        <div className="user-stat-card">
-          <UserCheck size={20} />
-          <div><strong>{activeCount}</strong><span>con acceso</span></div>
+        <div className="users-stats">
+          <div className="user-stat-card">
+            <UsersRound size={20} />
+            <div><strong>{uniqueUsers}</strong><span>usuarios</span></div>
+          </div>
+          <div className="user-stat-card">
+            <UserCheck size={20} />
+            <div><strong>{activeCount}</strong><span>accesos activos</span></div>
+          </div>
+          <div className="user-stat-card">
+            <ShieldCheck size={20} />
+            <div><strong>{adminCount}</strong><span>accesos administradores</span></div>
+          </div>
         </div>
-        <div className="user-stat-card">
-          <ShieldCheck size={20} />
-          <div><strong>{members.filter((member) => member.role === 'admin' && member.is_active).length}</strong><span>administradores</span></div>
-        </div>
-      </div>
+      </section>
 
       {error && <div className="page-error" role="alert">{error}</div>}
       {notice && <div className="page-success" role="status">{notice}</div>}
 
-      <div className="users-surface">
+      <section className="users-surface" aria-labelledby="users-list-title">
         <div className="users-surface-heading">
           <div>
-            <strong>Accesos de la empresa</strong>
-            <span>Los cambios se aplican inmediatamente.</span>
+            <strong id="users-list-title">{scope === 'all' ? 'Todos los accesos de la plataforma' : 'Accesos de la empresa'}</strong>
+            <span>{visibleMembers.length} resultado{visibleMembers.length === 1 ? '' : 's'}. Los cambios se aplican inmediatamente.</span>
           </div>
         </div>
 
         {loading ? (
           <div className="users-loading"><span className="loader-dot" /><p>Cargando usuarios…</p></div>
-        ) : members.length === 0 ? (
-          <div className="users-empty">No hay usuarios asociados a esta empresa.</div>
+        ) : visibleMembers.length === 0 ? (
+          <div className="users-empty">No hay usuarios que coincidan con la búsqueda.</div>
         ) : (
           <div className="users-list">
-            {members.map((member) => {
+            {visibleMembers.map((member) => {
               const isCurrentUser = member.user_id === user?.id
-              const isUpdating = updatingId === member.user_id
+              const isUpdating = updatingId === membershipKey(member)
               return (
-                <article className={`user-row ${member.is_active ? '' : 'user-row-inactive'}`} key={member.user_id}>
+                <article className={`user-row ${member.is_active ? '' : 'user-row-inactive'}`} key={membershipKey(member)}>
                   <div className="user-identity">
                     <div className="user-avatar">{personName(member).slice(0, 2).toUpperCase()}</div>
                     <div>
                       <strong>{personName(member)}</strong>
                       <span>{member.user?.email}</span>
-                      {isCurrentUser && <small>Tu cuenta</small>}
+                      <small>
+                        {scope === 'all' && member.company?.name ? `${member.company.name} · ` : ''}
+                        Alta: {formatDate(member.user?.created_at)}
+                        {isCurrentUser ? ' · Tu cuenta' : ''}
+                      </small>
                     </div>
                   </div>
 
@@ -201,8 +274,8 @@ export default function UsersPage() {
                       disabled={isUpdating || isCurrentUser}
                       onChange={(event) => saveAccess(member, { role: event.target.value })}
                     >
-                      {COMPANY_ROLES.map((role) => (
-                        <option value={role} key={role}>{ROLE_LABELS[role]}</option>
+                      {COMPANY_ROLES.map((itemRole) => (
+                        <option value={itemRole} key={itemRole}>{ROLE_LABELS[itemRole]}</option>
                       ))}
                     </select>
                   </label>
@@ -225,7 +298,7 @@ export default function UsersPage() {
             })}
           </div>
         )}
-      </div>
+      </section>
     </section>
   )
 }
