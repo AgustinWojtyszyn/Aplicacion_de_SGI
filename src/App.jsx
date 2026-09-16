@@ -9,6 +9,7 @@ import DashboardWorkspacePage from './pages/DashboardWorkspacePage'
 import DocumentsPage from './pages/DocumentsPage'
 import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
+import ProfilePage from './pages/ProfilePage'
 import SetPasswordPage from './pages/SetPasswordPage'
 import SgiPage from './pages/SgiPage'
 import UsersPage from './pages/UsersPage'
@@ -26,6 +27,7 @@ export default function App() {
       <Route path="/sgi" element={<SgiPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
       <Route element={<AdminRoute />}>
         <Route path="/users" element={<UsersPage />} />
       </Route>
