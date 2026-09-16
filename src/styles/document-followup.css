@@ -1,0 +1,22 @@
+.documents-table-with-followup { min-width: 1120px; }
+
+.followup-badge {
+  min-width: 106px;
+  display: inline-grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid #dce7e3;
+  border-radius: 10px;
+  background: #f7faf9;
+}
+.followup-badge strong { font-size: .75rem; line-height: 1.15; }
+.followup-badge span { color: var(--muted); font-size: .66rem; line-height: 1.2; white-space: nowrap; }
+.followup-badge.good { color: #1b695b; background: #edf8f4; border-color: #c9e5dc; }
+.followup-badge.warning { color: #8a5b10; background: #fff8e8; border-color: #eed8a8; }
+.followup-badge.danger { color: #963b44; background: #fff1f2; border-color: #efc9cd; }
+.followup-badge.neutral { color: #526b67; background: #f4f7f6; border-color: #dde6e4; }
+
+@media (max-width: 760px) {
+  .followup-badge { min-width: 0; width: 100%; }
+  .followup-badge span { white-space: normal; }
+}
