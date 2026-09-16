@@ -15,6 +15,7 @@ import './styles/sgi.css'
 import './styles/brand.css'
 import './styles/tenants.css'
 import './styles/work-entries.css'
+import './styles/work-dashboard.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
