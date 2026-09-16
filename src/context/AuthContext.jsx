@@ -25,7 +25,7 @@ async function loadWorkspace(user) {
   const [profileResult, membershipsResult, adminResult] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, full_name, email')
+      .select('id, full_name, email, created_at, updated_at')
       .eq('id', user.id)
       .maybeSingle(),
     supabase
