@@ -8,16 +8,37 @@ export const ROLE_LABELS = {
   member: 'Miembro',
 }
 
+const membershipSelect = `
+  company_id,
+  user_id,
+  role,
+  is_active,
+  joined_at,
+  company:companies(id, name, slug, is_active),
+  user:profiles(id, full_name, email, created_at)
+`
+
 export async function listCompanyUsers(companyId) {
   const supabase = requireSupabase()
   const { data, error } = await supabase
     .from('company_members')
-    .select('user_id, role, is_active, joined_at, user:profiles(id, full_name, email)')
+    .select(membershipSelect)
     .eq('company_id', companyId)
     .order('joined_at', { ascending: true })
 
   if (error) throw error
   return (data ?? []).filter((membership) => membership.user)
+}
+
+export async function listAllCompanyUsers() {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('company_members')
+    .select(membershipSelect)
+    .order('joined_at', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []).filter((membership) => membership.user && membership.company)
 }
 
 export async function updateCompanyUserAccess({ companyId, userId, role, isActive }) {
@@ -29,7 +50,7 @@ export async function updateCompanyUserAccess({ companyId, userId, role, isActiv
     .update({ role, is_active: Boolean(isActive) })
     .eq('company_id', companyId)
     .eq('user_id', userId)
-    .select('user_id, role, is_active, joined_at, user:profiles(id, full_name, email)')
+    .select(membershipSelect)
     .single()
 
   if (error) {
