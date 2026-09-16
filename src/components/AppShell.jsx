@@ -1,33 +1,99 @@
-import { BellRing, BriefcaseBusiness, Building2, FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, UsersRound, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import {
+  BellRing,
+  BriefcaseBusiness,
+  Building2,
+  ChevronDown,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Settings2,
+  ShieldCheck,
+  UsersRound,
+  X,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { canManageCompanies, canManageUsers, roleLabel } from '../lib/permissions'
 import BrandLogo from './BrandLogo'
-
-const baseNavigation = [
-  { to: '/dashboard', label: 'Resumen', icon: LayoutDashboard },
-  { to: '/work', label: 'Trabajos', icon: BriefcaseBusiness },
-  { to: '/sgi', label: 'SGI / ISO', icon: ShieldCheck },
-  { to: '/documents', label: 'Documentos', icon: FileText },
-  { to: '/notifications', label: 'Alertas', icon: BellRing },
-]
 
 function initials(name, email) {
   const source = name?.trim() || email?.split('@')[0] || 'EP'
   return source.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('')
 }
 
+function NavigationGroup({ label, icon: Icon, items, onNavigate }) {
+  const location = useLocation()
+  const isActive = items.some((item) => location.pathname === item.to || location.pathname.startsWith(`${item.to}/`))
+  const [open, setOpen] = useState(isActive)
+
+  useEffect(() => {
+    if (isActive) setOpen(true)
+  }, [isActive])
+
+  return (
+    <div className={`nav-group ${isActive ? 'nav-group-active' : ''}`}>
+      <button
+        type="button"
+        className="nav-group-button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+      >
+        <Icon size={19} />
+        <span>{label}</span>
+        <ChevronDown size={16} className={`nav-group-chevron ${open ? 'open' : ''}`} />
+      </button>
+      {open && (
+        <div className="nav-group-links">
+          {items.map(({ to, label: itemLabel, icon: ItemIcon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={onNavigate}
+              className={({ isActive: linkActive }) => `nav-link nav-sub-link ${linkActive ? 'nav-link-active' : ''}`}
+            >
+              <ItemIcon size={17} />
+              <span>{itemLabel}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [switchingCompany, setSwitchingCompany] = useState(false)
   const { profile, company, companies, role, isPlatformAdmin, switchCompany, signOut } = useAuth()
-  const navigation = useMemo(() => {
-    const items = [...baseNavigation]
-    if (canManageUsers(role)) items.push({ to: '/users', label: 'Usuarios', icon: UsersRound })
-    if (canManageCompanies({ role, isPlatformAdmin })) items.push({ to: '/companies', label: 'Empresas', icon: Building2 })
-    return items
+
+  const navigationGroups = useMemo(() => {
+    const groups = [
+      {
+        label: 'Operación',
+        icon: BriefcaseBusiness,
+        items: [{ to: '/work', label: 'Trabajos', icon: BriefcaseBusiness }],
+      },
+      {
+        label: 'Gestión SGI',
+        icon: ShieldCheck,
+        items: [
+          { to: '/sgi', label: 'SGI / ISO', icon: ShieldCheck },
+          { to: '/documents', label: 'Documentos', icon: FileText },
+          { to: '/notifications', label: 'Alertas', icon: BellRing },
+        ],
+      },
+    ]
+
+    const adminItems = []
+    if (canManageUsers(role)) adminItems.push({ to: '/users', label: 'Usuarios', icon: UsersRound })
+    if (canManageCompanies({ role, isPlatformAdmin })) adminItems.push({ to: '/companies', label: 'Empresas', icon: Building2 })
+    if (adminItems.length) groups.push({ label: 'Administración', icon: Settings2, items: adminItems })
+
+    return groups
   }, [role, isPlatformAdmin])
+
   const closeMenu = () => setMenuOpen(false)
 
   async function handleCompanyChange(event) {
@@ -53,20 +119,25 @@ export default function AppShell() {
 
         <nav className="sidebar-nav" aria-label="Navegación principal">
           <span className="nav-section-label">PLATAFORMA</span>
-          {navigation.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} onClick={closeMenu} className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
-              <Icon size={19} />
-              <span>{label}</span>
-            </NavLink>
+          <NavLink to="/dashboard" onClick={closeMenu} className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
+            <LayoutDashboard size={19} />
+            <span>Resumen</span>
+          </NavLink>
+
+          <span className="nav-section-label nav-section-label-secondary">SECCIONES</span>
+          {navigationGroups.map((group) => (
+            <NavigationGroup key={group.label} {...group} onNavigate={closeMenu} />
           ))}
         </nav>
 
         <div className="sidebar-user">
-          <div className="avatar">{initials(profile?.full_name, profile?.email)}</div>
-          <div className="sidebar-user-copy">
-            <strong>{profile?.full_name || profile?.email || 'Usuario'}</strong>
-            <span>{isPlatformAdmin ? 'Administrador global' : roleLabel(role)}</span>
-          </div>
+          <NavLink to="/profile" onClick={closeMenu} className={({ isActive }) => `sidebar-profile-link ${isActive ? 'sidebar-profile-link-active' : ''}`}>
+            <div className="avatar">{initials(profile?.full_name, profile?.email)}</div>
+            <div className="sidebar-user-copy">
+              <strong>{profile?.full_name || profile?.email || 'Usuario'}</strong>
+              <span>{isPlatformAdmin ? 'Administrador global' : roleLabel(role)} · Mi perfil</span>
+            </div>
+          </NavLink>
           <button className="icon-button" onClick={signOut} aria-label="Cerrar sesión"><LogOut size={18} /></button>
         </div>
       </aside>
