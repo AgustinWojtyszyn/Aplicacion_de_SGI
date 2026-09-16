@@ -93,7 +93,7 @@ VITE_SUPABASE_ANON_KEY=
 
 Las migraciones viven en `supabase/migrations/` y deben aplicarse en orden. La guía actualizada está en [`docs/SETUP.md`](docs/SETUP.md).
 
-Migración de **Trabajos diarios, permisos por empresa y auditoría**: [`20260916161000_daily_work_management.sql`](supabase/migrations/20260916161000_daily_work_management.sql).
+Migración de **Trabajos diarios, permisos por empresa y auditoría**: [20260916161000_daily_work_management.sql](supabase/migrations/20260916161000_daily_work_management.sql).
 
 ## Tests y build
 
