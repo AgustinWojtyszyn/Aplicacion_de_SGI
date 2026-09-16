@@ -12,6 +12,7 @@ import NotificationsPage from './pages/NotificationsPage'
 import SetPasswordPage from './pages/SetPasswordPage'
 import SgiPage from './pages/SgiPage'
 import UsersPage from './pages/UsersPage'
+import WorkEntriesPage from './pages/WorkEntriesPage'
 
 export default function App() {
   return <AuthProvider><Routes>
@@ -21,6 +22,7 @@ export default function App() {
     <Route path="/set-password" element={<SetPasswordPage />} />
     <Route element={<ProtectedRoute />}><Route element={<AppShell />}>
       <Route path="/dashboard" element={<DashboardWorkspacePage />} />
+      <Route path="/work" element={<WorkEntriesPage />} />
       <Route path="/sgi" element={<SgiPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
