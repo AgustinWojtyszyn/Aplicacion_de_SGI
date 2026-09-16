@@ -104,7 +104,10 @@ begin
     to_jsonb(v_row)
   );
 
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end;
 $$;
 
