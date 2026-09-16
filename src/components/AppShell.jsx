@@ -73,7 +73,10 @@ export default function AppShell() {
       {
         label: 'Operación',
         icon: BriefcaseBusiness,
-        items: [{ to: '/work', label: 'Trabajos', icon: BriefcaseBusiness }],
+        items: [
+          { to: '/dashboard', label: 'Resumen', icon: LayoutDashboard },
+          { to: '/work', label: 'Trabajos', icon: BriefcaseBusiness },
+        ],
       },
       {
         label: 'Gestión SGI',
@@ -119,12 +122,6 @@ export default function AppShell() {
 
         <nav className="sidebar-nav" aria-label="Navegación principal">
           <span className="nav-section-label">PLATAFORMA</span>
-          <NavLink to="/dashboard" onClick={closeMenu} className={({ isActive }) => `nav-link ${isActive ? 'nav-link-active' : ''}`}>
-            <LayoutDashboard size={19} />
-            <span>Resumen</span>
-          </NavLink>
-
-          <span className="nav-section-label nav-section-label-secondary">SECCIONES</span>
           {navigationGroups.map((group) => (
             <NavigationGroup key={group.label} {...group} onNavigate={closeMenu} />
           ))}
