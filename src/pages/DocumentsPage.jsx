@@ -15,6 +15,7 @@ const emptyFilters = {
   norm: '',
   requirementId: '',
   documentType: '',
+  followUp: '',
   dateFrom: '',
   dateTo: '',
 }
@@ -34,6 +35,25 @@ function formatDate(value) {
 function formatBytes(bytes = 0) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function followUpState(document) {
+  if (document.status === 'approved') return { value: 'approved', label: 'Aprobado', tone: 'good', detail: document.approved_at ? formatDate(document.approved_at) : '' }
+  if (!document.review_due_at) return { value: 'no-date', label: 'Sin fecha', tone: 'neutral', detail: 'Sin fecha objetivo' }
+
+  const now = new Date()
+  const due = new Date(document.review_due_at)
+  const days = Math.ceil((due - now) / 86400000)
+  if (days < 0) return { value: 'overdue', label: 'Vencido', tone: 'danger', detail: `Venció ${formatDate(document.review_due_at)}` }
+  if (days <= 30) return { value: 'upcoming', label: 'Próximo', tone: 'warning', detail: days === 0 ? 'Vence hoy' : `Vence en ${days} día${days === 1 ? '' : 's'}` }
+  return { value: 'on-time', label: 'En término', tone: 'good', detail: `Objetivo ${formatDate(document.review_due_at)}` }
+}
+
+function matchesFollowUp(document, filter) {
+  if (!filter) return true
+  const state = followUpState(document)
+  if (filter === 'pending') return document.status !== 'approved'
+  return state.value === filter
 }
 
 export default function DocumentsPage() {
@@ -60,6 +80,11 @@ export default function DocumentsPage() {
     if (filters.requirementId && chapter) return `${filters.norm} · Capítulo ${chapter}`
     return filters.norm === 'SGI' ? 'SGI Integrado' : filters.norm
   }, [filters.norm, filters.requirementId, queryString]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visibleDocuments = useMemo(
+    () => documents.filter((document) => matchesFollowUp(document, filters.followUp)),
+    [documents, filters.followUp],
+  )
 
   async function load() {
     if (!company?.id) return
@@ -163,6 +188,18 @@ export default function DocumentsPage() {
             </select>
           </label>
           <label className="field">
+            <span>Seguimiento</span>
+            <select value={filters.followUp} onChange={(event) => setFilter('followUp', event.target.value)}>
+              <option value="">Todos</option>
+              <option value="pending">Pendientes</option>
+              <option value="overdue">Vencidos</option>
+              <option value="upcoming">Próximos 30 días</option>
+              <option value="on-time">En término</option>
+              <option value="no-date">Sin fecha objetivo</option>
+              <option value="approved">Aprobados</option>
+            </select>
+          </label>
+          <label className="field">
             <span>Módulo</span>
             <select value={filters.moduleId} onChange={(event) => setFilter('moduleId', event.target.value)}>
               <option value="">Todos</option>
@@ -194,14 +231,14 @@ export default function DocumentsPage() {
       <div className="documents-surface">
         <div className="documents-surface-header">
           <div>
-            <strong>{loading ? 'Cargando…' : `${documents.length} documento${documents.length === 1 ? '' : 's'}`}</strong>
+            <strong>{loading ? 'Cargando…' : `${visibleDocuments.length} documento${visibleDocuments.length === 1 ? '' : 's'}`}</strong>
             <span>{routeContext ? `Mostrando solamente ${routeContext}` : 'Seleccioná un documento para ver seguimiento e historial'}</span>
           </div>
         </div>
 
         {loading ? (
           <div className="documents-loading"><span className="loader-dot" /><p>Cargando documentación…</p></div>
-        ) : documents.length === 0 ? (
+        ) : visibleDocuments.length === 0 ? (
           <div className="documents-empty">
             <div className="empty-icon"><FileText size={26} /></div>
             <strong>No hay documentos para mostrar</strong>
@@ -210,19 +247,23 @@ export default function DocumentsPage() {
           </div>
         ) : (
           <div className="documents-table-wrap">
-            <table className="documents-table">
-              <thead><tr><th>Documento</th><th>Módulo</th><th>Estado</th><th>Responsable</th><th>Fecha</th><th aria-label="Acciones" /></tr></thead>
+            <table className="documents-table documents-table-with-followup">
+              <thead><tr><th>Documento</th><th>Módulo</th><th>Estado</th><th>Seguimiento</th><th>Responsable</th><th>Fecha</th><th aria-label="Acciones" /></tr></thead>
               <tbody>
-                {documents.map((document) => (
-                  <tr key={document.id} className="document-row-clickable" onClick={() => setSelectedDocumentId(document.id)}>
-                    <td><div className="document-cell-main"><div className="document-file-icon"><FileText size={18} /></div><div><strong>{document.title}</strong><span>{document.document_type} · {document.norm || 'General'} · {formatBytes(document.file_size)}</span></div></div></td>
-                    <td data-label="Módulo">{document.module?.name || 'General'}</td>
-                    <td data-label="Estado"><StatusBadge status={document.status} /></td>
-                    <td data-label="Responsable">{document.responsible?.full_name || document.responsible?.email || 'Sin asignar'}</td>
-                    <td data-label="Fecha">{formatDate(document.created_at)}</td>
-                    <td><button className="icon-button table-action" onClick={(event) => handleOpenFile(document, event)} aria-label={`Abrir ${document.title}`} title="Abrir archivo"><Download size={17} /></button></td>
-                  </tr>
-                ))}
+                {visibleDocuments.map((document) => {
+                  const followUp = followUpState(document)
+                  return (
+                    <tr key={document.id} className="document-row-clickable" onClick={() => setSelectedDocumentId(document.id)}>
+                      <td><div className="document-cell-main"><div className="document-file-icon"><FileText size={18} /></div><div><strong>{document.title}</strong><span>{document.document_type} · {document.norm || 'General'} · {formatBytes(document.file_size)}</span></div></div></td>
+                      <td data-label="Módulo">{document.module?.name || 'General'}</td>
+                      <td data-label="Estado"><StatusBadge status={document.status} /></td>
+                      <td data-label="Seguimiento"><div className={`followup-badge ${followUp.tone}`}><strong>{followUp.label}</strong><span>{followUp.detail}</span></div></td>
+                      <td data-label="Responsable">{document.responsible?.full_name || document.responsible?.email || 'Sin asignar'}</td>
+                      <td data-label="Fecha">{formatDate(document.created_at)}</td>
+                      <td><button className="icon-button table-action" onClick={(event) => handleOpenFile(document, event)} aria-label={`Abrir ${document.title}`} title="Abrir archivo"><Download size={17} /></button></td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
