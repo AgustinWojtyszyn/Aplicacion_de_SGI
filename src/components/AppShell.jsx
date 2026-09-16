@@ -1,4 +1,4 @@
-import { BellRing, Building2, FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, UsersRound, X } from 'lucide-react'
+import { BellRing, BriefcaseBusiness, Building2, FileText, LayoutDashboard, LogOut, Menu, ShieldCheck, UsersRound, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -7,6 +7,7 @@ import BrandLogo from './BrandLogo'
 
 const baseNavigation = [
   { to: '/dashboard', label: 'Resumen', icon: LayoutDashboard },
+  { to: '/work', label: 'Trabajos', icon: BriefcaseBusiness },
   { to: '/sgi', label: 'SGI / ISO', icon: ShieldCheck },
   { to: '/documents', label: 'Documentos', icon: FileText },
   { to: '/notifications', label: 'Alertas', icon: BellRing },
