@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { APP_URL } from '../lib/constants'
 import { requireSupabase, supabaseConfigured } from '../lib/supabase'
 import { readSelectedCompany, rememberSelectedCompany } from '../services/tenantService'
 
@@ -198,7 +199,7 @@ export function AuthProvider({ children }) {
           full_name: cleanName,
           company_slug: selectedCompany.slug,
         },
-        emailRedirectTo: `${window.location.origin}/login/${selectedCompany.slug}`,
+        emailRedirectTo: `${APP_URL}/login/${selectedCompany.slug}`,
       },
     })
 
@@ -215,7 +216,7 @@ export function AuthProvider({ children }) {
   const requestPasswordReset = useCallback(async (email) => {
     const supabase = requireSupabase()
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/set-password`,
+      redirectTo: `${APP_URL}/set-password`,
     })
     if (error) throw error
   }, [])
