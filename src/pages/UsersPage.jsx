@@ -1,8 +1,9 @@
-import { RefreshCw, Search, ShieldCheck, UserCheck, UserPlus, UsersRound, UserX } from 'lucide-react'
+import { AlertTriangle, RefreshCw, Search, ShieldCheck, Trash2, UserCheck, UserPlus, UsersRound, UserX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import {
   COMPANY_ROLES,
+  deleteUserCompletely,
   inviteCompanyUser,
   listAllCompanyUsers,
   listCompanyUsers,
@@ -30,6 +31,8 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState('')
+  const [deletingUserId, setDeletingUserId] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -123,6 +126,30 @@ export default function UsersPage() {
       setError(saveError.message || 'No se pudo actualizar el acceso.')
     } finally {
       setUpdatingId('')
+    }
+  }
+
+  async function confirmDeleteUser() {
+    if (!deleteTarget) return
+
+    const targetId = deleteTarget.user_id
+    const targetCompanyId = deleteTarget.company_id || company.id
+    const targetEmail = deleteTarget.user?.email || personName(deleteTarget)
+
+    setDeletingUserId(targetId)
+    setError('')
+    setNotice('')
+
+    try {
+      await deleteUserCompletely({ userId: targetId, companyId: targetCompanyId })
+      setMembers((current) => current.filter((member) => member.user_id !== targetId))
+      setDeleteTarget(null)
+      setNotice(`Cuenta eliminada por completo: ${targetEmail}. Ese correo puede volver a utilizarse para una cuenta nueva.`)
+    } catch (deleteError) {
+      console.error(deleteError)
+      setError(deleteError.message || 'No se pudo eliminar la cuenta.')
+    } finally {
+      setDeletingUserId('')
     }
   }
 
@@ -252,6 +279,7 @@ export default function UsersPage() {
             {visibleMembers.map((member) => {
               const isCurrentUser = member.user_id === user?.id
               const isUpdating = updatingId === membershipKey(member)
+              const isDeleting = deletingUserId === member.user_id
               return (
                 <article className={`user-row ${member.is_active ? '' : 'user-row-inactive'}`} key={membershipKey(member)}>
                   <div className="user-identity">
@@ -271,7 +299,7 @@ export default function UsersPage() {
                     <span>Rol</span>
                     <select
                       value={member.role}
-                      disabled={isUpdating || isCurrentUser}
+                      disabled={isUpdating || isDeleting || isCurrentUser}
                       onChange={(event) => saveAccess(member, { role: event.target.value })}
                     >
                       {COMPANY_ROLES.map((itemRole) => (
@@ -287,11 +315,25 @@ export default function UsersPage() {
                     </span>
                     <button
                       className={member.is_active ? 'secondary-button' : 'primary-button'}
-                      disabled={isUpdating || isCurrentUser}
+                      disabled={isUpdating || isDeleting || isCurrentUser}
                       onClick={() => saveAccess(member, { isActive: !member.is_active })}
                     >
                       {isUpdating ? 'Guardando…' : member.is_active ? 'Desactivar' : 'Activar'}
                     </button>
+                    {!isCurrentUser && (
+                      <button
+                        type="button"
+                        className="danger-button user-delete-button"
+                        disabled={isUpdating || isDeleting}
+                        onClick={() => {
+                          setError('')
+                          setNotice('')
+                          setDeleteTarget(member)
+                        }}
+                      >
+                        <Trash2 size={16} /> {isDeleting ? 'Eliminando…' : 'Eliminar'}
+                      </button>
+                    )}
                   </div>
                 </article>
               )
@@ -299,6 +341,39 @@ export default function UsersPage() {
           </div>
         )}
       </section>
+
+      {deleteTarget && (
+        <div className="delete-user-backdrop" role="presentation" onMouseDown={() => !deletingUserId && setDeleteTarget(null)}>
+          <div
+            className="delete-user-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-user-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="delete-user-icon"><AlertTriangle size={24} /></div>
+            <div className="delete-user-copy">
+              <p className="eyebrow">ACCIÓN IRREVERSIBLE</p>
+              <h2 id="delete-user-title">Eliminar cuenta por completo</h2>
+              <p>
+                Vas a eliminar a <strong>{personName(deleteTarget)}</strong>
+                {deleteTarget.user?.email ? <> ({deleteTarget.user.email})</> : null}.
+              </p>
+              <p>
+                La cuenta dejará de existir y, una vez completada la eliminación, ese mismo correo podrá volver a utilizarse para crear o invitar una cuenta nueva.
+              </p>
+            </div>
+            <div className="delete-user-actions">
+              <button type="button" className="secondary-button" disabled={Boolean(deletingUserId)} onClick={() => setDeleteTarget(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="danger-button" disabled={Boolean(deletingUserId)} onClick={confirmDeleteUser}>
+                <Trash2 size={17} /> {deletingUserId ? 'Eliminando…' : 'Eliminar por completo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
