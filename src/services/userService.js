@@ -1,3 +1,4 @@
+import { APP_URL } from '../lib/constants'
 import { requireSupabase } from '../lib/supabase'
 
 export const COMPANY_ROLES = ['admin', 'responsible', 'member']
@@ -73,7 +74,7 @@ export async function inviteCompanyUser({ companyId, email, fullName, role }) {
       email: email.trim().toLowerCase(),
       fullName: fullName.trim(),
       role,
-      redirectTo: `${window.location.origin}/set-password`,
+      redirectTo: `${APP_URL}/set-password`,
     },
   })
 
