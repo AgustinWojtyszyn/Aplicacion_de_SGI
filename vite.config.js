@@ -6,6 +6,9 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  preview: {
+    allowedHosts: ['aplicacion-de-sgi-1.onrender.com'],
+  },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
