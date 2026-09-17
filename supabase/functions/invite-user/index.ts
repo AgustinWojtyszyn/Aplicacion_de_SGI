@@ -6,6 +6,7 @@ const corsHeaders = {
 }
 
 const validRoles = new Set(['admin', 'responsible', 'member'])
+const appUrl = (Deno.env.get('APP_URL') || 'https://aplicacion-de-sgi-1.onrender.com').replace(/\/+$/, '')
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -38,7 +39,6 @@ Deno.serve(async (request) => {
     email?: string
     fullName?: string
     role?: string
-    redirectTo?: string
   }
 
   try {
@@ -51,7 +51,6 @@ Deno.serve(async (request) => {
   const email = payload.email?.trim().toLowerCase()
   const fullName = payload.fullName?.trim() || ''
   const role = payload.role?.trim() || 'member'
-  const redirectTo = payload.redirectTo?.trim()
 
   if (!companyId || !email || !email.includes('@') || !validRoles.has(role)) {
     return json({ error: 'invalid_invitation' }, 400)
@@ -84,18 +83,16 @@ Deno.serve(async (request) => {
 
   if (companyError || !company) return json({ error: 'company_not_found' }, 404)
 
-  const inviteOptions: { data: Record<string, string>; redirectTo?: string } = {
-    data: {
-      full_name: fullName,
-      company_name: company.name,
-      company_slug: company.slug,
-    },
-  }
-  if (redirectTo) inviteOptions.redirectTo = redirectTo
-
   const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
     email,
-    inviteOptions,
+    {
+      data: {
+        full_name: fullName,
+        company_name: company.name,
+        company_slug: company.slug,
+      },
+      redirectTo: `${appUrl}/set-password`,
+    },
   )
 
   if (inviteError || !invited.user) {
