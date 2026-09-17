@@ -20,7 +20,7 @@ const membershipSelect = `
   user:profiles(id, full_name, email, created_at)
 `
 
-async function getFunctionErrorMessage(error, data) {
+async function readFunctionError(error, data) {
   let payload = data
 
   if (!payload && error instanceof FunctionsHttpError && error.context) {
@@ -36,20 +36,41 @@ async function getFunctionErrorMessage(error, data) {
     }
   }
 
-  const rawMessage = payload?.error || payload?.message || error?.message || 'No se pudo enviar la invitación.'
-  const message = String(rawMessage)
+  return String(payload?.error || payload?.message || error?.message || '')
+}
+
+async function getInviteErrorMessage(error, data) {
+  const message = await readFunctionError(error, data)
 
   if (/already|registered|exists|user.*exist/i.test(message)) {
-    return 'Ese correo ya tiene una cuenta o una invitación creada en Supabase. Si la invitación anterior tenía el enlace viejo, eliminá ese usuario no confirmado en Authentication > Users y volvé a invitarlo.'
+    return 'Ese correo ya tiene una cuenta o una invitación creada. Eliminá la cuenta anterior si corresponde y volvé a invitarlo.'
   }
   if (message === 'invalid_invitation') return 'Los datos de la invitación son inválidos. Revisá correo, empresa y rol.'
   if (message === 'company_not_found') return 'La empresa seleccionada no existe o está desactivada.'
   if (message === 'admin_required') return 'Tu cuenta no tiene permisos para invitar usuarios a esta empresa.'
   if (message === 'not_authenticated') return 'Tu sesión venció. Volvé a iniciar sesión e intentá nuevamente.'
-  if (message === 'server_not_configured') return 'La función de invitaciones no tiene configuradas las credenciales requeridas en Supabase.'
-  if (/rate limit/i.test(message)) return 'Supabase limitó temporalmente el envío de correos. Esperá un momento antes de volver a intentar.'
+  if (message === 'server_not_configured') return 'La función de invitaciones no tiene configuradas las credenciales requeridas.'
+  if (/rate limit/i.test(message)) return 'Se limitó temporalmente el envío de correos. Esperá un momento antes de volver a intentar.'
 
-  return message
+  return message || 'No se pudo enviar la invitación.'
+}
+
+async function getDeleteErrorMessage(error, data) {
+  const message = await readFunctionError(error, data)
+
+  if (message === 'cannot_delete_self') return 'No podés eliminar tu propia cuenta desde esta pantalla.'
+  if (message === 'user_not_found') return 'La cuenta ya no existe o fue eliminada previamente.'
+  if (message === 'admin_required') return 'Tu cuenta no tiene permisos para eliminar a este usuario.'
+  if (message === 'platform_admin_required') return 'Solo un administrador global puede eliminar esta cuenta.'
+  if (message === 'platform_admin_required_for_multi_company_user') {
+    return 'Este usuario pertenece a más de una empresa. La eliminación completa debe hacerla un administrador global.'
+  }
+  if (message === 'last_platform_admin_required') return 'No se puede eliminar al último administrador global de la plataforma.'
+  if (message === 'not_authenticated') return 'Tu sesión venció. Volvé a iniciar sesión e intentá nuevamente.'
+  if (message === 'server_not_configured') return 'La función de eliminación no tiene configuradas las credenciales requeridas.'
+  if (/last_active_admin_required/i.test(message)) return 'Debe quedar al menos un administrador activo en la empresa.'
+
+  return message || 'No se pudo eliminar la cuenta.'
 }
 
 export async function listCompanyUsers(companyId) {
@@ -111,9 +132,16 @@ export async function inviteCompanyUser({ companyId, email, fullName, role }) {
     },
   })
 
-  if (error) {
-    throw new Error(await getFunctionErrorMessage(error, data))
-  }
+  if (error) throw new Error(await getInviteErrorMessage(error, data))
+  return data
+}
 
+export async function deleteUserCompletely({ userId, companyId }) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase.functions.invoke('delete-user', {
+    body: { userId, companyId },
+  })
+
+  if (error) throw new Error(await getDeleteErrorMessage(error, data))
   return data
 }
