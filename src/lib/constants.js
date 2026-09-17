@@ -1,3 +1,5 @@
+export const APP_URL = (import.meta.env.VITE_APP_URL || 'https://aplicacion-de-sgi-1.onrender.com').replace(/\/+$/, '')
+
 export const DOCUMENT_BUCKET = 'sgi-documents'
 export const MAX_DOCUMENT_SIZE = 25 * 1024 * 1024
 
