@@ -74,7 +74,7 @@ export async function updateCompanyWorkspace({ companyId, name, slug }) {
       throw new Error('El identificador solo puede usar minúsculas, números y guiones.')
     }
     if (error.message?.includes('system_company_slug_locked')) {
-      throw new Error('El identificador de EP Consultora no puede modificarse.')
+      throw new Error('El identificador principal de gestiQa no puede modificarse.')
     }
     throw error
   }
@@ -91,7 +91,7 @@ export async function setCompanyActive({ companyId, isActive }) {
 
   if (error) {
     if (error.message?.includes('system_company_cannot_be_archived')) {
-      throw new Error('EP Consultora no se puede archivar.')
+      throw new Error('El espacio principal de gestiQa no se puede archivar.')
     }
     throw error
   }
@@ -125,7 +125,7 @@ export async function deleteCompanyWorkspace(companyId) {
 
   if (error) {
     if (error.message?.includes('system_company_cannot_be_deleted')) {
-      throw new Error('EP Consultora no se puede eliminar.')
+      throw new Error('El espacio principal de gestiQa no se puede eliminar.')
     }
     if (error.message?.includes('company_must_be_archived_before_delete')) {
       throw new Error('Primero archivá la empresa y después podés eliminarla definitivamente.')
