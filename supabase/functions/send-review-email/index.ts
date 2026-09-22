@@ -173,7 +173,7 @@ Deno.serve(async (request) => {
 
   const note = payload.note?.trim() || ''
   const recipientName = recipient.full_name || recipient.email
-  const senderName = sender?.full_name || sender?.email || 'EP Consultora'
+  const senderName = sender?.full_name || sender?.email || 'gestiQa'
   const safeTitle = escapeHtml(document.title)
   const safeCompany = escapeHtml(company.name)
   const safeRecipient = escapeHtml(recipientName)
@@ -206,7 +206,7 @@ Deno.serve(async (request) => {
         <p><strong>Documento:</strong> ${safeTitle}</p>
         ${safeNote ? `<p><strong>Nota:</strong><br />${safeNote}</p>` : ''}
         <p><a href="${documentsUrl}" style="display:inline-block;padding:11px 16px;border-radius:8px;background:#0d5c55;color:#fff;text-decoration:none;font-weight:700">Abrir documentos</a></p>
-        <p style="color:#68817e;font-size:12px">EP Consultora · notificación del flujo documental</p>
+        <p style="color:#68817e;font-size:12px">gestiQa · notificación del flujo documental</p>
       </div>`,
     }),
   })
