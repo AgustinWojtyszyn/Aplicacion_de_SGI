@@ -22,6 +22,7 @@ EP Consultora es una plataforma web multiempresa para centralizar documentación
 - Comentarios y observaciones internas.
 - Fechas objetivo de revisión y documentos vencidos.
 - Centro de alertas internas.
+- Envío de correos de revisión con destinatario seleccionable y verificación de entrega.
 - Dashboard SGI con cobertura, pendientes y métricas.
 - Estructura ISO 9001, ISO 14001, ISO 45001 y SGI Integrado.
 - Capítulos 4 a 10 y asociación documental a requisitos.
@@ -108,7 +109,7 @@ GitHub Actions ejecuta ambas verificaciones automáticamente en cada push a `mai
 
 El detalle de la implementación SGI está en [`docs/STAGE2_STATUS.md`](docs/STAGE2_STATUS.md).
 
-Queda como mejora posterior el envío automático de emails para eventos del flujo documental. Las notificaciones internas y los recordatorios de vencimientos ya forman parte de la aplicación.
+El flujo documental puede enviar correos de revisión mediante la Edge Function `send-review-email`. El destinatario se elige entre los usuarios activos de la empresa y la interfaz consulta el estado del mensaje para confirmar entrega o detectar errores. Las notificaciones internas y los recordatorios de vencimientos también forman parte de la aplicación.
 
 ## Preparación para producción
 
