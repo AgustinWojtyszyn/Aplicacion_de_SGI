@@ -1,3 +1,4 @@
+import { DOCUMENT_BUCKET } from '../lib/constants'
 import { requireSupabase } from '../lib/supabase'
 
 export const COMPANY_SELECTION_KEY = 'ep-consultora.selected-company'
@@ -94,6 +95,55 @@ export async function setCompanyActive({ companyId, isActive }) {
     }
     throw error
   }
+}
+
+export async function deleteCompanyWorkspace(companyId) {
+  const supabase = requireSupabase()
+
+  const [documentsResult, versionsResult] = await Promise.all([
+    supabase
+      .from('documents')
+      .select('file_path')
+      .eq('company_id', companyId),
+    supabase
+      .from('document_versions')
+      .select('file_path, document:documents!inner(company_id)')
+      .eq('document.company_id', companyId),
+  ])
+
+  if (documentsResult.error) throw documentsResult.error
+  if (versionsResult.error) throw versionsResult.error
+
+  const storagePaths = [...new Set([
+    ...(documentsResult.data ?? []).map((item) => item.file_path),
+    ...(versionsResult.data ?? []).map((item) => item.file_path),
+  ].filter(Boolean))]
+
+  const { error } = await supabase.rpc('delete_company_workspace', {
+    p_company_id: companyId,
+  })
+
+  if (error) {
+    if (error.message?.includes('system_company_cannot_be_deleted')) {
+      throw new Error('EP Consultora no se puede eliminar.')
+    }
+    if (error.message?.includes('company_must_be_archived_before_delete')) {
+      throw new Error('Primero archivá la empresa y después podés eliminarla definitivamente.')
+    }
+    throw error
+  }
+
+  let cleanupFailed = false
+  for (let index = 0; index < storagePaths.length; index += 100) {
+    const batch = storagePaths.slice(index, index + 100)
+    const { error: storageError } = await supabase.storage.from(DOCUMENT_BUCKET).remove(batch)
+    if (storageError) {
+      console.error('Company deleted but storage cleanup failed', storageError)
+      cleanupFailed = true
+    }
+  }
+
+  return { cleanupFailed }
 }
 
 export function slugifyCompanyName(value = '') {
