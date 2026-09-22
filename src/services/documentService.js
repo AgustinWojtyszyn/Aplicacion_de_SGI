@@ -1,9 +1,30 @@
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import {
   ALLOWED_DOCUMENT_MIME_TYPES,
   DOCUMENT_BUCKET,
   MAX_DOCUMENT_SIZE,
 } from '../lib/constants'
 import { requireSupabase } from '../lib/supabase'
+
+async function readReviewEmailError(error, data) {
+  let payload = data
+  if (!payload && error instanceof FunctionsHttpError && error.context) {
+    try {
+      payload = await error.context.clone().json()
+    } catch {
+      // Keep SDK message as fallback.
+    }
+  }
+
+  const message = String(payload?.error || payload?.message || error?.message || '')
+  if (message === 'resend_not_configured') return 'El servicio de correo no tiene configurada la API de Resend.'
+  if (message === 'review_email_from_not_configured') return 'Falta configurar el remitente de los correos de revisión.'
+  if (message === 'recipient_required') return 'Seleccioná a quién querés enviarle el correo.'
+  if (message === 'recipient_not_available') return 'El destinatario no tiene un correo activo dentro de esta empresa.'
+  if (message === 'not_authenticated') return 'Tu sesión venció. Volvé a iniciar sesión.'
+  if (message === 'not_authorized') return 'No tenés permisos para enviar este correo.'
+  return message || 'No se pudo enviar el correo.'
+}
 
 function cleanSearchTerm(value = '') {
   return value.replace(/[,%()]/g, ' ').trim()
@@ -198,6 +219,30 @@ async function workflowRpc(name, args) {
   const supabase = requireSupabase()
   const { error } = await supabase.rpc(name, args)
   if (error) throw error
+}
+
+export async function sendReviewEmail({ companyId, documentId, recipientUserId, note }) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase.functions.invoke('send-review-email', {
+    body: {
+      action: 'send',
+      companyId,
+      documentId,
+      recipientUserId,
+      note: note?.trim() || null,
+    },
+  })
+  if (error) throw new Error(await readReviewEmailError(error, data))
+  return data
+}
+
+export async function checkReviewEmailStatus({ companyId, documentId, emailId }) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase.functions.invoke('send-review-email', {
+    body: { action: 'status', companyId, documentId, emailId },
+  })
+  if (error) throw new Error(await readReviewEmailError(error, data))
+  return data
 }
 
 export function submitDocumentForReview({ documentId, reviewerId, approverId, reviewDueAt, comment }) {
