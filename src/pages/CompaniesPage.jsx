@@ -129,7 +129,9 @@ export default function CompaniesPage() {
 
       await syncCompanies()
       setNotice(message)
-      closeModal()
+      setModalMode(null)
+      setEditingCompany(null)
+      setForm(EMPTY_FORM)
     } catch (createError) {
       console.error(createError)
       setError(createError.message || 'No se pudo crear la empresa.')
@@ -163,7 +165,9 @@ export default function CompaniesPage() {
 
       await syncCompanies()
       setNotice(`${name} quedó actualizada.`)
-      closeModal()
+      setModalMode(null)
+      setEditingCompany(null)
+      setForm(EMPTY_FORM)
     } catch (editError) {
       console.error(editError)
       setError(editError.message || 'No se pudo actualizar la empresa.')
