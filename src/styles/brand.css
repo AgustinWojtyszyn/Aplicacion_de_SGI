@@ -1,15 +1,22 @@
 :root {
   --ink: #173B6C;
+  --text: #173B6C;
   --muted: #667085;
-  --surface: #ffffff;
-  --surface-soft: #f5f7fa;
-  --line: #dfe4ea;
+  --surface: #FFFFFF;
+  --surface-soft: #F5F7FA;
+  --line: #E2E7ED;
+  --border: #E2E7ED;
   --brand: #173B6C;
-  --brand-deep: #102b50;
-  --brand-soft: #eaf0f7;
-  --warning: #a76a11;
-  --danger: #a83d47;
-  --shadow: 0 20px 55px rgba(23, 59, 108, 0.12);
+  --brand-deep: #102D52;
+  --brand-soft: #EAF0F7;
+  --primary: #173B6C;
+  --primary-strong: #102D52;
+  --primary-soft: #EAF0F7;
+  --accent: #39A96B;
+  --accent-soft: #EAF7F0;
+  --warning: #A76A11;
+  --danger: #A83D47;
+  --shadow: 0 20px 55px rgba(23, 59, 108, 0.11);
 }
 
 html,
@@ -25,49 +32,79 @@ body,
   align-items: center;
   gap: 11px;
   min-width: 0;
+  color: #173B6C;
 }
 
 .brand-logo-symbol {
   width: 48px;
   height: 48px;
   flex: 0 0 auto;
-  overflow: visible;
-  filter: drop-shadow(0 7px 14px rgba(23, 59, 108, 0.16));
+  color: #173B6C;
+  filter: drop-shadow(0 7px 14px rgba(23, 59, 108, 0.12));
+}
+
+.brand-logo-check {
+  stroke: #39A96B;
 }
 
 .brand-logo-copy {
+  display: flex;
   min-width: 0;
-  display: inline-flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 1px;
 }
 
 .brand-logo-wordmark {
   display: inline-flex;
   align-items: baseline;
   min-width: 0;
-  font-size: 1.32rem;
-  font-weight: 900;
-  letter-spacing: -0.065em;
+  color: #173B6C;
+  font-size: 1.36rem;
+  font-weight: 850;
+  letter-spacing: -0.055em;
   line-height: .95;
   white-space: nowrap;
 }
 
-.brand-logo-wordmark strong { font: inherit; }
-.brand-word-blue { color: #173B6C; }
-.brand-word-green { color: #39A96B; }
+.brand-logo-wordmark strong {
+  margin: 0 .01em 0 .015em;
+  color: #39A96B;
+  font: inherit;
+  font-size: 1.18em;
+  line-height: .8;
+}
 
-.brand-logo-tagline {
+.brand-logo-copy small {
+  margin-top: 4px;
   color: #667085;
-  font-size: .43rem;
+  font-size: .48rem;
   font-weight: 750;
-  letter-spacing: .22em;
+  letter-spacing: .19em;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.brand-logo-light .brand-word-blue { color: #ffffff; }
-.brand-logo-light .brand-word-green { color: #55c47f; }
-.brand-logo-light .brand-logo-tagline { color: rgba(255,255,255,.68); }
+.brand-logo-light {
+  color: #FFFFFF;
+}
+
+.brand-logo-light .brand-logo-symbol,
+.brand-logo-light .brand-logo-wordmark,
+.brand-logo-light .brand-logo-gesti,
+.brand-logo-light .brand-logo-a {
+  color: #FFFFFF;
+}
+
+.brand-logo-light .brand-logo-wordmark strong,
+.brand-logo-light .brand-logo-check {
+  color: #39A96B;
+  stroke: #39A96B;
+}
+
+.brand-logo-light .brand-logo-copy small {
+  color: rgba(255, 255, 255, .64);
+}
 
 .brand-logo-compact .brand-logo-symbol {
   width: 40px;
@@ -75,32 +112,38 @@ body,
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #173B6C, #214f87);
-  box-shadow: 0 10px 24px rgba(23, 59, 108, 0.18);
+  background: #173B6C;
+  box-shadow: 0 10px 24px rgba(23, 59, 108, 0.16);
 }
 
 .primary-button:hover {
-  background: linear-gradient(135deg, #102b50, #173B6C);
+  background: #102D52;
 }
 
 .secondary-button,
 .icon-button:hover {
-  background: #eef2f6;
+  background: #EEF2F6;
+}
+
+.eyebrow {
+  color: #173B6C;
 }
 
 .login-screen {
-  background: #f5f7fa;
+  background: #F5F7FA;
 }
 
-.login-intro {
+.login-intro,
+.tenant-gate-hero {
   background:
-    radial-gradient(circle at 18% 12%, rgba(57, 169, 107, 0.28), transparent 36%),
-    radial-gradient(circle at 82% 78%, rgba(57, 169, 107, 0.12), transparent 42%),
-    linear-gradient(145deg, #0d284b 0%, #173B6C 60%, #214f87 100%);
+    radial-gradient(circle at 82% 16%, rgba(57, 169, 107, .22), transparent 34%),
+    radial-gradient(circle at 12% 88%, rgba(255, 255, 255, .08), transparent 38%),
+    linear-gradient(145deg, #102D52 0%, #173B6C 68%, #1B467F 100%);
 }
 
-.login-intro .eyebrow {
-  color: #8fd7ac;
+.login-intro .eyebrow,
+.tenant-gate-hero .eyebrow {
+  color: #A8E0C0;
 }
 
 .login-brand-logo {
@@ -108,12 +151,16 @@ body,
 }
 
 .login-brand-logo .brand-logo-symbol {
-  width: 62px;
-  height: 62px;
+  width: 64px;
+  height: 64px;
 }
 
 .login-brand-logo .brand-logo-wordmark {
-  font-size: clamp(1.55rem, 3vw, 2.05rem);
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+}
+
+.login-brand-logo .brand-logo-copy small {
+  font-size: .56rem;
 }
 
 .login-intro h1 {
@@ -121,40 +168,43 @@ body,
   font-size: clamp(3rem, 6.2vw, 5.9rem);
 }
 
-.login-intro > p:not(.eyebrow) {
-  color: #e8edf5;
-}
-
+.login-intro > p:not(.eyebrow),
 .login-feature {
-  color: #e8edf5;
+  color: #DEE7F2;
 }
 
 .login-card {
-  border-color: #e0e8f3;
-  box-shadow: 0 28px 70px rgba(21, 50, 96, 0.14);
+  border-color: #E2E7ED;
+  box-shadow: 0 28px 70px rgba(23, 59, 108, 0.13);
 }
 
-.mini-icon {
+.mini-icon,
+.stat-icon,
+.company-management-icon,
+.tenant-company-icon,
+.admin-company-icon,
+.company-card-icon {
   color: #173B6C;
-  background: #eaf0f7;
+  background: #EAF0F7;
 }
 
 .login-form input:focus,
-.password-form input:focus {
-  border-color: #39A96B;
-  box-shadow: 0 0 0 3px rgba(57, 169, 107, 0.14);
+.password-form input:focus,
+.company-simple-form input:focus {
+  border-color: #173B6C;
+  box-shadow: 0 0 0 3px rgba(23, 59, 108, 0.10);
 }
 
 .sidebar {
-  color: #eef5ff;
+  color: #F3F6FA;
   background:
-    radial-gradient(circle at 12% 0%, rgba(57, 169, 107, 0.16), transparent 28%),
-    linear-gradient(180deg, #102b50 0%, #173B6C 100%);
-  border-right-color: rgba(255, 255, 255, 0.06);
+    radial-gradient(circle at 10% 0%, rgba(57, 169, 107, .18), transparent 25%),
+    linear-gradient(180deg, #102D52 0%, #0D2544 100%);
+  border-right-color: rgba(255, 255, 255, 0.07);
 }
 
 .sidebar-brand {
-  min-height: 64px;
+  min-height: 66px;
   justify-content: space-between;
 }
 
@@ -164,78 +214,115 @@ body,
 }
 
 .sidebar-logo .brand-logo-wordmark {
-  font-size: 1.08rem;
+  font-size: 1.18rem;
+}
+
+.sidebar-logo .brand-logo-copy small {
+  font-size: .4rem;
 }
 
 .nav-section-label {
-  color: #9eacc0;
+  color: #89A1C3;
 }
 
-.nav-link {
-  color: #c2ccda;
+.nav-link,
+.nav-group-button {
+  color: #B4C3D8;
 }
 
-.nav-link:hover {
-  color: #fff;
+.nav-link:hover,
+.nav-group-button:hover,
+.nav-group-active > .nav-group-button {
+  color: #FFFFFF;
   background: rgba(255, 255, 255, 0.07);
 }
 
 .nav-link-active {
-  color: #fff;
-  background: linear-gradient(135deg, rgba(57, 169, 107, 0.92), rgba(43, 132, 87, 0.82));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+  background: linear-gradient(135deg, rgba(57, 169, 107, .88), rgba(45, 135, 88, .78));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
 }
 
 .sidebar-user {
-  border-top-color: rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.09);
 }
 
 .avatar {
   color: #173B6C;
-  background: linear-gradient(135deg, #eef3f9, #dff4e7);
+  background: #FFFFFF;
 }
 
 .topbar {
-  background: rgba(255, 255, 255, 0.92);
-  border-bottom-color: #dfe7f2;
+  background: rgba(255, 255, 255, 0.94);
+  border-bottom-color: #E2E7ED;
+}
+
+.topbar-kicker {
+  color: #667085;
 }
 
 .stage-pill {
   color: #173B6C;
-  background: linear-gradient(135deg, #eaf0f7, #e7f6ed);
-  border: 1px solid #d7e1ec;
+  background: #EAF7F0;
+  border: 1px solid #CAEAD8;
 }
 
 .access-card,
-.password-card {
-  border-color: #dfe7f2;
-  box-shadow: 0 24px 62px rgba(21, 50, 96, 0.12);
+.password-card,
+.tenant-gate-card,
+.company-directory-card,
+.company-modal {
+  border-color: #E2E7ED;
+  box-shadow: 0 24px 62px rgba(23, 59, 108, 0.11);
 }
 
-.access-brand-logo,
-.password-brand-logo {
-  margin-bottom: 28px;
+.company-current-pill,
+.companies-filter-tabs button.active,
+.auth-notice {
+  color: #237A4A;
 }
 
-.access-brand-logo .brand-logo-symbol,
-.password-brand-logo .brand-logo-symbol {
-  width: 52px;
-  height: 52px;
+.company-current-pill,
+.companies-filter-tabs button.active {
+  background: #EAF7F0;
+}
+
+.company-open-button,
+.login-text-action {
+  color: #173B6C;
+}
+
+.company-open-button:hover {
+  border-color: #173B6C;
+  background: #EAF0F7;
+}
+
+.company-icon-action.restore:hover {
+  color: #237A4A;
+  background: #EAF7F0;
+}
+
+.loader-dot {
+  background: #39A96B;
 }
 
 @media (max-width: 900px) {
   .sidebar-logo .brand-logo-wordmark {
-    font-size: 1.02rem;
+    font-size: 1.08rem;
   }
 }
 
 @media (max-width: 560px) {
   .login-brand-logo .brand-logo-symbol {
-    width: 52px;
-    height: 52px;
+    width: 54px;
+    height: 54px;
   }
 
   .login-brand-logo .brand-logo-wordmark {
-    font-size: 1.45rem;
+    font-size: 1.55rem;
+  }
+
+  .brand-logo-copy small {
+    font-size: .42rem;
   }
 }
