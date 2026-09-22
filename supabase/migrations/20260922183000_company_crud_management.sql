@@ -142,12 +142,57 @@ begin
 end;
 $$;
 
+create or replace function public.delete_company_workspace(
+  p_company_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+declare
+  v_slug text;
+  v_is_active boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  if not public.is_platform_admin(auth.uid()) then
+    raise exception 'not_authorized';
+  end if;
+
+  select c.slug, c.is_active
+    into v_slug, v_is_active
+  from public.companies c
+  where c.id = p_company_id
+  for update;
+
+  if v_slug is null then
+    raise exception 'company_not_found';
+  end if;
+
+  if v_slug = 'ep-consultora' then
+    raise exception 'system_company_cannot_be_deleted';
+  end if;
+
+  if v_is_active then
+    raise exception 'company_must_be_archived_before_delete';
+  end if;
+
+  delete from public.companies
+  where id = p_company_id;
+end;
+$;
+
 revoke all on function public.list_managed_companies() from public;
 revoke all on function public.update_company_workspace(uuid, text, text) from public;
 revoke all on function public.set_company_active(uuid, boolean) from public;
+revoke all on function public.delete_company_workspace(uuid) from public;
 
 grant execute on function public.list_managed_companies() to authenticated;
 grant execute on function public.update_company_workspace(uuid, text, text) to authenticated;
 grant execute on function public.set_company_active(uuid, boolean) to authenticated;
+grant execute on function public.delete_company_workspace(uuid) to authenticated;
 
 commit;
