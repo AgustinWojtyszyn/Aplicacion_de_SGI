@@ -5,26 +5,29 @@ export default function BrandLogo({ compact = false, light = false, className = 
       aria-label="gestiQa"
     >
       <svg className="brand-logo-symbol" viewBox="0 0 72 72" aria-hidden="true" focusable="false">
-        {light ? <rect x="2" y="2" width="68" height="68" rx="18" fill="#ffffff" /> : null}
-        <path
-          d="M51.5 18.5A23 23 0 1 0 49 53.2"
+        <circle
+          cx="34"
+          cy="31"
+          r="20"
           fill="none"
-          stroke="#173B6C"
-          strokeWidth="10"
+          stroke="currentColor"
+          strokeWidth="8"
           strokeLinecap="round"
+          strokeDasharray="102 24"
+          transform="rotate(34 34 31)"
         />
         <path
-          d="M26 34.5 35.5 44 56 25.5"
+          className="brand-logo-check"
+          d="M20 31.5 30 41.5 53 19"
           fill="none"
-          stroke="#39A96B"
-          strokeWidth="9"
+          strokeWidth="8"
           strokeLinecap="square"
           strokeLinejoin="miter"
         />
         <path
-          d="m38.5 45 13 13"
+          className="brand-logo-check"
+          d="M36 40 48 51"
           fill="none"
-          stroke="#39A96B"
           strokeWidth="8"
           strokeLinecap="square"
         />
@@ -33,9 +36,11 @@ export default function BrandLogo({ compact = false, light = false, className = 
       {!compact && (
         <span className="brand-logo-copy" aria-hidden="true">
           <span className="brand-logo-wordmark">
-            <strong className="brand-word-blue">gesti</strong><strong className="brand-word-green">Q</strong><strong className="brand-word-blue">a</strong>
+            <span className="brand-logo-gesti">gesti</span>
+            <strong>Q</strong>
+            <span className="brand-logo-a">a</span>
           </span>
-          <span className="brand-logo-tagline">SISTEMAS DE GESTIÓN</span>
+          <small>SISTEMAS DE GESTIÓN</small>
         </span>
       )}
     </div>
