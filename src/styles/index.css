@@ -172,9 +172,6 @@ a { color: inherit; text-decoration: none; }
 }
 .sidebar-brand { min-height: 58px; display: flex; align-items: center; gap: 11px; padding: 0 7px; }
 .sidebar-brand-mark { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto; background: #173B6C; border-radius: 12px; }
-.sidebar-brand strong, .sidebar-brand span { display: block; }
-.sidebar-brand strong { font-size: .95rem; }
-.sidebar-brand span { margin-top: 2px; color: #B4C3D8; font-size: .72rem; }
 .sidebar-close { display: none; margin-left: auto; color: #F3F6FA; }
 .sidebar-nav { display: grid; gap: 5px; margin-top: 34px; }
 .nav-section-label { padding: 0 11px 8px; color: #89A1C3; font-size: .62rem; font-weight: 850; letter-spacing: .13em; }
@@ -224,6 +221,41 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 900px) {
   .login-screen { grid-template-columns: 1fr; }
+  .sidebar {
+    width: min(84vw, 320px);
+    padding: 18px 14px;
+  }
+  .sidebar-brand {
+    min-height: 58px;
+    padding: 0 4px;
+    gap: 10px;
+  }
+  .sidebar-logo {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  .sidebar-logo .brand-logo-copy {
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+  .sidebar-logo .brand-logo-wordmark {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+  .sidebar-logo .brand-logo-wordmark > * {
+    display: inline;
+    margin-top: 0;
+  }
+  .sidebar-logo .brand-logo-copy small {
+    display: block;
+    white-space: nowrap;
+  }
+  .sidebar-close {
+    flex: 0 0 38px;
+  }
   .login-intro { min-height: auto; padding: 48px 28px 42px; }
   .login-intro h1 { max-width: 10ch; font-size: clamp(2.8rem, 12vw, 4.8rem); }
   .login-panel { padding: 28px 20px 48px; }
