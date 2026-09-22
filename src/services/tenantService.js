@@ -49,6 +49,53 @@ export async function createCompanyWorkspace({ name, slug }) {
   return data
 }
 
+
+export async function listManagedCompanies() {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase.rpc('list_managed_companies')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function updateCompanyWorkspace({ companyId, name, slug }) {
+  const supabase = requireSupabase()
+  const { data, error } = await supabase.rpc('update_company_workspace', {
+    p_company_id: companyId,
+    p_name: name.trim(),
+    p_slug: slug.trim().toLowerCase(),
+  })
+
+  if (error) {
+    if (error.message?.includes('company_slug_already_exists')) {
+      throw new Error('Ya existe una empresa con ese identificador.')
+    }
+    if (error.message?.includes('invalid_company_slug')) {
+      throw new Error('El identificador solo puede usar minúsculas, números y guiones.')
+    }
+    if (error.message?.includes('system_company_slug_locked')) {
+      throw new Error('El identificador de EP Consultora no puede modificarse.')
+    }
+    throw error
+  }
+
+  return Array.isArray(data) ? data[0] : data
+}
+
+export async function setCompanyActive({ companyId, isActive }) {
+  const supabase = requireSupabase()
+  const { error } = await supabase.rpc('set_company_active', {
+    p_company_id: companyId,
+    p_is_active: Boolean(isActive),
+  })
+
+  if (error) {
+    if (error.message?.includes('system_company_cannot_be_archived')) {
+      throw new Error('EP Consultora no se puede archivar.')
+    }
+    throw error
+  }
+}
+
 export function slugifyCompanyName(value = '') {
   return value
     .normalize('NFD')
