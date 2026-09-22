@@ -4,6 +4,7 @@ import {
   Building2,
   ChevronDown,
   FileText,
+  History,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -90,7 +91,10 @@ export default function AppShell() {
     ]
 
     const adminItems = []
-    if (canManageUsers(role)) adminItems.push({ to: '/users', label: 'Usuarios', icon: UsersRound })
+    if (canManageUsers(role)) {
+      adminItems.push({ to: '/users', label: 'Usuarios', icon: UsersRound })
+      adminItems.push({ to: '/history', label: 'Historial', icon: History })
+    }
     if (canManageCompanies({ role, isPlatformAdmin })) adminItems.push({ to: '/companies', label: 'Empresas', icon: Building2 })
     if (adminItems.length) groups.push({ label: 'Administración', icon: Settings2, items: adminItems })
 
