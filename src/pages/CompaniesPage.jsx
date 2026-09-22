@@ -1,10 +1,12 @@
-import { Building2, Plus, RefreshCw } from 'lucide-react'
+import { ArrowUpRight, Building2, FileText, History, Plus, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { inviteCompanyUser } from '../services/userService'
 import { createCompanyWorkspace, slugifyCompanyName } from '../services/tenantService'
 
 export default function CompaniesPage() {
+  const navigate = useNavigate()
   const { companies, company, refreshWorkspace, switchCompany } = useAuth()
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
@@ -12,6 +14,7 @@ export default function CompaniesPage() {
   const [adminName, setAdminName] = useState('')
   const [adminEmail, setAdminEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [openingCompanyId, setOpeningCompanyId] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -56,6 +59,20 @@ export default function CompaniesPage() {
       setError(createError.message || 'No se pudo crear la empresa.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleOpenCompany(item, destination) {
+    setOpeningCompanyId(item.id)
+    setError('')
+    try {
+      if (item.id !== company?.id) await switchCompany(item.id)
+      navigate(destination)
+    } catch (openError) {
+      console.error(openError)
+      setError(openError.message || 'No se pudo abrir el espacio de la empresa.')
+    } finally {
+      setOpeningCompanyId('')
     }
   }
 
@@ -145,16 +162,40 @@ export default function CompaniesPage() {
           <header><span>ESPACIOS ACTIVOS</span><h2>{companies.length} empresa{companies.length === 1 ? '' : 's'}</h2></header>
           <div className="admin-company-list">
             {companies.map((item) => (
-              <button
+              <article
                 key={item.id}
-                type="button"
                 className={`admin-company-row ${item.id === company?.id ? 'active' : ''}`}
-                onClick={() => item.id !== company?.id && switchCompany(item.id)}
               >
                 <span className="admin-company-icon"><Building2 size={18} /></span>
-                <span><strong>{item.name}</strong><small>/login/{item.slug}</small></span>
-                <span className="company-row-status">{item.id === company?.id ? 'En uso' : 'Abrir'}</span>
-              </button>
+                <span className="admin-company-copy"><strong>{item.name}</strong><small>/login/{item.slug}</small></span>
+                <span className="company-row-status">{item.id === company?.id ? 'En uso' : 'Disponible'}</span>
+                <div className="company-row-actions">
+                  <button
+                    type="button"
+                    className="company-row-action"
+                    onClick={() => handleOpenCompany(item, '/documents')}
+                    disabled={openingCompanyId === item.id}
+                  >
+                    <FileText size={15} /> Documentos
+                  </button>
+                  <button
+                    type="button"
+                    className="company-row-action"
+                    onClick={() => handleOpenCompany(item, '/history')}
+                    disabled={openingCompanyId === item.id}
+                  >
+                    <History size={15} /> Historial
+                  </button>
+                  <button
+                    type="button"
+                    className="company-row-action company-row-action-primary"
+                    onClick={() => handleOpenCompany(item, '/dashboard')}
+                    disabled={openingCompanyId === item.id}
+                  >
+                    <ArrowUpRight size={15} /> Abrir espacio
+                  </button>
+                </div>
+              </article>
             ))}
           </div>
         </article>
