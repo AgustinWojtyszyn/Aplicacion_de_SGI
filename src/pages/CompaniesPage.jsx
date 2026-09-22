@@ -383,7 +383,7 @@ export default function CompaniesPage() {
                     disabled={isSystemCompany}
                     required
                   />
-                  {isSystemCompany && <small>El identificador principal de EP Consultora está protegido.</small>}
+                  {isSystemCompany && <small>El identificador principal de gestiQa está protegido.</small>}
                 </label>
               )}
 
