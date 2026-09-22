@@ -385,6 +385,7 @@
 .company-icon-action:hover { color: var(--brand); background: var(--surface-soft); }
 .company-icon-action.archive:hover { color: #9b6a18; background: #fff8e8; }
 .company-icon-action.restore:hover { color: #176c55; background: #edf9f4; }
+.company-icon-action.delete:hover { color: #a92f2f; background: #fff0f1; border-color: #f0c5c8; }
 .company-icon-action:disabled { cursor: not-allowed; opacity: .32; }
 
 .companies-loading,
