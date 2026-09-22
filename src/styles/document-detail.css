@@ -81,3 +81,73 @@
   line-height: 1.5;
 }
 .workflow-recipient-note strong { color: var(--ink); }
+
+
+.review-email-recipient select { width: 100%; }
+
+.review-email-panel {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 12px;
+  align-items: end;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #f8fbfa;
+}
+.review-email-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--brand);
+}
+.review-email-heading div { min-width: 0; }
+.review-email-heading strong,
+.review-email-heading span { display: block; }
+.review-email-heading strong { color: var(--ink); font-size: .82rem; }
+.review-email-heading span { margin-top: 3px; color: var(--muted); font-size: .72rem; line-height: 1.4; }
+.review-email-panel .field { margin: 0; }
+.review-email-panel .secondary-button { min-height: 42px; }
+
+.email-delivery-status {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+.email-delivery-status > div { min-width: 0; }
+.email-delivery-status strong,
+.email-delivery-status span { display: block; }
+.email-delivery-status strong { font-size: .78rem; }
+.email-delivery-status span {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: .7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.email-delivery-status.delivered {
+  border-color: #b9dfd1;
+  background: #edf9f4;
+}
+.email-delivery-status.delivered strong { color: #176c55; }
+.email-delivery-status.failed {
+  border-color: #edc5c8;
+  background: #fff3f4;
+}
+.email-delivery-status.failed strong { color: #9a3038; }
+.email-delivery-status.pending strong { color: #76601f; }
+
+@media (max-width: 620px) {
+  .review-email-panel { grid-template-columns: 1fr; }
+  .review-email-panel .secondary-button { width: 100%; }
+  .email-delivery-status { align-items: flex-start; flex-direction: column; }
+}
