@@ -143,6 +143,18 @@ export async function getDocumentDetail(documentId) {
   return { document: documentResult.data, comments: commentsResult.data ?? [], activity: activityResult.data ?? [], versions: versionsResult.data ?? [] }
 }
 
+export async function listCompanyChangeHistory(companyId, { limit = 250 } = {}) {
+  if (!companyId) return []
+  const supabase = requireSupabase()
+  const { data, error } = await supabase
+    .from('document_activity')
+    .select('id, document_id, action, from_status, to_status, details, created_at, actor:profiles(id, full_name, email), document:documents!inner(id, title, company_id, document_type, status)')
+    .eq('document.company_id', companyId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return data ?? []
+}
 export async function updateDocumentMetadata(documentId, values) {
   const supabase = requireSupabase()
   const { data, error } = await supabase.from('documents').update({
