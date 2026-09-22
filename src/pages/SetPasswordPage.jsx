@@ -68,7 +68,7 @@ export default function SetPasswordPage() {
         <BrandLogo className="password-brand-logo" />
         <p className="eyebrow">ACCESO SEGURO</p>
         <h1>Creá tu contraseña</h1>
-        <p>Usá una contraseña de al menos 8 caracteres para completar el acceso a EP Consultora.</p>
+        <p>Usá una contraseña de al menos 8 caracteres para completar el acceso a gestiQa.</p>
 
         <form className="password-form" onSubmit={handleSubmit}>
           <label>
