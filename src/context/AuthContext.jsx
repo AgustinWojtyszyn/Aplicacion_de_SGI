@@ -127,7 +127,7 @@ export function AuthProvider({ children }) {
       setWorkspaceError(workspace.workspaceError)
       setPreferredCompany(readSelectedCompany())
     } catch (error) {
-      console.error('Failed to load EP Consultora workspace', error)
+      console.error('Failed to load gestiQa workspace', error)
       setWorkspaceError(error.message || 'No se pudo cargar el espacio de trabajo.')
       setProfile(null)
       setMembership(null)
