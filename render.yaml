@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ep-consultora
+    name: aplicacion-de-sgi-1
     runtime: static
     repo: https://github.com/AgustinWojtyszyn/Aplicacion_de_SGI
     branch: main
