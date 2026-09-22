@@ -49,7 +49,7 @@
 .norm-ranking-track {
   height: 9px;
   overflow: hidden;
-  background: #edf2f1;
+  background: #EEF2F6;
   border-radius: 999px;
 }
 
@@ -64,8 +64,8 @@
 
 .status-draft-bar { background: #a59b89; }
 .status-progress-bar { background: #d89a3d; }
-.status-approved-bar { background: #2f9d75; }
-.norm-ranking-track > span { background: linear-gradient(90deg, var(--brand), #27a4a0); }
+.status-approved-bar { background: #39A96B; }
+.norm-ranking-track > span { background: linear-gradient(90deg, var(--brand), #39A96B); }
 
 .norm-ranking-row b {
   margin-left: auto;
@@ -86,7 +86,7 @@
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  background: #edf2f1;
+  background: #EEF2F6;
   border-radius: 22px;
 }
 
@@ -94,13 +94,13 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  box-shadow: 0 0 0 8px rgba(113, 130, 126, .09);
+  box-shadow: 0 0 0 8px rgba(102, 112, 133, .09);
 }
 
-.approval-signal-light.good span { background: #2f9d75; box-shadow: 0 0 0 8px rgba(47, 157, 117, .12); }
+.approval-signal-light.good span { background: #39A96B; box-shadow: 0 0 0 8px rgba(57, 169, 107, .12); }
 .approval-signal-light.warning span { background: #d89a3d; box-shadow: 0 0 0 8px rgba(216, 154, 61, .13); }
 .approval-signal-light.danger span { background: #c6525a; box-shadow: 0 0 0 8px rgba(198, 82, 90, .12); }
-.approval-signal-light.neutral span { background: #8fa09d; }
+.approval-signal-light.neutral span { background: #98A2B3; }
 
 .approval-signal-body strong,
 .approval-signal-body b,
@@ -137,7 +137,7 @@
 }
 
 .signal-legend span {
-  color: #8b9b98;
+  color: #667085;
   font-size: .62rem;
 }
 
@@ -152,7 +152,7 @@
 }
 
 .dashboard-section-heading span {
-  color: #879b97;
+  color: #667085;
   font-size: .58rem;
   font-weight: 850;
   letter-spacing: .11em;
@@ -198,7 +198,7 @@
 
 .quality-kpi-card > span {
   min-height: 30px;
-  color: #718682;
+  color: #667085;
   font-size: .65rem;
   font-weight: 760;
   line-height: 1.35;
@@ -214,7 +214,7 @@
 
 .quality-kpi-card > small {
   margin-top: 7px;
-  color: #9aaba7;
+  color: #667085;
   font-size: .58rem;
   line-height: 1.4;
 }
