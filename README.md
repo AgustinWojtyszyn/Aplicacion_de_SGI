@@ -1,8 +1,8 @@
-# EP Consultora
+# gestiQa
 
-**Gestión documental, SGI, cumplimiento y trazabilidad en un solo flujo.**
+**Sistemas de gestión · cumplimiento · mejora continua.**
 
-EP Consultora es una plataforma web multiempresa para centralizar documentación, responsables, versiones, revisiones, aprobaciones, requisitos ISO y alertas dentro de un Sistema de Gestión Integrado.
+gestiQa es una plataforma web multiempresa para centralizar documentación, responsables, versiones, revisiones, aprobaciones, requisitos ISO y alertas dentro de un Sistema de Gestión Integrado.
 
 > Estado actual: **casi listo para producción**. La base operativa y la mayor parte del flujo SGI/ISO ya están implementados.
 
@@ -13,7 +13,7 @@ EP Consultora es una plataforma web multiempresa para centralizar documentación
 - Alta de empresas desde administración global con invitación automática del primer administrador.
 - Autenticación y recuperación de contraseña con Supabase Auth.
 - Roles `admin`, `responsible` y `member` dentro de cada empresa.
-- Administradores globales de EP Consultora separados de los administradores de clientes.
+- Administradores globales de gestiQa separados de los administradores de clientes.
 - Gestión documental con PDF, Word, Excel e imágenes.
 - Estados `Borrador → En revisión → Aprobado`.
 - Revisor y aprobador designados.
@@ -117,4 +117,4 @@ Antes del deploy final, seguir [`docs/PRODUCTION_CHECKLIST.md`](docs/PRODUCTION_
 
 ---
 
-**EP Consultora** · Gestión documental y procesos integrados · 2026
+**gestiQa** · Sistemas de gestión · 2026
