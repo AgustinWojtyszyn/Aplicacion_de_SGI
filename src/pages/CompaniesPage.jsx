@@ -8,6 +8,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Trash2,
   UsersRound,
   X,
 } from 'lucide-react'
@@ -17,6 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { inviteCompanyUser } from '../services/userService'
 import {
   createCompanyWorkspace,
+  deleteCompanyWorkspace,
   listManagedCompanies,
   rememberSelectedCompany,
   setCompanyActive,
@@ -38,6 +40,7 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [openingCompanyId, setOpeningCompanyId] = useState('')
+  const [deletingCompanyId, setDeletingCompanyId] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -193,6 +196,35 @@ export default function CompaniesPage() {
     }
   }
 
+  async function handleDelete(item) {
+    if (item.is_active || item.slug === 'ep-consultora' || deletingCompanyId) return
+
+    const confirmation = window.prompt(
+      `Esta acción elimina definitivamente "${item.name}" junto con sus documentos, trabajos, usuarios asignados e historial de la empresa.\n\nEscribí exactamente el nombre de la empresa para confirmar:`,
+    )
+
+    if (confirmation !== item.name) return
+
+    setDeletingCompanyId(item.id)
+    setError('')
+    setNotice('')
+
+    try {
+      const result = await deleteCompanyWorkspace(item.id)
+      await syncCompanies()
+      setNotice(
+        result?.cleanupFailed
+          ? `${item.name} fue eliminada. Algunos archivos de Storage no pudieron limpiarse automáticamente.`
+          : `${item.name} fue eliminada definitivamente.`,
+      )
+    } catch (deleteError) {
+      console.error(deleteError)
+      setError(deleteError.message || 'No se pudo eliminar la empresa.')
+    } finally {
+      setDeletingCompanyId('')
+    }
+  }
+
   async function handleOpenCompany(item) {
     if (!item.is_active) return
     setOpeningCompanyId(item.id)
@@ -303,6 +335,17 @@ export default function CompaniesPage() {
                     >
                       {item.is_active ? <Archive size={16} /> : <RotateCcw size={16} />}
                     </button>
+                    {!item.is_active && item.slug !== 'ep-consultora' && (
+                      <button
+                        className="company-icon-action delete"
+                        type="button"
+                        onClick={() => handleDelete(item)}
+                        title="Eliminar definitivamente"
+                        disabled={deletingCompanyId === item.id}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )
