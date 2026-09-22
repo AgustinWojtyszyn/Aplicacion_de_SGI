@@ -20,7 +20,7 @@ import { canManageCompanies, canManageUsers, roleLabel } from '../lib/permission
 import BrandLogo from './BrandLogo'
 
 function initials(name, email) {
-  const source = name?.trim() || email?.split('@')[0] || 'EP'
+  const source = name?.trim() || email?.split('@')[0] || 'GQ'
   return source.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('')
 }
 
