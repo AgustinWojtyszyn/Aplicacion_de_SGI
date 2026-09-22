@@ -13,13 +13,13 @@ import './styles/dashboard-workspace.css'
 import './styles/users.css'
 import './styles/auth-flow.css'
 import './styles/sgi.css'
-import './styles/brand.css'
 import './styles/tenants.css'
 import './styles/work-entries.css'
 import './styles/work-dashboard.css'
 import './styles/document-followup.css'
 import './styles/profile.css'
 import './styles/history.css'
+import './styles/brand.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
