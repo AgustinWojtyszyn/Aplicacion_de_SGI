@@ -4,6 +4,7 @@ import AppShell from './components/AppShell'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import CompaniesPage from './pages/CompaniesPage'
+import ChangeHistoryPage from './pages/ChangeHistoryPage'
 import CompanyGatePage from './pages/CompanyGatePage'
 import DashboardWorkspacePage from './pages/DashboardWorkspacePage'
 import DocumentsPage from './pages/DocumentsPage'
@@ -30,6 +31,7 @@ export default function App() {
       <Route path="/profile" element={<ProfilePage />} />
       <Route element={<AdminRoute />}>
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/history" element={<ChangeHistoryPage />} />
       </Route>
       <Route element={<AdminRoute platformOnly />}>
         <Route path="/companies" element={<CompaniesPage />} />
