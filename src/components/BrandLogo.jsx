@@ -1,38 +1,41 @@
-import { useId } from 'react'
-
 export default function BrandLogo({ compact = false, light = false, className = '' }) {
-  const id = useId().replace(/:/g, '')
-  const blueId = `${id}-blue`
-  const greenId = `${id}-green`
-
   return (
-    <div className={`brand-logo ${compact ? 'brand-logo-compact' : ''} ${light ? 'brand-logo-light' : ''} ${className}`.trim()} aria-label="gestiQa">
+    <div
+      className={`brand-logo ${compact ? 'brand-logo-compact' : ''} ${light ? 'brand-logo-light' : ''} ${className}`.trim()}
+      aria-label="gestiQa"
+    >
       <svg className="brand-logo-symbol" viewBox="0 0 72 72" aria-hidden="true" focusable="false">
-        <defs>
-          <linearGradient id={blueId} x1="8" y1="8" x2="58" y2="60" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#38c4ff" />
-            <stop offset="0.48" stopColor="#176bff" />
-            <stop offset="1" stopColor="#1545d8" />
-          </linearGradient>
-          <linearGradient id={greenId} x1="58" y1="12" x2="18" y2="64" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#48df8b" />
-            <stop offset="0.5" stopColor="#12c99a" />
-            <stop offset="1" stopColor="#08a5be" />
-          </linearGradient>
-        </defs>
+        {light ? <rect x="2" y="2" width="68" height="68" rx="18" fill="#ffffff" /> : null}
         <path
-          d="M16 46.5c-6.4-7.8-5.8-19.3 1.4-26.5l8.4-8.4c7.7-7.7 20.1-7.7 27.8 0l3.4 3.4-9 9-3.4-3.4a7 7 0 0 0-9.9 0L26.3 29a7 7 0 0 0 0 9.9l5.2 5.2-9 9-6.5-6.6Z"
-          fill={`url(#${blueId})`}
+          d="M51.5 18.5A23 23 0 1 0 49 53.2"
+          fill="none"
+          stroke="#173B6C"
+          strokeWidth="10"
+          strokeLinecap="round"
         />
         <path
-          d="M56 25.5c6.4 7.8 5.8 19.3-1.4 26.5l-8.4 8.4c-7.7 7.7-20.1 7.7-27.8 0L15 57l9-9 3.4 3.4a7 7 0 0 0 9.9 0l8.4-8.4a7 7 0 0 0 0-9.9l-5.2-5.2 9-9 6.5 6.6Z"
-          fill={`url(#${greenId})`}
+          d="M26 34.5 35.5 44 56 25.5"
+          fill="none"
+          stroke="#39A96B"
+          strokeWidth="9"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
         />
-        <path d="m27.8 42.1 8.1-8.1 8.1 8.1-8.1 8.1-8.1-8.1Z" fill="#10b5cf" opacity="0.95" />
+        <path
+          d="m38.5 45 13 13"
+          fill="none"
+          stroke="#39A96B"
+          strokeWidth="8"
+          strokeLinecap="square"
+        />
       </svg>
+
       {!compact && (
-        <span className="brand-logo-wordmark" aria-hidden="true">
-          <span>gesti</span><strong>Q</strong><span>a</span>
+        <span className="brand-logo-copy" aria-hidden="true">
+          <span className="brand-logo-wordmark">
+            <strong className="brand-word-blue">gesti</strong><strong className="brand-word-green">Q</strong><strong className="brand-word-blue">a</strong>
+          </span>
+          <span className="brand-logo-tagline">SISTEMAS DE GESTIÓN</span>
         </span>
       )}
     </div>
