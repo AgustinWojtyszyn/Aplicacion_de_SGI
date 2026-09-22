@@ -14,6 +14,9 @@ const ACTION_FILTERS = [
   { value: 'reviewed', label: 'Revisiones' },
   { value: 'rejected', label: 'Cambios solicitados' },
   { value: 'approved', label: 'Aprobaciones' },
+  { value: 'review_email_sent', label: 'Correos enviados' },
+  { value: 'review_email_delivered', label: 'Correos entregados' },
+  { value: 'review_email_failed', label: 'Correos con error' },
   { value: 'status_changed', label: 'Cambios de estado' },
 ]
 
@@ -45,11 +48,19 @@ function activityLabel(item) {
   if (item.action === 'reviewed') return 'Registró la revisión'
   if (item.action === 'rejected') return 'Solicitó cambios'
   if (item.action === 'approved') return 'Aprobó el documento'
+  if (item.action === 'review_email_sent') return 'Envió correo de revisión'
+  if (item.action === 'review_email_delivered') return 'Correo de revisión entregado'
+  if (item.action === 'review_email_failed') return 'Falló el correo de revisión'
   if (item.action === 'status_changed') return 'Cambió el estado de ' + statusLabel(item.from_status) + ' a ' + statusLabel(item.to_status)
   return 'Actualizó el documento'
 }
 
 function activityDetail(item) {
+  if (item.details?.recipient_email) {
+    const recipient = item.details?.recipient_name ? item.details.recipient_name + ' · ' : ''
+    return recipient + item.details.recipient_email + (item.details?.provider_status ? ' · ' + item.details.provider_status : '')
+  }
+  if (item.details?.to) return item.details.to + (item.details?.provider_status ? ' · ' + item.details.provider_status : '')
   if (item.details?.comment) return item.details.comment
   if (item.action === 'created' && item.details?.title) return 'Alta inicial: ' + item.details.title
   if (item.action === 'version_created' && item.details?.file_name) return item.details.file_name
