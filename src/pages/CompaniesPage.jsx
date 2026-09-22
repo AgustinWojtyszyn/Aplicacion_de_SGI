@@ -15,7 +15,6 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { inviteCompanyUser } from '../services/userService'
 import {
   createCompanyWorkspace,
   deleteCompanyWorkspace,
@@ -26,7 +25,7 @@ import {
   updateCompanyWorkspace,
 } from '../services/tenantService'
 
-const EMPTY_FORM = { name: '', slug: '', adminEmail: '' }
+const EMPTY_FORM = { name: '', slug: '' }
 
 export default function CompaniesPage() {
   const navigate = useNavigate()
@@ -83,7 +82,7 @@ export default function CompaniesPage() {
 
   function openEdit(item) {
     setEditingCompany(item)
-    setForm({ name: item.name, slug: item.slug, adminEmail: '' })
+    setForm({ name: item.name, slug: item.slug })
     setError('')
     setModalMode('edit')
   }
@@ -103,7 +102,6 @@ export default function CompaniesPage() {
     event.preventDefault()
     const companyName = form.name.trim()
     const slug = slugifyCompanyName(companyName)
-    const adminEmail = form.adminEmail.trim().toLowerCase()
 
     if (!companyName || !slug) return
 
@@ -112,26 +110,9 @@ export default function CompaniesPage() {
     setNotice('')
 
     try {
-      const companyId = await createCompanyWorkspace({ name: companyName, slug })
-      let message = `${companyName} quedó creada.`
-
-      if (adminEmail) {
-        try {
-          await inviteCompanyUser({
-            companyId,
-            email: adminEmail,
-            fullName: '',
-            role: 'admin',
-          })
-          message += ` Invitamos a ${adminEmail} como administrador.`
-        } catch (inviteError) {
-          console.error(inviteError)
-          message += ' La empresa quedó lista, pero la invitación del administrador no pudo enviarse.'
-        }
-      }
-
+      await createCompanyWorkspace({ name: companyName, slug })
       await syncCompanies()
-      setNotice(message)
+      setNotice(`${companyName} quedó creada. Podés abrirla y agregar usuarios cuando quieras.`)
       setModalMode(null)
       setEditingCompany(null)
       setForm(EMPTY_FORM)
@@ -388,19 +369,10 @@ export default function CompaniesPage() {
               </label>
 
               {modalMode === 'create' ? (
-                <>
-                  <div className="company-generated-slug">Acceso: <strong>/login/{slugifyCompanyName(form.name) || 'empresa'}</strong></div>
-                  <label>
-                    Administrador inicial <span className="optional-label">opcional</span>
-                    <input
-                      type="email"
-                      value={form.adminEmail}
-                      onChange={(event) => setForm((current) => ({ ...current, adminEmail: event.target.value }))}
-                      placeholder="correo@empresa.com"
-                    />
-                    <small>Si lo dejás vacío, podés agregar usuarios después.</small>
-                  </label>
-                </>
+                <div className="company-generated-slug">
+                  Acceso: <strong>/login/{slugifyCompanyName(form.name) || 'empresa'}</strong>
+                  <span> · Se crea sin usuarios. Después podés agregarlos desde Usuarios.</span>
+                </div>
               ) : (
                 <label>
                   Identificador de acceso
