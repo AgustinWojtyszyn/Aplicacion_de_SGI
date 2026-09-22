@@ -68,3 +68,16 @@
   .detail-edit-actions { flex-direction: column-reverse; }
   .detail-edit-actions button { width: 100%; }
 }
+
+
+.workflow-recipient-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+.workflow-recipient-note strong { color: var(--ink); }
