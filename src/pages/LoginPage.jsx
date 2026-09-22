@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
-import { listLoginCompanies, rememberSelectedCompany } from '../services/tenantService'
+import { getLoginCompany, rememberSelectedCompany } from '../services/tenantService'
 
 export default function LoginPage() {
   const { companySlug } = useParams()
@@ -32,16 +32,16 @@ export default function LoginPage() {
       }
 
       try {
-        const companies = await listLoginCompanies()
-        const selected = companies.find((item) => item.slug === companySlug)
+        const selected = await getLoginCompany(companySlug)
         if (!selected) throw new Error('company_not_found')
         if (mounted) {
           setCompany(selected)
           rememberSelectedCompany(selected)
+          setCompanyError('')
         }
       } catch (loadError) {
         console.error(loadError)
-        if (mounted) setCompanyError('La empresa seleccionada no está disponible.')
+        if (mounted) setCompanyError('La empresa seleccionada no está disponible. Volvé a empresas y abrila nuevamente.')
       } finally {
         if (mounted) setCompanyLoading(false)
       }
