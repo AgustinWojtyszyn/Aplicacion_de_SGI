@@ -1,59 +1,135 @@
-import { ArrowUpRight, Building2, FileText, History, Plus, RefreshCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import {
+  Archive,
+  ArrowRight,
+  Building2,
+  FileText,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  UsersRound,
+  X,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { inviteCompanyUser } from '../services/userService'
-import { createCompanyWorkspace, slugifyCompanyName } from '../services/tenantService'
+import {
+  createCompanyWorkspace,
+  listManagedCompanies,
+  rememberSelectedCompany,
+  setCompanyActive,
+  slugifyCompanyName,
+  updateCompanyWorkspace,
+} from '../services/tenantService'
+
+const EMPTY_FORM = { name: '', slug: '', adminEmail: '' }
 
 export default function CompaniesPage() {
   const navigate = useNavigate()
-  const { companies, company, refreshWorkspace, switchCompany } = useAuth()
-  const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
-  const [slugTouched, setSlugTouched] = useState(false)
-  const [adminName, setAdminName] = useState('')
-  const [adminEmail, setAdminEmail] = useState('')
+  const { company, refreshWorkspace, switchCompany } = useAuth()
+  const [managedCompanies, setManagedCompanies] = useState([])
+  const [filter, setFilter] = useState('active')
+  const [search, setSearch] = useState('')
+  const [modalMode, setModalMode] = useState(null)
+  const [editingCompany, setEditingCompany] = useState(null)
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [openingCompanyId, setOpeningCompanyId] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
+  async function loadCompanies() {
+    setLoading(true)
+    setError('')
+    try {
+      setManagedCompanies(await listManagedCompanies())
+    } catch (loadError) {
+      console.error(loadError)
+      setError(loadError.message || 'No se pudieron cargar las empresas.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (!slugTouched) setSlug(slugifyCompanyName(name))
-  }, [name, slugTouched])
+    loadCompanies()
+  }, [])
+
+  const activeCount = managedCompanies.filter((item) => item.is_active).length
+  const archivedCount = managedCompanies.length - activeCount
+
+  const visibleCompanies = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return managedCompanies.filter((item) => {
+      const matchesStatus = filter === 'archived' ? !item.is_active : item.is_active
+      if (!matchesStatus) return false
+      if (!term) return true
+      return [item.name, item.slug].some((value) => value?.toLowerCase().includes(term))
+    })
+  }, [managedCompanies, filter, search])
+
+  function openCreate() {
+    setEditingCompany(null)
+    setForm(EMPTY_FORM)
+    setError('')
+    setModalMode('create')
+  }
+
+  function openEdit(item) {
+    setEditingCompany(item)
+    setForm({ name: item.name, slug: item.slug, adminEmail: '' })
+    setError('')
+    setModalMode('edit')
+  }
+
+  function closeModal() {
+    if (submitting) return
+    setModalMode(null)
+    setEditingCompany(null)
+    setForm(EMPTY_FORM)
+  }
+
+  async function syncCompanies() {
+    await Promise.all([loadCompanies(), refreshWorkspace()])
+  }
 
   async function handleCreate(event) {
     event.preventDefault()
+    const companyName = form.name.trim()
+    const slug = slugifyCompanyName(companyName)
+    const adminEmail = form.adminEmail.trim().toLowerCase()
+
+    if (!companyName || !slug) return
+
     setSubmitting(true)
     setError('')
     setNotice('')
 
-    const companyName = name.trim()
-    const firstAdminName = adminName.trim()
-    const firstAdminEmail = adminEmail.trim().toLowerCase()
-
     try {
       const companyId = await createCompanyWorkspace({ name: companyName, slug })
+      let message = `${companyName} quedó creada.`
 
-      try {
-        await inviteCompanyUser({
-          companyId,
-          email: firstAdminEmail,
-          fullName: firstAdminName,
-          role: 'admin',
-        })
-        setNotice(`${companyName} quedó creada. Invitamos a ${firstAdminEmail} como primer administrador.`)
-      } catch (inviteError) {
-        console.error(inviteError)
-        setNotice(`${companyName} quedó creada, pero no pudimos invitar al primer administrador. Abrí la empresa y reintentá desde Usuarios.`)
+      if (adminEmail) {
+        try {
+          await inviteCompanyUser({
+            companyId,
+            email: adminEmail,
+            fullName: '',
+            role: 'admin',
+          })
+          message += ` Invitamos a ${adminEmail} como administrador.`
+        } catch (inviteError) {
+          console.error(inviteError)
+          message += ' La empresa quedó lista, pero la invitación del administrador no pudo enviarse.'
+        }
       }
 
-      setName('')
-      setSlug('')
-      setSlugTouched(false)
-      setAdminName('')
-      setAdminEmail('')
-      await refreshWorkspace()
+      await syncCompanies()
+      setNotice(message)
+      closeModal()
     } catch (createError) {
       console.error(createError)
       setError(createError.message || 'No se pudo crear la empresa.')
@@ -62,144 +138,252 @@ export default function CompaniesPage() {
     }
   }
 
-  async function handleOpenCompany(item, destination) {
+  async function handleEdit(event) {
+    event.preventDefault()
+    if (!editingCompany) return
+
+    const name = form.name.trim()
+    const slug = form.slug.trim().toLowerCase()
+    if (!name || !slug) return
+
+    setSubmitting(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const updated = await updateCompanyWorkspace({
+        companyId: editingCompany.id,
+        name,
+        slug,
+      })
+
+      if (company?.id === editingCompany.id && updated) {
+        rememberSelectedCompany(updated)
+      }
+
+      await syncCompanies()
+      setNotice(`${name} quedó actualizada.`)
+      closeModal()
+    } catch (editError) {
+      console.error(editError)
+      setError(editError.message || 'No se pudo actualizar la empresa.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleToggleActive(item) {
+    const archiving = item.is_active
+    if (archiving && !window.confirm(`¿Archivar "${item.name}"? Dejará de aparecer en el acceso de usuarios hasta que la restaures.`)) return
+
+    setError('')
+    setNotice('')
+
+    try {
+      await setCompanyActive({ companyId: item.id, isActive: !item.is_active })
+      await syncCompanies()
+      setNotice(archiving ? `${item.name} quedó archivada.` : `${item.name} volvió a estar activa.`)
+    } catch (actionError) {
+      console.error(actionError)
+      setError(actionError.message || 'No se pudo cambiar el estado de la empresa.')
+    }
+  }
+
+  async function handleOpenCompany(item) {
+    if (!item.is_active) return
     setOpeningCompanyId(item.id)
     setError('')
+
     try {
       if (item.id !== company?.id) await switchCompany(item.id)
-      navigate(destination)
+      navigate('/dashboard')
     } catch (openError) {
       console.error(openError)
-      setError(openError.message || 'No se pudo abrir el espacio de la empresa.')
+      setError(openError.message || 'No se pudo abrir la empresa.')
     } finally {
       setOpeningCompanyId('')
     }
   }
 
+  const isSystemCompany = editingCompany?.slug === 'ep-consultora'
+
   return (
-    <section className="page-stack companies-page">
-      <header className="page-heading">
+    <section className="page-stack companies-page companies-admin-page">
+      <header className="page-heading companies-admin-heading">
         <div>
-          <p className="eyebrow">ADMINISTRACIÓN GLOBAL · EP CONSULTORA</p>
+          <p className="eyebrow">ADMINISTRACIÓN GLOBAL</p>
           <h1>Empresas</h1>
-          <p>Cada empresa funciona como un espacio aislado con sus propios usuarios, documentos y flujo SGI.</p>
+          <p>Creá, editá y administrá los espacios de trabajo desde un solo lugar.</p>
         </div>
-        <button className="icon-button" onClick={refreshWorkspace} title="Actualizar empresas"><RefreshCw size={18} /></button>
+        <div className="companies-heading-actions">
+          <button className="icon-button" type="button" onClick={loadCompanies} title="Actualizar"><RefreshCw size={18} /></button>
+          <button className="primary-button companies-new-button" type="button" onClick={openCreate}><Plus size={17} /> Nueva empresa</button>
+        </div>
       </header>
 
-      <div className="companies-layout">
-        <article className="company-create-card">
-          <div className="company-card-heading">
-            <span className="company-card-icon"><Plus size={19} /></span>
-            <div><span>NUEVO ESPACIO</span><h2>Agregar empresa</h2></div>
-          </div>
+      {notice && <div className="auth-notice companies-notice" role="status">{notice}</div>}
+      {error && !modalMode && <div className="form-error" role="alert">{error}</div>}
 
-          <form onSubmit={handleCreate} className="company-create-form">
-            <label>
-              Nombre de la empresa
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Ej. Empresa Andina SA"
-                minLength={2}
-                maxLength={120}
-                required
-              />
-            </label>
-            <label>
-              Identificador de acceso
-              <input
-                value={slug}
-                onChange={(event) => { setSlug(event.target.value.toLowerCase()); setSlugTouched(true) }}
-                placeholder="empresa-andina"
-                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                required
-              />
-              <small>Se usa en la dirección de ingreso. Solo minúsculas, números y guiones.</small>
-            </label>
-
-            <div className="company-card-heading">
-              <span className="company-card-icon"><Building2 size={18} /></span>
-              <div><span>PRIMER ACCESO</span><h2>Administrador de la empresa</h2></div>
-            </div>
-
-            <label>
-              Nombre y apellido
-              <input
-                value={adminName}
-                onChange={(event) => setAdminName(event.target.value)}
-                placeholder="Nombre del responsable"
-                minLength={2}
-                required
-              />
-            </label>
-            <label>
-              Correo del administrador
-              <input
-                type="email"
-                value={adminEmail}
-                onChange={(event) => setAdminEmail(event.target.value)}
-                placeholder="admin@empresa.com"
-                required
-              />
-              <small>Recibirá una invitación para crear su contraseña y administrar únicamente su empresa.</small>
-            </label>
-
-            {error && <div className="form-error" role="alert">{error}</div>}
-            {notice && <div className="auth-notice" role="status">{notice}</div>}
-
-            <button
-              className="primary-button"
-              disabled={submitting || !name.trim() || !slug.trim() || !adminName.trim() || !adminEmail.trim()}
-              type="submit"
-            >
-              <Plus size={17} /> {submitting ? 'Creando…' : 'Crear empresa e invitar admin'}
-            </button>
-          </form>
-        </article>
-
-        <article className="company-list-card">
-          <header><span>ESPACIOS ACTIVOS</span><h2>{companies.length} empresa{companies.length === 1 ? '' : 's'}</h2></header>
-          <div className="admin-company-list">
-            {companies.map((item) => (
-              <article
-                key={item.id}
-                className={`admin-company-row ${item.id === company?.id ? 'active' : ''}`}
-              >
-                <span className="admin-company-icon"><Building2 size={18} /></span>
-                <span className="admin-company-copy"><strong>{item.name}</strong><small>/login/{item.slug}</small></span>
-                <span className="company-row-status">{item.id === company?.id ? 'En uso' : 'Disponible'}</span>
-                <div className="company-row-actions">
-                  <button
-                    type="button"
-                    className="company-row-action"
-                    onClick={() => handleOpenCompany(item, '/documents')}
-                    disabled={openingCompanyId === item.id}
-                  >
-                    <FileText size={15} /> Documentos
-                  </button>
-                  <button
-                    type="button"
-                    className="company-row-action"
-                    onClick={() => handleOpenCompany(item, '/history')}
-                    disabled={openingCompanyId === item.id}
-                  >
-                    <History size={15} /> Historial
-                  </button>
-                  <button
-                    type="button"
-                    className="company-row-action company-row-action-primary"
-                    onClick={() => handleOpenCompany(item, '/dashboard')}
-                    disabled={openingCompanyId === item.id}
-                  >
-                    <ArrowUpRight size={15} /> Abrir espacio
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </article>
+      <div className="companies-admin-toolbar">
+        <label className="companies-search">
+          <Search size={17} />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar empresa"
+          />
+        </label>
+        <div className="companies-filter-tabs" role="tablist" aria-label="Estado de empresas">
+          <button type="button" className={filter === 'active' ? 'active' : ''} onClick={() => setFilter('active')}>
+            Activas <span>{activeCount}</span>
+          </button>
+          <button type="button" className={filter === 'archived' ? 'active' : ''} onClick={() => setFilter('archived')}>
+            Archivadas <span>{archivedCount}</span>
+          </button>
+        </div>
       </div>
+
+      <article className="company-directory-card">
+        {loading ? (
+          <div className="companies-loading"><span className="loader-dot" /> Cargando empresas…</div>
+        ) : visibleCompanies.length === 0 ? (
+          <div className="companies-empty">
+            <Building2 size={28} />
+            <strong>{search ? 'No encontramos empresas' : filter === 'active' ? 'No hay empresas activas' : 'No hay empresas archivadas'}</strong>
+            <span>{search ? 'Probá con otro nombre.' : filter === 'active' ? 'Creá una empresa para empezar.' : 'Las empresas archivadas aparecerán acá.'}</span>
+          </div>
+        ) : (
+          <div className="company-management-list">
+            {visibleCompanies.map((item) => {
+              const isCurrent = item.id === company?.id
+              const users = Number(item.member_count || 0)
+              const documents = Number(item.document_count || 0)
+
+              return (
+                <div className={`company-management-row ${isCurrent ? 'current' : ''}`} key={item.id}>
+                  <span className="company-management-icon"><Building2 size={19} /></span>
+
+                  <div className="company-management-main">
+                    <div className="company-management-title">
+                      <strong>{item.name}</strong>
+                      {isCurrent && <span className="company-current-pill">En uso</span>}
+                      {!item.is_active && <span className="company-archived-pill">Archivada</span>}
+                    </div>
+                    <span className="company-management-slug">/{item.slug}</span>
+                    <div className="company-management-stats">
+                      <span><UsersRound size={14} /> {users} usuario{users === 1 ? '' : 's'}</span>
+                      <span><FileText size={14} /> {documents} documento{documents === 1 ? '' : 's'}</span>
+                    </div>
+                  </div>
+
+                  <div className="company-management-actions">
+                    {item.is_active && (
+                      <button
+                        className="company-open-button"
+                        type="button"
+                        onClick={() => handleOpenCompany(item)}
+                        disabled={openingCompanyId === item.id}
+                      >
+                        {openingCompanyId === item.id ? 'Abriendo…' : 'Abrir'} <ArrowRight size={16} />
+                      </button>
+                    )}
+                    <button className="company-icon-action" type="button" onClick={() => openEdit(item)} title="Editar empresa">
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      className={`company-icon-action ${item.is_active ? 'archive' : 'restore'}`}
+                      type="button"
+                      onClick={() => handleToggleActive(item)}
+                      title={item.is_active ? 'Archivar empresa' : 'Restaurar empresa'}
+                      disabled={item.slug === 'ep-consultora' && item.is_active}
+                    >
+                      {item.is_active ? <Archive size={16} /> : <RotateCcw size={16} />}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </article>
+
+      {modalMode && (
+        <div className="company-modal-layer" role="presentation">
+          <button className="company-modal-backdrop" type="button" onClick={closeModal} aria-label="Cerrar" />
+          <section className="company-modal" role="dialog" aria-modal="true" aria-labelledby="company-modal-title">
+            <header>
+              <div>
+                <span>{modalMode === 'create' ? 'NUEVO ESPACIO' : 'EDITAR EMPRESA'}</span>
+                <h2 id="company-modal-title">{modalMode === 'create' ? 'Nueva empresa' : editingCompany?.name}</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={closeModal}><X size={19} /></button>
+            </header>
+
+            <form className="company-simple-form" onSubmit={modalMode === 'create' ? handleCreate : handleEdit}>
+              <label>
+                Nombre
+                <input
+                  autoFocus
+                  value={form.name}
+                  onChange={(event) => {
+                    const name = event.target.value
+                    setForm((current) => ({
+                      ...current,
+                      name,
+                      slug: modalMode === 'create' ? slugifyCompanyName(name) : current.slug,
+                    }))
+                  }}
+                  placeholder="Ej. Empresa Andina SA"
+                  minLength={2}
+                  maxLength={120}
+                  required
+                />
+              </label>
+
+              {modalMode === 'create' ? (
+                <>
+                  <div className="company-generated-slug">Acceso: <strong>/login/{slugifyCompanyName(form.name) || 'empresa'}</strong></div>
+                  <label>
+                    Administrador inicial <span className="optional-label">opcional</span>
+                    <input
+                      type="email"
+                      value={form.adminEmail}
+                      onChange={(event) => setForm((current) => ({ ...current, adminEmail: event.target.value }))}
+                      placeholder="correo@empresa.com"
+                    />
+                    <small>Si lo dejás vacío, podés agregar usuarios después.</small>
+                  </label>
+                </>
+              ) : (
+                <label>
+                  Identificador de acceso
+                  <input
+                    value={form.slug}
+                    onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value.toLowerCase() }))}
+                    pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                    disabled={isSystemCompany}
+                    required
+                  />
+                  {isSystemCompany && <small>El identificador principal de EP Consultora está protegido.</small>}
+                </label>
+              )}
+
+              {error && <div className="form-error" role="alert">{error}</div>}
+
+              <div className="company-modal-actions">
+                <button className="secondary-button" type="button" onClick={closeModal} disabled={submitting}>Cancelar</button>
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={submitting || !form.name.trim() || (modalMode === 'edit' && !form.slug.trim())}
+                >
+                  {submitting ? 'Guardando…' : modalMode === 'create' ? 'Crear empresa' : 'Guardar cambios'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </section>
   )
 }
