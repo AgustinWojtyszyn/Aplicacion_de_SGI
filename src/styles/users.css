@@ -45,8 +45,8 @@
 .users-scope-switch { display: inline-flex; padding: 4px; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; }
 .users-scope-switch button { min-height: 36px; padding: 0 12px; color: var(--muted); background: transparent; border: 0; border-radius: 9px; font-size: .82rem; font-weight: 750; }
 .users-scope-switch button.active { color: var(--brand-deep); background: #fff; box-shadow: 0 2px 9px rgba(24,67,61,.08); }
-.users-search { min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 13px; color: var(--muted); background: #fbfdfc; border: 1px solid #cfddda; border-radius: 12px; }
-.users-search:focus-within { border-color: #4d9187; box-shadow: 0 0 0 3px rgba(36,124,112,.11); }
+.users-search { min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 0 13px; color: var(--muted); background: #FBFCFE; border: 1px solid #D6DEE8; border-radius: 12px; }
+.users-search:focus-within { border-color: #173B6C; box-shadow: 0 0 0 3px rgba(23,59,108,.10); }
 .users-search input { width: 100%; border: 0; outline: 0; color: var(--ink); background: transparent; }
 
 .delete-user-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(16, 24, 40, .58); backdrop-filter: blur(3px); }
