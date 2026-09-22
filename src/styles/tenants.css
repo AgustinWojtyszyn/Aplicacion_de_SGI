@@ -14,8 +14,8 @@
   gap: 40px;
   color: white;
   background:
-    radial-gradient(circle at 78% 18%, rgba(63, 196, 173, .22), transparent 32%),
-    linear-gradient(145deg, #0b403d 0%, #0c5550 55%, #0d6960 100%);
+    radial-gradient(circle at 78% 18%, rgba(57, 169, 107, .24), transparent 32%),
+    linear-gradient(145deg, #102b50 0%, #173B6C 58%, #214f87 100%);
 }
 
 .tenant-gate-logo { width: min(230px, 70%); }
@@ -27,7 +27,7 @@
   display: grid;
   place-items: center;
   padding: clamp(24px, 6vw, 80px);
-  background: linear-gradient(155deg, #f6faf9 0%, #eaf3f1 100%);
+  background: linear-gradient(155deg, #f7f9fc 0%, #edf2f7 100%);
 }
 
 .tenant-gate-card {
@@ -36,13 +36,13 @@
   border: 1px solid var(--border);
   border-radius: 26px;
   background: var(--surface);
-  box-shadow: 0 28px 70px rgba(12, 62, 58, .11);
+  box-shadow: 0 28px 70px rgba(23, 59, 108, .11);
 }
 
 .tenant-gate-card > header > span,
 .company-list-card > header > span,
 .company-card-heading > div > span {
-  color: var(--primary);
+  color: var(--brand);
   font-size: .72rem;
   font-weight: 800;
   letter-spacing: .13em;
@@ -66,10 +66,10 @@
   transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
 }
 
-.tenant-company-option:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); box-shadow: 0 10px 26px rgba(16, 64, 60, .08); }
+.tenant-company-option:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); box-shadow: 0 10px 26px rgba(16, 64, 60, .08); }
 .tenant-company-icon,
 .admin-company-icon,
-.company-card-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: var(--primary); background: var(--surface-soft); }
+.company-card-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; color: var(--brand); background: var(--surface-soft); }
 .tenant-company-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .tenant-company-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tenant-company-copy small { color: var(--muted); }
@@ -93,7 +93,7 @@
 .selected-tenant-chip span { font-size: .65rem; letter-spacing: .12em; color: rgba(255,255,255,.65); font-weight: 800; }
 .selected-tenant-chip strong { color: white; }
 .tenant-back-link { width: fit-content; margin-bottom: 22px; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: .86rem; font-weight: 700; }
-.tenant-back-link:hover { color: var(--primary); }
+.tenant-back-link:hover { color: var(--brand); }
 
 .tenant-topbar { gap: 18px; }
 .workspace-title { min-width: 0; flex: 1; }
@@ -138,12 +138,12 @@
   color: inherit;
   text-align: left;
 }
-.admin-company-row:hover { border-color: color-mix(in srgb, var(--primary) 42%, var(--border)); }
-.admin-company-row.active { border-color: color-mix(in srgb, var(--primary) 55%, var(--border)); background: var(--surface-soft); }
+.admin-company-row:hover { border-color: color-mix(in srgb, var(--brand) 42%, var(--border)); }
+.admin-company-row.active { border-color: color-mix(in srgb, var(--brand) 55%, var(--border)); background: var(--surface-soft); }
 .admin-company-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .admin-company-row strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .admin-company-row small { color: var(--muted); }
-.company-row-status { color: var(--primary); font-size: .8rem; font-weight: 800; }
+.company-row-status { color: var(--brand); font-size: .8rem; font-weight: 800; }
 .company-row-actions {
   grid-column: 2 / -1;
   display: flex;
@@ -163,10 +163,10 @@
   font-size: .76rem;
   font-weight: 800;
 }
-.company-row-action:hover { border-color: color-mix(in srgb, var(--primary) 48%, var(--border)); color: var(--primary); }
+.company-row-action:hover { border-color: color-mix(in srgb, var(--brand) 48%, var(--border)); color: var(--brand); }
 .company-row-action:disabled { cursor: wait; opacity: .55; }
-.company-row-action-primary { color: white; border-color: var(--primary); background: var(--primary); }
-.company-row-action-primary:hover { color: white; background: color-mix(in srgb, var(--primary) 88%, black); }
+.company-row-action-primary { color: white; border-color: var(--brand); background: var(--primary); }
+.company-row-action-primary:hover { color: white; background: color-mix(in srgb, var(--brand) 88%, black); }
 
 @media (max-width: 880px) {
   .tenant-gate-screen { grid-template-columns: 1fr; }
