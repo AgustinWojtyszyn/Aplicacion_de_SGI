@@ -76,11 +76,22 @@ Desde **Empresas**, el administrador global completa:
 
 EP Consultora crea el espacio, carga la estructura base SGI/ISO y utiliza la Edge Function `invite-user` para enviar la invitación del primer administrador.
 
-Publicar la función:
+Publicar las funciones:
 
 ```bash
 npx supabase functions deploy invite-user --project-ref TU_PROJECT_REF
+npx supabase functions deploy send-review-email --project-ref TU_PROJECT_REF
 ```
+
+Para los correos de revisión, configurar los secretos del proyecto Supabase:
+
+```bash
+npx supabase secrets set RESEND_API_KEY=re_xxxxx --project-ref TU_PROJECT_REF
+npx supabase secrets set REVIEW_EMAIL_FROM="EP Consultora <notificaciones@TU_DOMINIO>" --project-ref TU_PROJECT_REF
+npx supabase secrets set APP_URL="https://aplicacion-de-sgi-1.onrender.com" --project-ref TU_PROJECT_REF
+```
+
+`REVIEW_EMAIL_FROM` debe usar un dominio remitente validado en Resend. La aplicación permite elegir el destinatario entre usuarios activos de la empresa y consulta a Resend el estado real del mensaje para mostrar si fue entregado, sigue pendiente o falló.
 
 El primer administrador crea su contraseña desde `/set-password` y, una vez dentro, puede gestionar los usuarios de su empresa desde **Usuarios**.
 
