@@ -57,7 +57,7 @@ export default function CompanyGatePage() {
       <section className="tenant-gate-panel">
         <div className="tenant-gate-card">
           <header>
-            <span>EP Consultora</span>
+            <span>gestiQa</span>
             <h2>¿A qué empresa querés ingresar?</h2>
             <p>Tu selección define el espacio que se abrirá después de autenticarte.</p>
           </header>
@@ -75,7 +75,7 @@ export default function CompanyGatePage() {
             <div className="tenant-empty-state">
               <Building2 size={24} />
               <strong>No hay empresas habilitadas</strong>
-              <span>El administrador global debe crear el primer espacio de trabajo desde EP Consultora.</span>
+              <span>El administrador global debe crear el primer espacio de trabajo desde gestiQa.</span>
             </div>
           ) : (
             <div className="tenant-company-list">
@@ -98,7 +98,7 @@ export default function CompanyGatePage() {
           )}
 
           <p className="tenant-gate-help">
-            Si tu empresa no aparece, consultá con el administrador de EP Consultora.
+            Si tu empresa no aparece, consultá con el administrador de gestiQa.
           </p>
         </div>
       </section>
