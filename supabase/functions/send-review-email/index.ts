@@ -200,13 +200,13 @@ Deno.serve(async (request) => {
         '',
         `Abrir documentos: ${documentsUrl}`,
       ].filter(Boolean).join('\n'),
-      html: `<div style="font-family:Arial,sans-serif;line-height:1.55;color:#17312f">
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.55;color:#173B6C">
         <p>Hola ${safeRecipient},</p>
         <p><strong>${safeSender}</strong> te envió un documento para revisión en <strong>${safeCompany}</strong>.</p>
         <p><strong>Documento:</strong> ${safeTitle}</p>
         ${safeNote ? `<p><strong>Nota:</strong><br />${safeNote}</p>` : ''}
-        <p><a href="${documentsUrl}" style="display:inline-block;padding:11px 16px;border-radius:8px;background:#0d5c55;color:#fff;text-decoration:none;font-weight:700">Abrir documentos</a></p>
-        <p style="color:#68817e;font-size:12px">gestiQa · notificación del flujo documental</p>
+        <p><a href="${documentsUrl}" style="display:inline-block;padding:11px 16px;border-radius:8px;background:#173B6C;color:#fff;text-decoration:none;font-weight:700">Abrir documentos</a></p>
+        <p style="color:#667085;font-size:12px">gestiQa · notificación del flujo documental</p>
       </div>`,
     }),
   })
