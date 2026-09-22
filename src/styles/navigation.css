@@ -1,6 +1,6 @@
 .nav-section-label-secondary { margin-top: 13px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.06); }
 .nav-group { display: grid; gap: 3px; }
-.nav-group-button { width: 100%; min-height: 43px; display: flex; align-items: center; gap: 11px; padding: 0 12px; color: #a9c4be; background: transparent; border: 0; border-radius: 12px; font-size: .9rem; font-weight: 700; text-align: left; }
+.nav-group-button { width: 100%; min-height: 43px; display: flex; align-items: center; gap: 11px; padding: 0 12px; color: #B4C3D8; background: transparent; border: 0; border-radius: 12px; font-size: .9rem; font-weight: 700; text-align: left; }
 .nav-group-button:hover, .nav-group-active > .nav-group-button { color: #fff; background: rgba(255,255,255,.055); }
 .nav-group-button > span { flex: 1; }
 .nav-group-chevron { transition: transform .18s ease; }
@@ -10,7 +10,7 @@
 .sidebar-user { padding-left: 5px; }
 .sidebar-profile-link { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 12px; }
 .sidebar-profile-link:hover, .sidebar-profile-link-active { background: rgba(255,255,255,.065); }
-.sidebar-profile-link-active .avatar { box-shadow: 0 0 0 2px rgba(216,238,232,.32); }
+.sidebar-profile-link-active .avatar { box-shadow: 0 0 0 2px rgba(255,255,255,.28); }
 
 @media (max-height: 720px) and (min-width: 901px) {
   .sidebar-nav { margin-top: 20px; }
