@@ -1,11 +1,11 @@
-import { Download, FilePlus2, FileText, RefreshCw, Search, SlidersHorizontal } from 'lucide-react'
+import { Download, FilePlus2, FileText, Folder, FolderPlus, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import DocumentDetailDrawer from '../components/DocumentDetailDrawer'
 import DocumentFormModal from '../components/DocumentFormModal'
 import StatusBadge from '../components/StatusBadge'
 import { DOCUMENT_STATUSES, DOCUMENT_TYPE_OPTIONS, NORM_OPTIONS } from '../lib/constants'
-import { listDocuments, openDocumentFile } from '../services/documentService'
+import { createDocumentFolder, listDocumentFolders, listDocuments, openDocumentFile } from '../services/documentService'
 import { useAuth } from '../context/AuthContext'
 
 const emptyFilters = {
@@ -57,7 +57,7 @@ function matchesFollowUp(document, filter) {
 }
 
 export default function DocumentsPage() {
-  const { company, modules } = useAuth()
+  const { company, modules, user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const queryString = searchParams.toString()
   const [documents, setDocuments] = useState([])
@@ -65,9 +65,14 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [folders, setFolders] = useState([])
+  const [folderCreateOpen, setFolderCreateOpen] = useState(false)
+  const [folderName, setFolderName] = useState('')
+  const [folderSubmitting, setFolderSubmitting] = useState(false)
   const [selectedDocumentId, setSelectedDocumentId] = useState(null)
   const [filtersOpen, setFiltersOpen] = useState(Boolean(searchParams.get('norm') || searchParams.get('requirement')))
   const deferredSearch = useDeferredValue(filters.search)
+  const selectedFolderId = searchParams.get('folder') || ''
 
   const activeFilterCount = useMemo(
     () => Object.entries(filters).filter(([key, value]) => key !== 'search' && Boolean(value)).length,
@@ -86,18 +91,49 @@ export default function DocumentsPage() {
     [documents, filters.followUp],
   )
 
+  const selectedFolder = useMemo(
+    () => folders.find((folder) => folder.id === selectedFolderId) || null,
+    [folders, selectedFolderId],
+  )
+
+  const folderTrail = useMemo(() => {
+    if (!selectedFolder) return []
+    const byId = new Map(folders.map((folder) => [folder.id, folder]))
+    const trail = []
+    let current = selectedFolder
+    while (current) {
+      trail.unshift(current)
+      current = current.parent_id ? byId.get(current.parent_id) : null
+    }
+    return trail
+  }, [folders, selectedFolder])
+
+  const childFolders = useMemo(() => {
+    if (!filters.requirementId) return []
+    return folders.filter((folder) => (folder.parent_id || '') === selectedFolderId)
+  }, [folders, filters.requirementId, selectedFolderId])
+
+  const folderDocuments = useMemo(() => {
+    if (!filters.requirementId) return visibleDocuments
+    return visibleDocuments.filter((document) => (document.folder_id || '') === selectedFolderId)
+  }, [visibleDocuments, filters.requirementId, selectedFolderId])
+
   async function load() {
     if (!company?.id) return
     setLoading(true)
     setError('')
     try {
-      const data = await listDocuments({
-        companyId: company.id,
-        filters: { ...filters, search: deferredSearch },
-      })
+      const [data, nextFolders] = await Promise.all([
+        listDocuments({
+          companyId: company.id,
+          filters: { ...filters, search: deferredSearch },
+        }),
+        filters.requirementId ? listDocumentFolders(company.id, filters.requirementId) : Promise.resolve([]),
+      ])
       setDocuments(filters.requirementId
         ? data.filter((document) => document.requirement_id === filters.requirementId)
         : data)
+      setFolders(nextFolders)
     } catch (loadError) {
       console.error(loadError)
       setError(loadError.message || 'No se pudieron cargar los documentos.')
@@ -145,6 +181,38 @@ export default function DocumentsPage() {
     }
   }
 
+  function openFolder(folderId = '') {
+    const next = new URLSearchParams(searchParams)
+    if (folderId) next.set('folder', folderId)
+    else next.delete('folder')
+    setSearchParams(next)
+  }
+
+  async function handleCreateFolder(event) {
+    event.preventDefault()
+    if (!folderName.trim() || !filters.requirementId || folderSubmitting) return
+    setFolderSubmitting(true)
+    setError('')
+    try {
+      const created = await createDocumentFolder({
+        companyId: company.id,
+        requirementId: filters.requirementId,
+        parentId: selectedFolder?.id || null,
+        userId: user.id,
+        name: folderName,
+      })
+      setFolderName('')
+      setFolderCreateOpen(false)
+      await load()
+      openFolder(created.id)
+    } catch (folderError) {
+      console.error(folderError)
+      setError(folderError.message || 'No se pudo crear la carpeta.')
+    } finally {
+      setFolderSubmitting(false)
+    }
+  }
+
   return (
     <section className="page-stack documents-page">
       <header className="page-heading documents-heading">
@@ -153,10 +221,18 @@ export default function DocumentsPage() {
           <h1>Documentos</h1>
           <p>{routeContext ? `Vista filtrada: ${routeContext}.` : 'Archivos controlados, responsables y estado actual en un único lugar.'}</p>
         </div>
-        <button className="primary-button page-primary-action" onClick={() => setCreateOpen(true)}>
-          <FilePlus2 size={18} />
-          Nuevo documento
-        </button>
+        <div className="documents-heading-actions">
+          {filters.requirementId && (
+            <button className="secondary-button page-primary-action" onClick={() => setFolderCreateOpen(true)}>
+              <FolderPlus size={18} />
+              {selectedFolder ? 'Nueva subcarpeta' : 'Nueva carpeta'}
+            </button>
+          )}
+          <button className="primary-button page-primary-action" onClick={() => setCreateOpen(true)}>
+            <FilePlus2 size={18} />
+            Nuevo documento
+          </button>
+        </div>
       </header>
 
       <div className="document-toolbar">
@@ -228,17 +304,37 @@ export default function DocumentsPage() {
 
       {error && <div className="page-error" role="alert">{error}</div>}
 
+      {filters.requirementId && (
+        <div className="document-folder-browser">
+          <div className="document-folder-breadcrumbs" aria-label="Ruta de carpetas">
+            <button type="button" onClick={() => openFolder('')}>
+              <Folder size={16} />
+              Cap. {searchParams.get('chapter') || 'ISO'}
+            </button>
+            {folderTrail.map((folder) => (
+              <span key={folder.id}>
+                <span aria-hidden="true">/</span>
+                <button type="button" onClick={() => openFolder(folder.id)}>{folder.name}</button>
+              </span>
+            ))}
+          </div>
+          <span>{selectedFolder ? `Dentro de ${selectedFolder.name}` : 'Organizá este requisito con las subcarpetas que necesites.'}</span>
+        </div>
+      )}
+
       <div className="documents-surface">
         <div className="documents-surface-header">
           <div>
-            <strong>{loading ? 'Cargando…' : `${visibleDocuments.length} documento${visibleDocuments.length === 1 ? '' : 's'}`}</strong>
-            <span>{routeContext ? `Mostrando solamente ${routeContext}` : 'Seleccioná un documento para ver seguimiento e historial'}</span>
+            <strong>{loading ? 'Cargando…' : filters.requirementId
+              ? `${folderDocuments.length} documento${folderDocuments.length === 1 ? '' : 's'} · ${childFolders.length} carpeta${childFolders.length === 1 ? '' : 's'}`
+              : `${folderDocuments.length} documento${folderDocuments.length === 1 ? '' : 's'}`}</strong>
+            <span>{selectedFolder ? `Carpeta: ${selectedFolder.name}` : routeContext ? `Mostrando solamente ${routeContext}` : 'Seleccioná un documento para ver seguimiento e historial'}</span>
           </div>
         </div>
 
         {loading ? (
           <div className="documents-loading"><span className="loader-dot" /><p>Cargando documentación…</p></div>
-        ) : visibleDocuments.length === 0 ? (
+        ) : folderDocuments.length === 0 && childFolders.length === 0 ? (
           <div className="documents-empty">
             <div className="empty-icon"><FileText size={26} /></div>
             <strong>No hay documentos para mostrar</strong>
@@ -246,11 +342,29 @@ export default function DocumentsPage() {
             {!filters.search && activeFilterCount === 0 && <button className="primary-button" onClick={() => setCreateOpen(true)}>Cargar primer documento</button>}
           </div>
         ) : (
-          <div className="documents-table-wrap">
+          <>
+            {childFolders.length > 0 && (
+              <div className="document-folder-grid">
+                {childFolders.map((folder) => {
+                  const documentCount = visibleDocuments.filter((document) => document.folder_id === folder.id).length
+                  const subfolderCount = folders.filter((item) => item.parent_id === folder.id).length
+                  return (
+                    <button key={folder.id} type="button" className="document-folder-card" onClick={() => openFolder(folder.id)}>
+                      <span className="document-folder-icon"><Folder size={22} /></span>
+                      <span className="document-folder-copy">
+                        <strong>{folder.name}</strong>
+                        <small>{documentCount} doc{documentCount === 1 ? '' : 's'}{subfolderCount ? ` · ${subfolderCount} subcarpeta${subfolderCount === 1 ? '' : 's'}` : ''}</small>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            {folderDocuments.length > 0 ? <div className="documents-table-wrap">
             <table className="documents-table documents-table-with-followup">
               <thead><tr><th>Documento</th><th>Módulo</th><th>Estado</th><th>Seguimiento</th><th>Responsable</th><th>Fecha</th><th aria-label="Acciones" /></tr></thead>
               <tbody>
-                {visibleDocuments.map((document) => {
+                {folderDocuments.map((document) => {
                   const followUp = followUpState(document)
                   return (
                     <tr key={document.id} className="document-row-clickable" onClick={() => setSelectedDocumentId(document.id)}>
@@ -266,11 +380,60 @@ export default function DocumentsPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </div> : (
+              <div className="folder-documents-empty">
+                <FileText size={22} />
+                <span>Esta carpeta todavía no tiene documentos.</span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      <DocumentFormModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={load} />
+      <DocumentFormModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={load}
+        defaultNorm={filters.norm}
+        defaultRequirementId={filters.requirementId}
+        defaultFolderId={selectedFolderId}
+      />
+
+      {folderCreateOpen && (
+        <div className="modal-layer" role="presentation">
+          <button className="modal-backdrop" onClick={() => { setFolderCreateOpen(false); setFolderName('') }} aria-label="Cerrar" />
+          <section className="modal-card folder-modal-card" role="dialog" aria-modal="true" aria-labelledby="new-folder-title">
+            <header className="modal-header">
+              <div>
+                <p className="eyebrow">ORGANIZACIÓN ISO</p>
+                <h2 id="new-folder-title">{selectedFolder ? 'Nueva subcarpeta' : 'Nueva carpeta'}</h2>
+                <p>{selectedFolder ? `Se creará dentro de “${selectedFolder.name}”.` : 'Se creará dentro del requisito ISO actual.'}</p>
+              </div>
+              <button className="icon-button" onClick={() => { setFolderCreateOpen(false); setFolderName('') }} aria-label="Cerrar formulario"><X size={20} /></button>
+            </header>
+            <form className="document-form" onSubmit={handleCreateFolder}>
+              <label className="field">
+                <span>Nombre de la carpeta *</span>
+                <input
+                  autoFocus
+                  value={folderName}
+                  onChange={(event) => setFolderName(event.target.value)}
+                  maxLength={120}
+                  placeholder="Ej. 5.1 Perfiles de puesto"
+                  required
+                />
+              </label>
+              <footer className="modal-actions">
+                <button className="secondary-button" type="button" onClick={() => { setFolderCreateOpen(false); setFolderName('') }}>Cancelar</button>
+                <button className="primary-button" type="submit" disabled={!folderName.trim() || folderSubmitting}>
+                  <FolderPlus size={16} />
+                  {folderSubmitting ? 'Creando…' : 'Crear carpeta'}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
       <DocumentDetailDrawer documentId={selectedDocumentId} onClose={() => setSelectedDocumentId(null)} onChanged={load} />
     </section>
   )

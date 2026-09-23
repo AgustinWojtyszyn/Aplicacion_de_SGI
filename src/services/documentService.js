@@ -40,6 +40,13 @@ function sanitizeFilename(name = 'documento') {
   return normalized || 'documento'
 }
 
+function isFolderSchemaMissing(error) {
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(code)
+    || /document_folders|folder_id/i.test(message)
+}
+
 export function validateDocumentFile(file) {
   if (!file) throw new Error('Seleccioná un archivo para continuar.')
   if (file.size > MAX_DOCUMENT_SIZE) throw new Error('El archivo supera el límite de 25 MB.')
@@ -60,18 +67,27 @@ const documentSelect = `
   creator:profiles!documents_created_by_fkey(id, full_name, email)
 `
 
+const documentSelectWithFolders = documentSelect.replace('id, company_id,', 'id, company_id, folder_id,')
+
 export async function listDocuments({ companyId, filters = {} }) {
   const supabase = requireSupabase()
-  let query = supabase.from('documents').select(documentSelect).eq('company_id', companyId).order('updated_at', { ascending: false })
-  const search = cleanSearchTerm(filters.search)
-  if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,file_name.ilike.%${search}%`)
-  if (filters.status) query = query.eq('status', filters.status)
-  if (filters.moduleId) query = query.eq('module_id', filters.moduleId)
-  if (filters.norm) query = query.eq('norm', filters.norm)
-  if (filters.documentType) query = query.eq('document_type', filters.documentType)
-  if (filters.dateFrom) query = query.gte('created_at', new Date(`${filters.dateFrom}T00:00:00`).toISOString())
-  if (filters.dateTo) query = query.lte('created_at', new Date(`${filters.dateTo}T23:59:59.999`).toISOString())
-  const { data, error } = await query
+  const buildQuery = (select) => {
+    let query = supabase.from('documents').select(select).eq('company_id', companyId).order('updated_at', { ascending: false })
+    const search = cleanSearchTerm(filters.search)
+    if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,file_name.ilike.%${search}%`)
+    if (filters.status) query = query.eq('status', filters.status)
+    if (filters.moduleId) query = query.eq('module_id', filters.moduleId)
+    if (filters.norm) query = query.eq('norm', filters.norm)
+    if (filters.documentType) query = query.eq('document_type', filters.documentType)
+    if (filters.dateFrom) query = query.gte('created_at', new Date(`${filters.dateFrom}T00:00:00`).toISOString())
+    if (filters.dateTo) query = query.lte('created_at', new Date(`${filters.dateTo}T23:59:59.999`).toISOString())
+    return query
+  }
+
+  let { data, error } = await buildQuery(documentSelectWithFolders)
+  if (error && isFolderSchemaMissing(error)) {
+    ;({ data, error } = await buildQuery(documentSelect))
+  }
   if (error) throw error
   return data ?? []
 }
@@ -86,6 +102,46 @@ export async function listCompanyMembers(companyId) {
     .order('joined_at')
   if (error) throw error
   return (data ?? []).filter((member) => member.user)
+}
+
+export async function listDocumentFolders(companyId, requirementId = '') {
+  const supabase = requireSupabase()
+  let query = supabase
+    .from('document_folders')
+    .select('id, company_id, requirement_id, parent_id, name, created_by, created_at, updated_at')
+    .eq('company_id', companyId)
+    .order('name')
+
+  if (requirementId) query = query.eq('requirement_id', requirementId)
+
+  const { data, error } = await query
+  if (error && isFolderSchemaMissing(error)) return []
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createDocumentFolder({ companyId, requirementId, parentId = null, userId, name }) {
+  const supabase = requireSupabase()
+  const cleaned = name.trim()
+  if (!requirementId) throw new Error('Seleccioná un requisito ISO antes de crear una carpeta.')
+  if (!cleaned) throw new Error('Escribí un nombre para la carpeta.')
+
+  const { data, error } = await supabase
+    .from('document_folders')
+    .insert({
+      company_id: companyId,
+      requirement_id: requirementId,
+      parent_id: parentId || null,
+      name: cleaned,
+      created_by: userId,
+    })
+    .select('id, company_id, requirement_id, parent_id, name, created_at')
+    .single()
+
+  if (error?.code === '23505') throw new Error('Ya existe una carpeta con ese nombre en este nivel.')
+  if (error && isFolderSchemaMissing(error)) throw new Error('Falta aplicar la migración de carpetas ISO en Supabase.')
+  if (error) throw error
+  return data
 }
 
 export async function createDocument({ companyId, userId, values, file }) {
@@ -111,6 +167,7 @@ export async function createDocument({ companyId, userId, values, file }) {
     file_size: file.size,
     created_by: userId,
   }
+  if (values.folderId) payload.folder_id = values.folderId
   const { data: document, error: documentError } = await supabase.from('documents').insert(payload).select('id').single()
   if (documentError) throw documentError
   const { error: uploadError } = await supabase.storage.from(DOCUMENT_BUCKET).upload(filePath, file, { cacheControl: '3600', contentType: file.type, upsert: false })
