@@ -144,6 +144,58 @@ export async function createDocumentFolder({ companyId, requirementId, parentId 
   return data
 }
 
+export async function moveDocumentToFolder({ documentId, folderId = null }) {
+  const supabase = requireSupabase()
+  const nextFolderId = folderId || null
+
+  const { data: document, error: documentError } = await supabase
+    .from('documents')
+    .select('id, company_id, requirement_id, folder_id')
+    .eq('id', documentId)
+    .single()
+
+  if (documentError && isFolderSchemaMissing(documentError)) {
+    throw new Error('Falta aplicar la migración de carpetas ISO en Supabase.')
+  }
+  if (documentError) throw documentError
+  if (!document.requirement_id && nextFolderId) {
+    throw new Error('El documento necesita un requisito ISO antes de poder moverlo a una carpeta.')
+  }
+
+  if (nextFolderId) {
+    const { data: folder, error: folderError } = await supabase
+      .from('document_folders')
+      .select('id, company_id, requirement_id')
+      .eq('id', nextFolderId)
+      .single()
+
+    if (folderError && isFolderSchemaMissing(folderError)) {
+      throw new Error('Falta aplicar la migración de carpetas ISO en Supabase.')
+    }
+    if (folderError) throw folderError
+    if (folder.company_id !== document.company_id || folder.requirement_id !== document.requirement_id) {
+      throw new Error('La carpeta de destino no pertenece al mismo requisito ISO del documento.')
+    }
+  }
+
+  if ((document.folder_id || null) === nextFolderId) {
+    return { id: document.id, folder_id: document.folder_id || null }
+  }
+
+  const { data, error } = await supabase
+    .from('documents')
+    .update({ folder_id: nextFolderId })
+    .eq('id', documentId)
+    .select('id, folder_id, updated_at')
+    .single()
+
+  if (error && isFolderSchemaMissing(error)) {
+    throw new Error('Falta aplicar la migración de carpetas ISO en Supabase.')
+  }
+  if (error) throw error
+  return data
+}
+
 export async function createDocument({ companyId, userId, values, file }) {
   validateDocumentFile(file)
   const supabase = requireSupabase()
@@ -208,8 +260,12 @@ export async function openDocumentFile(filePath) {
 
 export async function getDocumentDetail(documentId) {
   const supabase = requireSupabase()
-  const [documentResult, commentsResult, activityResult, versionsResult] = await Promise.all([
-    supabase.from('documents').select(documentSelect).eq('id', documentId).single(),
+  let documentResult = await supabase.from('documents').select(documentSelectWithFolders).eq('id', documentId).single()
+  if (documentResult.error && isFolderSchemaMissing(documentResult.error)) {
+    documentResult = await supabase.from('documents').select(documentSelect).eq('id', documentId).single()
+  }
+
+  const [commentsResult, activityResult, versionsResult] = await Promise.all([
     supabase.from('document_comments').select('id, comment, created_at, author:profiles(id, full_name, email)').eq('document_id', documentId).order('created_at'),
     supabase.from('document_activity').select('id, action, from_status, to_status, details, created_at, actor:profiles(id, full_name, email)').eq('document_id', documentId).order('created_at', { ascending: false }),
     supabase.from('document_versions').select('id, version_number, file_name, file_path, file_size, comment, created_at, creator:profiles!document_versions_created_by_fkey(id, full_name, email)').eq('document_id', documentId).order('version_number', { ascending: false }),
@@ -239,6 +295,7 @@ export async function updateDocumentMetadata(documentId, values) {
     title: values.title.trim(), description: values.description.trim() || null,
     document_type: values.documentType, norm: values.norm || null,
     module_id: values.moduleId || null, requirement_id: values.requirementId || null,
+    folder_id: values.folderId || null,
     responsible_id: values.responsibleId || null,
     review_due_at: values.reviewDueAt ? new Date(`${values.reviewDueAt}T23:59:59`).toISOString() : null,
   }).eq('id', documentId).select('id, updated_at').single()
