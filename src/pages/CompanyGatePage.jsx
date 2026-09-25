@@ -2,6 +2,8 @@ import { ArrowRight, Building2, ShieldCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
+import LandingPreview from '../components/LandingPreview'
+import '../styles/landing.css'
 import { useAuth } from '../context/AuthContext'
 import { listLoginCompanies, rememberSelectedCompany } from '../services/tenantService'
 
@@ -38,70 +40,88 @@ export default function CompanyGatePage() {
   if (!loading && user) return <Navigate to="/dashboard" replace />
 
   return (
-    <main className="tenant-gate-screen">
-      <section className="tenant-gate-hero">
-        <BrandLogo light className="tenant-gate-logo" />
-        <div>
-          <p className="eyebrow">ACCESO POR EMPRESA</p>
-          <h1>Elegí tu espacio de trabajo.</h1>
-          <p>
-            Cada empresa tiene un entorno independiente. Seleccioná la organización a la que pertenecés antes de iniciar sesión.
-          </p>
+    <div className="sgi-landing" id="inicio">
+      <a className="landing-skip" href="#acceso">Ir al acceso por empresa</a>
+      <header className="landing-header">
+        <div className="landing-container landing-nav">
+          <a href="#inicio" aria-label="EP Consultora, inicio"><BrandLogo /></a>
+          <nav aria-label="Navegación principal">
+            <a className="landing-nav-product" href="#plataforma">La plataforma</a>
+            <a className="landing-button landing-button-small" href="#acceso">Ingresar <ArrowRight size={16} aria-hidden="true" /></a>
+          </nav>
         </div>
-        <div className="tenant-security-note">
-          <ShieldCheck size={19} />
-          <span>La documentación permanece aislada por empresa y protegida por permisos.</span>
+      </header>
+
+      <main>
+        <section className="landing-container landing-hero" id="plataforma" aria-labelledby="landing-title">
+          <div className="landing-hero-copy">
+            <p className="landing-eyebrow"><span /> SISTEMA DE GESTIÓN INTEGRADO</p>
+            <h1 id="landing-title">Tu gestión documental.<br /><em>Todo en su lugar.</em></h1>
+            <p className="landing-description">Documentos, revisiones y cumplimiento en un mismo espacio. Una visión clara del SGI para acompañar el trabajo de tu empresa.</p>
+            <a className="landing-button" href="#acceso">Ingresar a mi empresa <ArrowRight size={18} aria-hidden="true" /></a>
+            <p className="landing-hero-note">Tu organización. Tu espacio de trabajo.</p>
+          </div>
+          <LandingPreview />
+        </section>
+
+        <div className="landing-container landing-standards" aria-label="Normas del sistema">
+          <span>Una plataforma para tu gestión integrada</span>
+          <ul><li>ISO 9001</li><li>ISO 14001</li><li>ISO 45001</li></ul>
         </div>
-      </section>
 
-      <section className="tenant-gate-panel">
-        <div className="tenant-gate-card">
-          <header>
-            <span>gestiQa</span>
-            <h2>¿A qué empresa querés ingresar?</h2>
-            <p>Tu selección define el espacio que se abrirá después de autenticarte.</p>
-          </header>
+        <section className="landing-access" id="acceso" aria-labelledby="access-title" tabIndex={-1}>
+          <div className="landing-container landing-access-layout">
+            <div className="landing-access-intro">
+              <p className="landing-eyebrow">ACCESO POR EMPRESA</p>
+              <h2 id="access-title">Elegí tu espacio<br />de trabajo.</h2>
+              <p>Seleccioná la organización a la que pertenecés para iniciar sesión.</p>
+              <div className="landing-security"><ShieldCheck size={22} aria-hidden="true" /><p><strong>Un entorno independiente</strong><span>Documentación aislada por empresa y acceso protegido por permisos.</span></p></div>
+            </div>
+            <div className="landing-company-panel">
+              <header className="landing-company-heading"><h3>¿A qué empresa querés ingresar?</h3><span>Seleccioná para continuar</span></header>
+              {!configured ? (
+                <div className="config-warning" role="alert">
+                  <strong>El acceso todavía no está disponible</strong>
+                  <p>Consultá con el administrador de EP Consultora para habilitar el sistema.</p>
+                </div>
+              ) : error ? (
+                <div className="form-error" role="alert">{error}</div>
+              ) : loadingCompanies ? (
+                <div className="landing-company-loading" role="status"><span className="loader-dot" /> Cargando empresas…</div>
+              ) : companies.length === 0 ? (
+                <div className="landing-empty-state">
+                  <Building2 size={24} />
+                  <strong>No hay empresas habilitadas</strong>
+                  <span>El administrador global debe crear el primer espacio de trabajo desde EP Consultora.</span>
+                </div>
+              ) : (
+                <div className="landing-company-list">
+                  {companies.map((company) => (
+                    <Link
+                      key={company.id}
+                      to={`/login/${company.slug}`}
+                      className="landing-company-option"
+                      onClick={() => rememberSelectedCompany(company)}
+                    >
+                      <span className="landing-company-icon"><Building2 size={20} aria-hidden="true" /></span>
+                      <span className="landing-company-copy">
+                        <strong>{company.name}</strong>
+                        <small>Ingresar al espacio documental</small>
+                      </span>
+                      <ArrowRight size={18} aria-hidden="true" />
+                    </Link>
+                  ))}
+                </div>
+              )}
 
-          {!configured ? (
-            <div className="config-warning" role="alert">
-              <strong>Falta conectar Supabase</strong>
-              <p>Configurá las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.</p>
+              <p className="landing-access-help">
+                Si tu empresa no aparece, consultá con el administrador de EP Consultora.
+              </p>
             </div>
-          ) : error ? (
-            <div className="form-error" role="alert">{error}</div>
-          ) : loadingCompanies ? (
-            <div className="tenant-company-loading"><span className="loader-dot" /> Cargando empresas…</div>
-          ) : companies.length === 0 ? (
-            <div className="tenant-empty-state">
-              <Building2 size={24} />
-              <strong>No hay empresas habilitadas</strong>
-              <span>El administrador global debe crear el primer espacio de trabajo desde gestiQa.</span>
-            </div>
-          ) : (
-            <div className="tenant-company-list">
-              {companies.map((company) => (
-                <Link
-                  key={company.id}
-                  to={`/login/${company.slug}`}
-                  className="tenant-company-option"
-                  onClick={() => rememberSelectedCompany(company)}
-                >
-                  <span className="tenant-company-icon"><Building2 size={20} /></span>
-                  <span className="tenant-company-copy">
-                    <strong>{company.name}</strong>
-                    <small>Ingresar al espacio documental</small>
-                  </span>
-                  <ArrowRight size={18} />
-                </Link>
-              ))}
-            </div>
-          )}
-
-          <p className="tenant-gate-help">
-            Si tu empresa no aparece, consultá con el administrador de gestiQa.
-          </p>
-        </div>
-      </section>
-    </main>
+          </div>
+        </section>
+      </main>
+      <footer className="landing-container landing-footer"><span>EP Consultora</span><span>Sistema de Gestión Integrado</span><a href="#inicio">Volver al inicio ↑</a></footer>
+    </div>
   )
 }
