@@ -1,4 +1,4 @@
-import { ArrowRight, Building2, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Building2, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
@@ -7,7 +7,31 @@ import '../styles/landing.css'
 import { useAuth } from '../context/AuthContext'
 import { listLoginCompanies, rememberSelectedCompany } from '../services/tenantService'
 
+const LANDING_THEME_KEY = 'gestiqa.landing-theme'
+
+function initialLandingTheme() {
+  try {
+    const savedTheme = window.localStorage.getItem(LANDING_THEME_KEY)
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme
+  } catch {
+    // The system preference still works when browser storage is unavailable.
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 export default function CompanyGatePage() {
+  const [theme, setTheme] = useState(initialLandingTheme)
+
+  function toggleTheme() {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    try {
+      window.localStorage.setItem(LANDING_THEME_KEY, nextTheme)
+    } catch {
+      // Keep the control usable even if this browser cannot persist preferences.
+    }
+  }
+
   const { configured, user, loading } = useAuth()
   const [companies, setCompanies] = useState([])
   const [loadingCompanies, setLoadingCompanies] = useState(true)
@@ -40,12 +64,21 @@ export default function CompanyGatePage() {
   if (!loading && user) return <Navigate to="/dashboard" replace />
 
   return (
-    <div className="sgi-landing" id="inicio">
+    <div className="sgi-landing" data-theme={theme} id="inicio">
       <a className="landing-skip" href="#acceso">Ir al acceso por empresa</a>
       <header className="landing-header">
         <div className="landing-container landing-nav">
-          <a href="#inicio" aria-label="gestiQa, inicio"><BrandLogo light /></a>
+          <a href="#inicio" aria-label="gestiQa, inicio"><BrandLogo light={theme === 'dark'} /></a>
           <nav aria-label="Navegación principal">
+            <button
+              type="button"
+              className="landing-theme-toggle"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+              title={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+            >
+              {theme === 'dark' ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
+            </button>
             <a className="landing-button landing-button-small" href="#acceso">Ingresar <ArrowRight size={16} aria-hidden="true" /></a>
           </nav>
         </div>
