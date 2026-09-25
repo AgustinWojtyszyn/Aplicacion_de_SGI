@@ -44,9 +44,8 @@ export default function CompanyGatePage() {
       <a className="landing-skip" href="#acceso">Ir al acceso por empresa</a>
       <header className="landing-header">
         <div className="landing-container landing-nav">
-          <a href="#inicio" aria-label="EP Consultora, inicio"><BrandLogo /></a>
+          <a href="#inicio" aria-label="gestiQa, inicio"><BrandLogo light /></a>
           <nav aria-label="Navegación principal">
-            <a className="landing-nav-product" href="#plataforma">La plataforma</a>
             <a className="landing-button landing-button-small" href="#acceso">Ingresar <ArrowRight size={16} aria-hidden="true" /></a>
           </nav>
         </div>

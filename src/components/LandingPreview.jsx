@@ -12,10 +12,10 @@ export default function LandingPreview() {
   return (
     <figure className="landing-preview" aria-label="Vista ilustrativa del sistema: resumen, documentos, cumplimiento y flujo de aprobación">
       <div className="landing-app-window" aria-hidden="true">
-        <div className="landing-window-bar"><span className="landing-window-dots"><i /><i /><i /></span><span>EP Consultora / SGI</span><ShieldCheck size={15} /></div>
+        <div className="landing-window-bar"><span className="landing-window-dots"><i /><i /><i /></span><span>gestiQa / SGI</span><ShieldCheck size={15} /></div>
         <div className="landing-window-body">
           <div className="landing-preview-sidebar">
-            <span className="landing-preview-monogram">EP<span> / SGI</span></span>
+            <span className="landing-preview-monogram">gestiQa<span> / SGI</span></span>
             {modules.map(({ icon: Icon, label }, index) => <div className={index === 0 ? 'is-active' : ''} key={label}><Icon size={17} /><span>{label}</span></div>)}
           </div>
           <div className="landing-preview-content">
