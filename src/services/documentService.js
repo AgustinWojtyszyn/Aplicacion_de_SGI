@@ -1,5 +1,6 @@
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import {
+  ALLOWED_DOCUMENT_EXTENSIONS,
   ALLOWED_DOCUMENT_MIME_TYPES,
   DOCUMENT_BUCKET,
   MAX_DOCUMENT_SIZE,
@@ -47,11 +48,70 @@ function isFolderSchemaMissing(error) {
     || /document_folders|folder_id/i.test(message)
 }
 
+function documentExtension(name = '') {
+  const parts = name.toLowerCase().split('.')
+  return parts.length > 1 ? parts.pop() : ''
+}
+
+function documentContentType(file) {
+  const type = String(file?.type || '').trim().toLowerCase()
+  if (type && type !== 'application/octet-stream') return type
+
+  const extension = documentExtension(file?.name)
+  const fallback = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    docm: 'application/vnd.ms-word.document.macroEnabled.12',
+    dot: 'application/msword',
+    dotx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.template',
+    dotm: 'application/vnd.ms-word.template.macroEnabled.12',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    xlsm: 'application/vnd.ms-excel.sheet.macroEnabled.12',
+    xlsb: 'application/vnd.ms-excel.sheet.binary.macroEnabled.12',
+    xlt: 'application/vnd.ms-excel',
+    xltx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.template',
+    xltm: 'application/vnd.ms-excel.template.macroEnabled.12',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    pptm: 'application/vnd.ms-powerpoint.presentation.macroEnabled.12',
+    pps: 'application/vnd.ms-powerpoint',
+    ppsx: 'application/vnd.openxmlformats-officedocument.presentationml.slideshow',
+    odt: 'application/vnd.oasis.opendocument.text',
+    ods: 'application/vnd.oasis.opendocument.spreadsheet',
+    odp: 'application/vnd.oasis.opendocument.presentation',
+    rtf: 'application/rtf',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+  }
+  return fallback[extension] || 'application/octet-stream'
+}
+
 export function validateDocumentFile(file) {
   if (!file) throw new Error('Seleccioná un archivo para continuar.')
+  if (!file.size) throw new Error('El archivo está vacío.')
   if (file.size > MAX_DOCUMENT_SIZE) throw new Error('El archivo supera el límite de 25 MB.')
-  if (!ALLOWED_DOCUMENT_MIME_TYPES.includes(file.type)) {
-    throw new Error('Formato no admitido. Usá PDF, Word, Excel o una imagen JPG/PNG/WEBP.')
+
+  const extension = documentExtension(file.name)
+  if (!ALLOWED_DOCUMENT_EXTENSIONS.includes(extension)) {
+    throw new Error('Formato no admitido. Podés cargar documentos de Office, PDF, OpenDocument, RTF, TXT, CSV e imágenes JPG/PNG/WEBP.')
+  }
+
+  // Browsers and mobile file pickers frequently report old Office files with an
+  // empty/generic MIME. Extension is therefore authoritative; MIME is used when
+  // reliable and normalized before upload.
+  const reportedType = String(file.type || '').trim().toLowerCase()
+  if (reportedType && reportedType !== 'application/octet-stream'
+      && !ALLOWED_DOCUMENT_MIME_TYPES.includes(reportedType)) {
+    console.warn('Document MIME differs from the known list; accepting allowed extension.', {
+      name: file.name,
+      type: reportedType,
+    })
   }
 }
 
@@ -215,14 +275,14 @@ export async function createDocument({ companyId, userId, values, file }) {
     review_due_at: values.reviewDueAt ? new Date(`${values.reviewDueAt}T23:59:59`).toISOString() : null,
     file_name: file.name,
     file_path: filePath,
-    mime_type: file.type,
+    mime_type: documentContentType(file),
     file_size: file.size,
     created_by: userId,
   }
   if (values.folderId) payload.folder_id = values.folderId
   const { data: document, error: documentError } = await supabase.from('documents').insert(payload).select('id').single()
   if (documentError) throw documentError
-  const { error: uploadError } = await supabase.storage.from(DOCUMENT_BUCKET).upload(filePath, file, { cacheControl: '3600', contentType: file.type, upsert: false })
+  const { error: uploadError } = await supabase.storage.from(DOCUMENT_BUCKET).upload(filePath, file, { cacheControl: '3600', contentType: documentContentType(file), upsert: false })
   if (uploadError) {
     await supabase.from('documents').delete().eq('id', documentId)
     throw uploadError
@@ -320,7 +380,7 @@ export async function createDocumentVersion({ companyId, documentId, file, comme
   if (uploadError) throw uploadError
   const { data, error } = await supabase.rpc('create_document_version', {
     p_document_id: documentId, p_file_name: file.name, p_file_path: filePath,
-    p_mime_type: file.type, p_file_size: file.size, p_comment: comment?.trim() || null,
+    p_mime_type: documentContentType(file), p_file_size: file.size, p_comment: comment?.trim() || null,
   })
   if (error) {
     await supabase.storage.from(DOCUMENT_BUCKET).remove([filePath])
