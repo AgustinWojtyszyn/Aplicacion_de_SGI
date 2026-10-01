@@ -6,6 +6,7 @@ import DocumentFormModal from '../components/DocumentFormModal'
 import StatusBadge from '../components/StatusBadge'
 import { DOCUMENT_STATUSES, DOCUMENT_TYPE_OPTIONS, NORM_OPTIONS } from '../lib/constants'
 import { createDocumentFolder, listDocumentFolders, listDocuments, openDocumentFile } from '../services/documentService'
+import { listSgiRequirements } from '../services/sgiService'
 import { useAuth } from '../context/AuthContext'
 
 const emptyFilters = {
@@ -66,6 +67,7 @@ export default function DocumentsPage() {
   const [error, setError] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [folders, setFolders] = useState([])
+  const [requirements, setRequirements] = useState([])
   const [folderCreateOpen, setFolderCreateOpen] = useState(false)
   const [folderName, setFolderName] = useState('')
   const [folderSubmitting, setFolderSubmitting] = useState(false)
@@ -89,6 +91,11 @@ export default function DocumentsPage() {
   const visibleDocuments = useMemo(
     () => documents.filter((document) => matchesFollowUp(document, filters.followUp)),
     [documents, filters.followUp],
+  )
+
+  const selectedRequirement = useMemo(
+    () => requirements.find((requirement) => requirement.id === filters.requirementId) || null,
+    [requirements, filters.requirementId],
   )
 
   const selectedFolder = useMemo(
@@ -123,13 +130,15 @@ export default function DocumentsPage() {
     setLoading(true)
     setError('')
     try {
-      const [data, nextFolders] = await Promise.all([
+      const [data, nextFolders, nextRequirements] = await Promise.all([
         listDocuments({
           companyId: company.id,
           filters: { ...filters, search: deferredSearch },
         }),
         filters.requirementId ? listDocumentFolders(company.id, filters.requirementId) : Promise.resolve([]),
+        listSgiRequirements(company.id, filters.norm),
       ])
+      setRequirements(nextRequirements)
       setDocuments(filters.requirementId
         ? data.filter((document) => document.requirement_id === filters.requirementId)
         : data)
@@ -309,7 +318,7 @@ export default function DocumentsPage() {
           <div className="document-folder-breadcrumbs" aria-label="Ruta de carpetas">
             <button type="button" onClick={() => openFolder('')}>
               <Folder size={16} />
-              Cap. {searchParams.get('chapter') || 'ISO'}
+              {selectedRequirement ? `${selectedRequirement.code} · ${selectedRequirement.title}` : `Cap. ${searchParams.get('chapter') || 'ISO'}`}
             </button>
             {folderTrail.map((folder) => (
               <span key={folder.id}>
@@ -318,7 +327,7 @@ export default function DocumentsPage() {
               </span>
             ))}
           </div>
-          <span>{selectedFolder ? `Dentro de ${selectedFolder.name}` : 'Organizá este requisito con las subcarpetas que necesites.'}</span>
+          <span>{selectedFolder ? `Dentro de ${selectedFolder.name}` : selectedRequirement ? `Carpeta documental de ${selectedRequirement.code}.` : 'Organizá este requisito con las subcarpetas que necesites.'}</span>
         </div>
       )}
 
