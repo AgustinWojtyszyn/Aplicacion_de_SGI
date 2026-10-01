@@ -9,7 +9,9 @@ export default function ProtectedRoute() {
     return <Navigate to="/" replace />
   }
 
-  if (loading) {
+  // Never unmount an already-authorized workspace during a background session refresh.
+  // Unmounting here destroys native File objects selected by the document picker.
+  if (loading && (!user || !membership)) {
     return (
       <div className="screen-loader" role="status">
         <span className="loader-dot" />
