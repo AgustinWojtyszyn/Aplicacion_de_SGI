@@ -143,6 +143,16 @@ export default function DocumentsPage() {
         ? data.filter((document) => document.requirement_id === filters.requirementId)
         : data)
       setFolders(nextFolders)
+
+      // A folder selected in another requirement/company must never leak into
+      // the current workspace. Clear stale URL state instead of rendering an
+      // apparently empty or foreign folder.
+      const requestedFolderId = searchParams.get('folder')
+      if (requestedFolderId && !nextFolders.some((folder) => folder.id === requestedFolderId)) {
+        const nextParams = new URLSearchParams(searchParams)
+        nextParams.delete('folder')
+        setSearchParams(nextParams, { replace: true })
+      }
     } catch (loadError) {
       console.error(loadError)
       setError(loadError.message || 'No se pudieron cargar los documentos.')
