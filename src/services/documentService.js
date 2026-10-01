@@ -54,11 +54,8 @@ function documentExtension(name = '') {
 }
 
 function documentContentType(file) {
-  const type = String(file?.type || '').trim().toLowerCase()
-  if (type && type !== 'application/octet-stream') return type
-
   const extension = documentExtension(file?.name)
-  const fallback = {
+  const byExtension = {
     pdf: 'application/pdf',
     doc: 'application/msword',
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -89,7 +86,10 @@ function documentContentType(file) {
     png: 'image/png',
     webp: 'image/webp',
   }
-  return fallback[extension] || 'application/octet-stream'
+
+  // The extension is authoritative. Android document providers frequently
+  // report generic/vendor MIME values that Supabase rejects even for valid files.
+  return byExtension[extension] || 'application/octet-stream'
 }
 
 export function validateDocumentFile(file) {
