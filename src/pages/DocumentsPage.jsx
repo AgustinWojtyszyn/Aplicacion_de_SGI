@@ -412,7 +412,17 @@ export default function DocumentsPage() {
       <DocumentFormModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={load}
+        onCreated={async () => {
+          await load()
+          if (filters.requirementId) {
+            const next = new URLSearchParams(searchParams)
+            next.set('norm', filters.norm)
+            next.set('requirement', filters.requirementId)
+            if (selectedFolderId) next.set('folder', selectedFolderId)
+            else next.delete('folder')
+            setSearchParams(next, { replace: true })
+          }
+        }}
         defaultNorm={filters.norm}
         defaultRequirementId={filters.requirementId}
         defaultFolderId={selectedFolderId}
