@@ -57,7 +57,9 @@
 .file-drop:hover { background: #EAF7F0; border-color: #39A96B; }
 .file-drop strong { max-width: 90%; overflow: hidden; color: var(--ink); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
 .file-drop span { color: #667085; font-size: .7rem; }
-.file-drop input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.file-drop .file-input-native { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; opacity: 0; pointer-events: none; }
+.file-drop-selected { background: #F7FAFC; border-style: solid; }
+.file-picker-button { position: relative; z-index: 1; margin-top: 8px; min-height: 40px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 9px; padding-top: 2px; }
 
 @media (max-width: 1150px) { .filters-panel { grid-template-columns: repeat(3,minmax(0,1fr)); } }
