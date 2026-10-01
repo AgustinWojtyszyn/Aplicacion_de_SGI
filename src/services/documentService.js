@@ -299,9 +299,6 @@ export async function createDocument({ companyId, userId, values, file }) {
   }
 
   const documentId = crypto.randomUUID()
-  validateDocumentFile(file)
-  const supabase = requireSupabase()
-  const documentId = crypto.randomUUID()
   const filePath = `${companyId}/${documentId}/${Date.now()}-${sanitizeFilename(file.name)}`
   const contentType = documentContentType(file)
   const payload = {
