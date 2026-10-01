@@ -33,6 +33,16 @@ describe('validateDocumentFile', () => {
     })).not.toThrow()
   })
 
+  it('accepts every supported common office family by extension', () => {
+    for (const name of ['manual.docx', 'planilla.xlsx', 'presentacion.pptx', 'texto.odt', 'datos.csv']) {
+      expect(() => validateDocumentFile({ name, size: 2048, type: '' })).not.toThrow()
+    }
+  })
+
+  it('rejects empty files before any upload is attempted', () => {
+    expect(() => validateDocumentFile({ name: 'manual.docx', size: 0, type: '' })).toThrow(/vacío/i)
+  })
+
   it('requires a file', () => {
     expect(() => validateDocumentFile(null)).toThrow(/Seleccioná un archivo/i)
   })
