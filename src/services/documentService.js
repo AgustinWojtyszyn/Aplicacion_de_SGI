@@ -259,6 +259,48 @@ export async function moveDocumentToFolder({ documentId, folderId = null }) {
 export async function createDocument({ companyId, userId, values, file }) {
   validateDocumentFile(file)
   const supabase = requireSupabase()
+
+  const requirementId = values.requirementId || null
+  const folderId = values.folderId || null
+
+  // Validate the full tenant/classification chain immediately before writing.
+  // UI state is not a security or integrity boundary.
+  if (values.norm && values.norm !== 'General') {
+    if (!requirementId) {
+      throw new Error('Seleccioná la carpeta/requisito ISO donde debe guardarse el documento.')
+    }
+    const { data: requirement, error: requirementError } = await supabase
+      .from('sgi_requirements')
+      .select('id, company_id, norm, is_active')
+      .eq('id', requirementId)
+      .eq('company_id', companyId)
+      .eq('norm', values.norm)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (requirementError) throw requirementError
+    if (!requirement) throw new Error('La carpeta/requisito seleccionada no pertenece a esta empresa o norma.')
+  } else if (requirementId || folderId) {
+    throw new Error('La documentación general no puede quedar asociada a una carpeta ISO.')
+  }
+
+  if (folderId) {
+    const { data: folder, error: folderError } = await supabase
+      .from('document_folders')
+      .select('id')
+      .eq('id', folderId)
+      .eq('company_id', companyId)
+      .eq('requirement_id', requirementId)
+      .maybeSingle()
+    if (folderError && isFolderSchemaMissing(folderError)) {
+      throw new Error('Falta aplicar la migración de carpetas ISO en Supabase.')
+    }
+    if (folderError) throw folderError
+    if (!folder) throw new Error('La subcarpeta seleccionada no pertenece a esta empresa o requisito.')
+  }
+
+  const documentId = crypto.randomUUID()
+  validateDocumentFile(file)
+  const supabase = requireSupabase()
   const documentId = crypto.randomUUID()
   const filePath = `${companyId}/${documentId}/${Date.now()}-${sanitizeFilename(file.name)}`
   const contentType = documentContentType(file)
@@ -266,7 +308,7 @@ export async function createDocument({ companyId, userId, values, file }) {
     id: documentId,
     company_id: companyId,
     module_id: values.moduleId || null,
-    requirement_id: values.requirementId || null,
+    requirement_id: requirementId,
     title: values.title.trim(),
     description: values.description.trim() || null,
     document_type: values.documentType,
@@ -280,7 +322,7 @@ export async function createDocument({ companyId, userId, values, file }) {
     file_size: file.size,
     created_by: userId,
   }
-  if (values.folderId) payload.folder_id = values.folderId
+  if (folderId) payload.folder_id = folderId
 
   // Upload first. A document row must never exist unless its binary is already
   // safely stored. The previous DB-first flow also seeded a version/activity
