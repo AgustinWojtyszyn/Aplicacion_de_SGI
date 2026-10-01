@@ -1,5 +1,5 @@
 import { FileUp, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { DOCUMENT_ACCEPT, DOCUMENT_TYPE_OPTIONS, NORM_OPTIONS } from '../lib/constants'
 import { createDocument, listCompanyMembers, listDocumentFolders, validateDocumentFile } from '../services/documentService'
 import { listSgiRequirements } from '../services/sgiService'
@@ -30,6 +30,7 @@ export default function DocumentFormModal({
   const { company, user, modules } = useAuth()
   const [values, setValues] = useState(() => initialValuesFor())
   const [file, setFile] = useState(null)
+  const fileInputRef = useRef(null)
   const [members, setMembers] = useState([])
   const [requirements, setRequirements] = useState([])
   const [folders, setFolders] = useState([])
@@ -94,9 +95,21 @@ export default function DocumentFormModal({
     setError('')
   }
   function handleFileChange(event) {
-    const nextFile = event.target.files?.[0] || null
-    try { if (nextFile) validateDocumentFile(nextFile); setFile(nextFile); setError('') }
-    catch (fileError) { event.target.value = ''; setFile(null); setError(fileError.message) }
+    const nextFile = event.target.files?.item?.(0) || event.target.files?.[0] || null
+    if (!nextFile) return
+    try {
+      validateDocumentFile(nextFile)
+      setFile(nextFile)
+      setError('')
+    } catch (fileError) {
+      event.target.value = ''
+      setFile(null)
+      setError(fileError.message)
+    }
+  }
+
+  function openFilePicker() {
+    fileInputRef.current?.click()
   }
   async function handleSubmit(event) {
     event.preventDefault(); if (!canSubmit) return
@@ -119,7 +132,7 @@ export default function DocumentFormModal({
         <label className="field"><span>Responsable</span><select value={values.responsibleId} onChange={(e) => updateField('responsibleId', e.target.value)}><option value="">Sin asignar</option>{members.map(({ user: member }) => <option key={member.id} value={member.id}>{member.full_name || member.email}</option>)}</select></label>
         <label className="field"><span>Fecha objetivo de revisión</span><input type="date" value={values.reviewDueAt} onChange={(e) => updateField('reviewDueAt', e.target.value)} /></label>
         <label className="field field-wide"><span>Descripción</span><textarea value={values.description} onChange={(e) => updateField('description', e.target.value)} rows={3} /></label>
-        <label className="file-drop field-wide"><FileUp size={24} /><strong>{file ? file.name : 'Seleccionar archivo'}</strong><span>Office, PDF, OpenDocument, RTF, TXT, CSV o imágenes · máximo 25 MB</span><input type="file" accept={DOCUMENT_ACCEPT} onChange={handleFileChange} required /></label>
+        <div className={`file-drop field-wide ${file ? 'file-drop-selected' : ''}`}><FileUp size={24} /><strong>{file ? file.name : 'Seleccionar archivo'}</strong><span>{file ? 'Archivo seleccionado correctamente. Podés crear el documento.' : 'Office, PDF, OpenDocument, RTF, TXT, CSV o imágenes · máximo 25 MB'}</span><input ref={fileInputRef} className="file-input-native" type="file" accept={DOCUMENT_ACCEPT} onChange={handleFileChange} /><button className="secondary-button file-picker-button" type="button" onClick={openFilePicker}>{file ? 'Cambiar archivo' : 'Elegir archivo'}</button></div>
       </div>{error && <div className="form-error" role="alert">{error}</div>}<footer className="modal-actions"><button className="secondary-button" type="button" onClick={onClose}>Cancelar</button><button className="primary-button" type="submit" disabled={!canSubmit}>{submitting ? 'Cargando…' : 'Crear en borrador'}</button></footer></form>
     </section>
   </div>
