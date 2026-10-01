@@ -166,7 +166,10 @@ export function AuthProvider({ children }) {
       // Returning from Android's native file picker can refresh/re-emit the
       // Supabase auth session. Rehydrating the whole workspace here unmounts
       // ProtectedRoute and destroys the open document form + selected File.
-      if (workspaceAlreadyLoaded && ['SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
+      if (workspaceAlreadyLoaded && nextUserId) {
+        // Any auth event for the same already-hydrated user is a session update,
+        // not a reason to tear down/reload the workspace. This also covers
+        // INITIAL_SESSION/recovery events emitted after mobile app switching.
         setSession(nextSession)
         return
       }
