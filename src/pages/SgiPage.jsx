@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronRight, FileText, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, FileText, Folder, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -140,10 +140,16 @@ export default function SgiPage() {
           const approved = related.filter((document) => document.status === 'approved').length
           const pending = related.length - approved
           return (
-            <article className="requirement-card" key={requirement.id}>
-              <div className="requirement-chapter">{requirement.chapter}</div>
+            <Link
+              className="requirement-card requirement-folder-card"
+              key={requirement.id}
+              to={documentsUrl({ norm: requirement.norm, requirementId: requirement.id, chapter: requirement.chapter })}
+              title={`Abrir carpeta ${requirement.code} · ${requirement.title}`}
+              aria-label={`Abrir carpeta ${requirement.code} · ${requirement.title}`}
+            >
+              <div className="requirement-chapter requirement-folder-icon"><Folder size={22} /></div>
               <div className="requirement-copy">
-                <span>{requirement.code}</span>
+                <span>CARPETA · {requirement.code}</span>
                 <h2>{requirement.title}</h2>
                 <p>{requirement.description}</p>
                 <div className="requirement-meta">
@@ -152,14 +158,7 @@ export default function SgiPage() {
                   {pending > 0 && <span>{pending} pendientes</span>}
                 </div>
               </div>
-              <Link
-                to={documentsUrl({ norm: requirement.norm, requirementId: requirement.id, chapter: requirement.chapter })}
-                title={`Ver documentos del capítulo ${requirement.chapter}`}
-                aria-label={`Ver documentos de ${requirement.norm}, capítulo ${requirement.chapter}`}
-              >
-                <ChevronRight size={20} />
-              </Link>
-            </article>
+            </Link>
           )
         })}
       </div>
