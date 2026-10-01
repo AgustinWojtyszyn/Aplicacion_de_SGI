@@ -4,17 +4,33 @@ import { validateDocumentFile } from './documentService'
 
 describe('validateDocumentFile', () => {
   it('accepts a supported PDF within the size limit', () => {
-    expect(() => validateDocumentFile({ size: 1024, type: 'application/pdf' })).not.toThrow()
+    expect(() => validateDocumentFile({ name: 'manual.pdf', size: 1024, type: 'application/pdf' })).not.toThrow()
   })
 
   it('rejects files larger than 25 MB', () => {
     expect(() =>
-      validateDocumentFile({ size: MAX_DOCUMENT_SIZE + 1, type: 'application/pdf' }),
+      validateDocumentFile({ name: 'manual.pdf', size: MAX_DOCUMENT_SIZE + 1, type: 'application/pdf' }),
     ).toThrow(/25 MB/i)
   })
 
   it('rejects unsupported file formats', () => {
-    expect(() => validateDocumentFile({ size: 1000, type: 'application/zip' })).toThrow(/Formato no admitido/i)
+    expect(() => validateDocumentFile({ name: 'archivo.zip', size: 1000, type: 'application/zip' })).toThrow(/Formato no admitido/i)
+  })
+
+  it('accepts Word files when Android reports a generic MIME', () => {
+    expect(() => validateDocumentFile({
+      name: 'procedimiento.docx',
+      size: 2048,
+      type: 'application/octet-stream',
+    })).not.toThrow()
+  })
+
+  it('accepts legacy Word files even with an empty MIME', () => {
+    expect(() => validateDocumentFile({
+      name: 'procedimiento.doc',
+      size: 2048,
+      type: '',
+    })).not.toThrow()
   })
 
   it('requires a file', () => {
