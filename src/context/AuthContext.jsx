@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { APP_URL } from '../lib/constants'
 import { requireSupabase, supabaseConfigured } from '../lib/supabase'
 import { readSelectedCompany, rememberSelectedCompany } from '../services/tenantService'
@@ -100,10 +100,12 @@ export function AuthProvider({ children }) {
   const [preferredCompany, setPreferredCompany] = useState(() => readSelectedCompany())
   const [loading, setLoading] = useState(true)
   const [workspaceError, setWorkspaceError] = useState('')
+  const hydratedUserIdRef = useRef(null)
 
   const hydrate = useCallback(async (nextSession) => {
     setSession(nextSession)
     setWorkspaceError('')
+    hydratedUserIdRef.current = nextSession?.user?.id || null
 
     if (!nextSession?.user) {
       setProfile(null)
@@ -155,11 +157,22 @@ export function AuthProvider({ children }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (mounted) {
-        setLoading(true)
-        hydrate(nextSession)
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!mounted) return
+
+      const nextUserId = nextSession?.user?.id || null
+      const workspaceAlreadyLoaded = Boolean(nextUserId && hydratedUserIdRef.current === nextUserId)
+
+      // Returning from Android's native file picker can refresh/re-emit the
+      // Supabase auth session. Rehydrating the whole workspace here unmounts
+      // ProtectedRoute and destroys the open document form + selected File.
+      if (workspaceAlreadyLoaded && ['SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
+        setSession(nextSession)
+        return
       }
+
+      setLoading(true)
+      hydrate(nextSession)
     })
 
     return () => {
