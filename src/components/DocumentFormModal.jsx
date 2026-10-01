@@ -37,7 +37,21 @@ export default function DocumentFormModal({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [submitStage, setSubmitStage] = useState('')
-  const canSubmit = useMemo(() => values.title.trim() && values.documentType && file && !submitting, [values.title, values.documentType, file, submitting])
+  const scopedRequirement = useMemo(
+    () => requirements.find((item) => item.id === values.requirementId && item.norm === values.norm) || null,
+    [requirements, values.requirementId, values.norm],
+  )
+  const scopedFolder = useMemo(
+    () => folders.find((item) => item.id === values.folderId && item.requirement_id === values.requirementId) || null,
+    [folders, values.folderId, values.requirementId],
+  )
+  const classificationValid = values.norm === 'General'
+    ? !values.requirementId && !values.folderId
+    : Boolean(scopedRequirement) && (!values.folderId || scopedFolder)
+  const canSubmit = useMemo(
+    () => values.title.trim() && values.documentType && file && classificationValid && !submitting,
+    [values.title, values.documentType, file, classificationValid, submitting],
+  )
 
   useEffect(() => {
     if (!open || !company?.id) return
@@ -117,6 +131,11 @@ export default function DocumentFormModal({
     event.preventDefault(); if (!canSubmit) return
     setSubmitting(true); setError(''); setSubmitStage('Subiendo archivo…')
     try {
+      if (!classificationValid) {
+        throw new Error(values.norm === 'General'
+          ? 'La documentación general no puede quedar asociada a una carpeta ISO.'
+          : 'Seleccioná la carpeta/requisito ISO donde debe quedar guardado el documento.')
+      }
       await createDocument({ companyId: company.id, userId: user.id, values, file })
       setSubmitStage('Actualizando historial…')
       await onCreated?.()
@@ -138,13 +157,13 @@ export default function DocumentFormModal({
         <label className="field field-wide"><span>Título *</span><input value={values.title} onChange={(e) => updateField('title', e.target.value)} maxLength={160} required /></label>
         <label className="field"><span>Tipo *</span><select value={values.documentType} onChange={(e) => updateField('documentType', e.target.value)}>{DOCUMENT_TYPE_OPTIONS.map((o) => <option key={o}>{o}</option>)}</select></label>
         <label className="field"><span>Norma</span><select value={values.norm} onChange={(e) => updateField('norm', e.target.value)}>{NORM_OPTIONS.map((o) => <option key={o}>{o}</option>)}</select></label>
-        <label className="field field-wide"><span>Capítulo / requisito ISO</span><select value={values.requirementId} onChange={(e) => updateField('requirementId', e.target.value)} disabled={values.norm === 'General'}><option value="">Sin requisito específico</option>{visibleRequirements.map((r) => <option key={r.id} value={r.id}>Cap. {r.chapter} · {r.title}</option>)}</select></label><label className="field field-wide"><span>Carpeta</span><select value={values.folderId} onChange={(e) => updateField('folderId', e.target.value)} disabled={!values.requirementId}><option value="">Raíz del requisito</option>{visibleFolders.map((folder) => <option key={folder.id} value={folder.id}>{'— '.repeat(folder.depth)}{folder.name}</option>)}</select></label>
+        <label className="field field-wide"><span>Carpeta / requisito ISO {values.norm !== 'General' ? '*' : ''}</span><select value={values.requirementId} onChange={(e) => updateField('requirementId', e.target.value)} disabled={values.norm === 'General'}><option value="">Seleccionar carpeta / requisito…</option>{visibleRequirements.map((r) => <option key={r.id} value={r.id}>Cap. {r.chapter} · {r.title}</option>)}</select></label><label className="field field-wide"><span>Subcarpeta opcional</span><select value={values.folderId} onChange={(e) => updateField('folderId', e.target.value)} disabled={!values.requirementId}><option value="">Raíz de la carpeta del requisito</option>{visibleFolders.map((folder) => <option key={folder.id} value={folder.id}>{'— '.repeat(folder.depth)}{folder.name}</option>)}</select></label>
         <label className="field"><span>Módulo</span><select value={values.moduleId} onChange={(e) => updateField('moduleId', e.target.value)}><option value="">Sin módulo específico</option>{modules.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
         <label className="field"><span>Responsable</span><select value={values.responsibleId} onChange={(e) => updateField('responsibleId', e.target.value)}><option value="">Sin asignar</option>{members.map(({ user: member }) => <option key={member.id} value={member.id}>{member.full_name || member.email}</option>)}</select></label>
         <label className="field"><span>Fecha objetivo de revisión</span><input type="date" value={values.reviewDueAt} onChange={(e) => updateField('reviewDueAt', e.target.value)} /></label>
         <label className="field field-wide"><span>Descripción</span><textarea value={values.description} onChange={(e) => updateField('description', e.target.value)} rows={3} /></label>
         <div className={`file-drop field-wide ${file ? 'file-drop-selected' : ''}`}><FileUp size={24} /><strong>{file ? file.name : 'Seleccionar archivo'}</strong><span>{file ? 'Archivo seleccionado correctamente. Podés crear el documento.' : 'Office, PDF, OpenDocument, RTF, TXT, CSV o imágenes · máximo 25 MB'}</span><input ref={fileInputRef} className="file-input-native" type="file" accept={DOCUMENT_ACCEPT} onChange={handleFileChange} /><button className="secondary-button file-picker-button" type="button" onClick={openFilePicker}>{file ? 'Cambiar archivo' : 'Elegir archivo'}</button></div>
-      </div>{error && <div className="form-error" role="alert">{error}</div>}<footer className="modal-actions"><button className="secondary-button" type="button" onClick={onClose}>Cancelar</button><button className="primary-button" type="submit" disabled={!canSubmit}>{submitting ? (submitStage || 'Cargando…') : 'Crear en borrador'}</button></footer></form>
+      </div>{values.norm !== 'General' && !values.requirementId && <div className="form-error" role="alert">Elegí la carpeta/requisito ISO. El documento se guardará ahí y aparecerá en esa carpeta.</div>}{error && <div className="form-error" role="alert">{error}</div>}<footer className="modal-actions"><button className="secondary-button" type="button" onClick={onClose}>Cancelar</button><button className="primary-button" type="submit" disabled={!canSubmit}>{submitting ? (submitStage || 'Cargando…') : 'Crear en borrador'}</button></footer></form>
     </section>
   </div>
 }
