@@ -261,6 +261,7 @@ export async function createDocument({ companyId, userId, values, file }) {
   const supabase = requireSupabase()
   const documentId = crypto.randomUUID()
   const filePath = `${companyId}/${documentId}/${Date.now()}-${sanitizeFilename(file.name)}`
+  const contentType = documentContentType(file)
   const payload = {
     id: documentId,
     company_id: companyId,
@@ -275,18 +276,39 @@ export async function createDocument({ companyId, userId, values, file }) {
     review_due_at: values.reviewDueAt ? new Date(`${values.reviewDueAt}T23:59:59`).toISOString() : null,
     file_name: file.name,
     file_path: filePath,
-    mime_type: documentContentType(file),
+    mime_type: contentType,
     file_size: file.size,
     created_by: userId,
   }
   if (values.folderId) payload.folder_id = values.folderId
-  const { data: document, error: documentError } = await supabase.from('documents').insert(payload).select('id').single()
-  if (documentError) throw documentError
-  const { error: uploadError } = await supabase.storage.from(DOCUMENT_BUCKET).upload(filePath, file, { cacheControl: '3600', contentType: documentContentType(file), upsert: false })
+
+  // Upload first. A document row must never exist unless its binary is already
+  // safely stored. The previous DB-first flow also seeded a version/activity
+  // row before upload and then relied on a DELETE rollback that could itself be
+  // blocked by RLS, leaving ghost documents behind.
+  const { error: uploadError } = await supabase.storage
+    .from(DOCUMENT_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      contentType,
+      upsert: false,
+    })
   if (uploadError) {
-    await supabase.from('documents').delete().eq('id', documentId)
-    throw uploadError
+    throw new Error(`No se pudo subir el archivo: ${uploadError.message || 'error de almacenamiento'}`)
   }
+
+  const { data: document, error: documentError } = await supabase
+    .from('documents')
+    .insert(payload)
+    .select('id')
+    .single()
+
+  if (documentError) {
+    const { error: cleanupError } = await supabase.storage.from(DOCUMENT_BUCKET).remove([filePath])
+    if (cleanupError) console.error('Document metadata failed and storage cleanup also failed', cleanupError)
+    throw new Error(`El archivo se subió, pero no se pudo registrar el documento: ${documentError.message || 'error de base de datos'}`)
+  }
+
   return document
 }
 
@@ -376,7 +398,7 @@ export async function createDocumentVersion({ companyId, documentId, file, comme
   validateDocumentFile(file)
   const supabase = requireSupabase()
   const filePath = `${companyId}/${documentId}/versions/${Date.now()}-${sanitizeFilename(file.name)}`
-  const { error: uploadError } = await supabase.storage.from(DOCUMENT_BUCKET).upload(filePath, file, { contentType: file.type, upsert: false })
+  const { error: uploadError } = await supabase.storage.from(DOCUMENT_BUCKET).upload(filePath, file, { contentType: documentContentType(file), upsert: false })
   if (uploadError) throw uploadError
   const { data, error } = await supabase.rpc('create_document_version', {
     p_document_id: documentId, p_file_name: file.name, p_file_path: filePath,
