@@ -1,6 +1,6 @@
 import { FileUp, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { DOCUMENT_TYPE_OPTIONS, NORM_OPTIONS } from '../lib/constants'
+import { DOCUMENT_ACCEPT, DOCUMENT_TYPE_OPTIONS, NORM_OPTIONS } from '../lib/constants'
 import { createDocument, listCompanyMembers, listDocumentFolders, validateDocumentFile } from '../services/documentService'
 import { listSgiRequirements } from '../services/sgiService'
 import { useAuth } from '../context/AuthContext'
@@ -119,7 +119,7 @@ export default function DocumentFormModal({
         <label className="field"><span>Responsable</span><select value={values.responsibleId} onChange={(e) => updateField('responsibleId', e.target.value)}><option value="">Sin asignar</option>{members.map(({ user: member }) => <option key={member.id} value={member.id}>{member.full_name || member.email}</option>)}</select></label>
         <label className="field"><span>Fecha objetivo de revisión</span><input type="date" value={values.reviewDueAt} onChange={(e) => updateField('reviewDueAt', e.target.value)} /></label>
         <label className="field field-wide"><span>Descripción</span><textarea value={values.description} onChange={(e) => updateField('description', e.target.value)} rows={3} /></label>
-        <label className="file-drop field-wide"><FileUp size={24} /><strong>{file ? file.name : 'Seleccionar archivo'}</strong><span>PDF, Word, Excel, JPG, PNG o WEBP · máximo 25 MB</span><input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} required /></label>
+        <label className="file-drop field-wide"><FileUp size={24} /><strong>{file ? file.name : 'Seleccionar archivo'}</strong><span>Office, PDF, OpenDocument, RTF, TXT, CSV o imágenes · máximo 25 MB</span><input type="file" accept={DOCUMENT_ACCEPT} onChange={handleFileChange} required /></label>
       </div>{error && <div className="form-error" role="alert">{error}</div>}<footer className="modal-actions"><button className="secondary-button" type="button" onClick={onClose}>Cancelar</button><button className="primary-button" type="submit" disabled={!canSubmit}>{submitting ? 'Cargando…' : 'Crear en borrador'}</button></footer></form>
     </section>
   </div>
