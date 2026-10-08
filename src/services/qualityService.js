@@ -127,7 +127,7 @@ export function qualityScore(answers, standardCount = 48) {
   const complies = answers.filter((a) => a.result === 'complies').length
   const partial = answers.filter((a) => a.result === 'partial').length
   const findings = answers.filter((a) => a.result === 'non_complies' || a.result === 'partial')
-  const pending = findings.filter((a) => a.followup_status !== 'closed')
+  const pending = findings.filter((a) => (a.followup_status ?? a.followupStatus) !== 'closed')
   return { inspected, complies, partial, findings: findings.length, pending: pending.length,
     percentage: inspected ? Math.round(10000 * complies / inspected) / 100 : 0 }
 }
