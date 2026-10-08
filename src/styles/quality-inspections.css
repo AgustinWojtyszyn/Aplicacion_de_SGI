@@ -57,7 +57,47 @@
 @media(max-width:480px) { .quality-check-fields { grid-template-columns: 1fr; } .quality-stats { gap: 7px; } .quality-stats > div { padding: 10px; } .quality-stats strong { font-size: 1.17rem; } }
 @media print {
   body * { visibility: hidden !important; }
-  #quality-site-qr, #quality-site-qr * { visibility: visible !important; }
-  #quality-site-qr { position: fixed !important; top: 1cm; left: 1cm; width: 9cm; box-shadow: none; border: none; }
+  #quality-global-qr, #quality-global-qr * { visibility: visible !important; }
+  #quality-global-qr { position: fixed !important; top: 1cm; left: 1cm; width: 9cm; box-shadow: none; border: none; }
   .quality-qr-actions { display: none !important; }
+}
+
+/* Dos hojas del P-07-R-06: checklist original y Hallazgos-Seguimiento. */
+.quality-module-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; padding:5px; background:#eef2f7; border-radius:13px; }
+.quality-module-tabs button { display:inline-flex; align-items:center; justify-content:center; gap:8px; flex:1 1 190px; min-height:43px; padding:10px; border:0; border-radius:10px; background:transparent; color:#43576c; font-size:.85rem; font-weight:750; }
+.quality-module-tabs button.active { background:#fff; color:#173b6c; box-shadow:0 3px 12px rgba(23,59,108,.1); }
+.quality-module-tabs button:focus-visible { outline:2px solid #39a96b; outline-offset:1px; }
+.quality-followup { display:grid; gap:15px; }
+.quality-followup-summary { display:grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap:10px; }
+.quality-followup-summary>div { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:13px; border:1px solid #e2e7ed; border-radius:12px; background:#f8fafc; }
+.quality-followup-summary strong { font-size:1.32rem; }
+.quality-followup-summary span { flex-basis:100%; font-size:.75rem; color:var(--muted); }
+.quality-followup-summary svg { color:#39a96b; }
+.quality-empty-findings { min-height:180px; padding:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:9px; color:#173b6c; border:1px dashed #b6c7d6; border-radius:14px; }
+.quality-empty-findings svg { color:#39a96b; }
+.quality-empty-findings p { color:var(--muted); max-width:460px; margin:0; font-size:.85rem; line-height:1.55; }
+.quality-followup-group { border-top:1px solid var(--line); padding-top:20px; }
+.quality-followup-group>h3 { background:#eaf0f7; padding:12px; border-radius:10px; display:flex; justify-content:space-between; gap:10px; font-size:.84rem; letter-spacing:.02em; }
+.quality-followup-group>h3 small { border-radius:20px; background:#fff; padding:2px 10px; font-size:.78rem; }
+.quality-finding-card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; margin:11px 0; }
+.quality-finding-head { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:15px; }
+.quality-finding-head>strong { flex:1 1 230px; line-height:1.5; font-size:.88rem; }
+.quality-result-chip { padding:6px 9px; font-size:.68rem; font-weight:900; border-radius:9px; white-space:nowrap; }
+.quality-result-fail { background:#fee2e2; color:#991b1b; }
+.quality-result-partial { background:#fff4c2; color:#8c6100; }
+.quality-finding-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+.quality-finding-grid textarea:disabled { color:#4f6478; opacity:1; background:#f6f8fb; }
+.quality-finding-actions { display:flex; gap:15px; justify-content:space-between; align-items:end; flex-wrap:wrap; margin-top:15px; }
+.quality-evidence-pair { display:flex; gap:10px; flex-wrap:wrap; }
+.quality-evidence-slot { min-width:138px; display:grid; gap:7px; border:1px solid #e2e7ed; border-radius:11px; padding:11px; }
+.quality-evidence-slot>strong { font-size:.72rem; letter-spacing:.07em; color:#566a7f; }
+.quality-evidence-slot>small { font-size:.75rem; color:var(--muted); }
+.quality-evidence-slot .quality-photo-label, .quality-evidence-slot .quality-photo-view { justify-content:center; }
+@media (max-width:600px) {
+  .quality-followup-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .quality-followup-summary>div:last-child { grid-column:1 / -1; }
+  .quality-finding-grid { grid-template-columns:1fr; }
+  .quality-module-tabs { padding:4px; }
+  .quality-finding-card { padding:12px; }
+  .quality-finding-actions>.primary-button { width:100%; }
 }
