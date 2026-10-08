@@ -25,7 +25,7 @@ export default function ProtectedRoute() {
     const requestedSlug = new URLSearchParams(location.search).get('company')
     const companySlug = requestedSlug || preferredCompany?.slug
     const returnTo = `${location.pathname}${location.search}`
-    const loginPath = companySlug ? `/login/${encodeURIComponent(companySlug)}?returnTo=${encodeURIComponent(returnTo)}` : '/'
+    const loginPath = companySlug ? `/login/${encodeURIComponent(companySlug)}?returnTo=${encodeURIComponent(returnTo)}` : `/?returnTo=${encodeURIComponent(returnTo)}`
     return <Navigate to={loginPath} replace />
   }
 
