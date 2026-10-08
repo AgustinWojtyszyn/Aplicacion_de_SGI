@@ -9,7 +9,7 @@ export default function LoginPage() {
   const { companySlug } = useParams()
   const location = useLocation()
   const requestedReturn = new URLSearchParams(location.search).get('returnTo')
-  const returnTo = requestedReturn?.startsWith('/inspections/') && !requestedReturn.startsWith('//') ? requestedReturn : '/dashboard'
+  const returnTo = requestedReturn === '/inspections' ? requestedReturn : '/dashboard'
   const { configured, user, loading, signIn, signUp, requestPasswordReset } = useAuth()
   const [company, setCompany] = useState(null)
   const [companyLoading, setCompanyLoading] = useState(true)
@@ -124,7 +124,7 @@ export default function LoginPage() {
 
       <section className="login-panel">
         <div className="login-card">
-          <Link className="tenant-back-link" to="/"><ArrowLeft size={16} /> Cambiar empresa</Link>
+          <Link className="tenant-back-link" to={returnTo === '/inspections' ? `/?returnTo=${encodeURIComponent(returnTo)}` : '/'}><ArrowLeft size={16} /> Cambiar empresa</Link>
 
           <div className="login-card-heading">
             <div className="mini-icon">{registerMode ? <UserPlus size={20} /> : <LockKeyhole size={20} />}</div>
