@@ -111,6 +111,7 @@ create table if not exists public.quality_inspection_answers (
   followup_status text not null default 'not_required'
     check (followup_status in ('not_required','open','in_progress','closed')),
   due_date date,
+  followup_category text check (followup_category in ('HIGIENE Y PRÁCTICAS SANITARIAS','CARTELERÍA','ALMACENAMIENTO','REGISTROS','MANTENIMIENTO','INVENTARIO')),
   evidence_before text,
   evidence_after text,
   updated_by uuid not null default auth.uid() references public.profiles(id),
@@ -162,6 +163,7 @@ returns trigger language plpgsql set search_path = public, pg_temp as $$
 declare v_total integer;
 begin
   if tg_op = 'INSERT' then
+    if new.status <> 'draft' then raise exception 'quality_inspection_must_start_draft'; end if;
     new.created_by := auth.uid();
   else
     if new.company_id is distinct from old.company_id
@@ -206,7 +208,7 @@ begin
       or new.item_number is distinct from old.item_number
       then raise exception 'quality_answer_identity_immutable'; end if;
     if v_inspection.status = 'closed' and
-      (new.result,new.comments) is distinct from (old.result,old.comments)
+      (new.result,new.comments,new.evidence_before) is distinct from (old.result,old.comments,old.evidence_before)
       then raise exception 'quality_original_finding_is_locked'; end if;
   end if;
   new.updated_by := auth.uid();
@@ -278,7 +280,7 @@ revoke insert,update,delete on public.quality_inspection_activity from authentic
 -- Bucket privado, sin enlaces públicos y con fotografías limitadas a miembros habilitados.
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values ('quality-evidence','quality-evidence',false,5242880,array['image/jpeg','image/png','image/webp'])
-on conflict (id) do nothing;
+on conflict (id) do update set public=false, file_size_limit=5242880, allowed_mime_types=array['image/jpeg','image/png','image/webp'];
 
 create policy quality_evidence_read on storage.objects for select to authenticated using (
   bucket_id='quality-evidence' and public.is_company_member(public.safe_storage_company_id(name))
