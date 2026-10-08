@@ -20,6 +20,7 @@ import './styles/document-followup.css'
 import './styles/profile.css'
 import './styles/history.css'
 import './styles/brand.css'
+import './styles/quality-inspections.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
