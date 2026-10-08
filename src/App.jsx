@@ -27,7 +27,6 @@ export default function App() {
       <Route path="/dashboard" element={<DashboardWorkspacePage />} />
       <Route path="/work" element={<WorkEntriesPage />} />
       <Route path="/inspections" element={<QualityInspectionsPage />} />
-      <Route path="/inspections/site/:siteId" element={<QualityInspectionsPage />} />
       <Route path="/sgi" element={<SgiPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
