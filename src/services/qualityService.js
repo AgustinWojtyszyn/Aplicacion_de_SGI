@@ -118,12 +118,16 @@ export async function getQualityEvidenceUrl(path) {
   if (error) throw error
   return data.signedUrl
 }
-export function qualityScore(answers) {
-  const inspected = answers.filter((a) => a.result && a.result !== 'na')
-  const complies = inspected.filter((a) => a.result === 'complies').length
-  const partial = inspected.filter((a) => a.result === 'partial').length
+// P-07-R-06: 48 puntos estándar; 49 y 50 son campos "Otros" opcionales.
+ // El modelo original calcula conformes / (ítems auditables - No aplica).
+export function qualityScore(answers, standardCount = 48) {
+  const optionalAnswered = answers.filter((a) => a.item_number > 48 && Boolean(a.result)).length
+  const notApplicable = answers.filter((a) => a.result === 'na').length
+  const inspected = Math.max(0, standardCount + optionalAnswered - notApplicable)
+  const complies = answers.filter((a) => a.result === 'complies').length
+  const partial = answers.filter((a) => a.result === 'partial').length
   const findings = answers.filter((a) => a.result === 'non_complies' || a.result === 'partial')
   const pending = findings.filter((a) => a.followup_status !== 'closed')
-  return { inspected: inspected.length, complies, partial, findings: findings.length, pending: pending.length,
-    percentage: inspected.length ? Math.round(100 * complies / inspected.length) : 0 }
+  return { inspected, complies, partial, findings: findings.length, pending: pending.length,
+    percentage: inspected ? Math.round(10000 * complies / inspected) / 100 : 0 }
 }
