@@ -178,8 +178,8 @@ begin
       (old.inspection_date,old.previous_inspection_date,old.start_time,old.end_time,old.inspector_name,old.notes,old.status,old.closed_at)
       then raise exception 'quality_inspection_closed'; end if;
     if old.status = 'draft' and new.status = 'closed' then
-      select count(*) into v_total from public.quality_inspection_answers a where a.inspection_id = old.id;
-      if v_total <> (select count(*) from public.quality_checklist_items where revision = old.checklist_revision)
+      select count(*) into v_total from public.quality_inspection_answers a where a.inspection_id = old.id and a.item_number <= 48;
+      if v_total <> (select count(*) from public.quality_checklist_items where revision = old.checklist_revision and item_number <= 48)
         then raise exception 'quality_checklist_incomplete'; end if;
       new.closed_at := now();
     end if;
