@@ -65,9 +65,22 @@ export async function createQualityInspection({ companyId, siteId, inspectorName
     })
     .select('id, inspection_number').single())
 }
-export async function saveQualityAnswer({ companyId, inspectionId, itemNumber, revision = 1, result, comments, correctiveAction, followupStatus, dueDate, evidenceBefore, evidenceAfter }) {
+export async function saveQualityAnswer({ companyId, inspectionId, itemNumber, revision = 1, result, comments, correctiveAction, followupStatus, dueDate, evidenceBefore, evidenceAfter, followupOnly = false }) {
   const needsFollowup = result === 'non_complies' || result === 'partial'
   const state = needsFollowup ? (followupStatus === 'not_required' ? 'open' : followupStatus || 'open') : 'not_required'
+  // Las inspecciones cerradas conservan el hallazgo original. Solo puede actualizarse
+  // el seguimiento; un UPSERT ejecutaría el trigger INSERT y bloquearía la actualización.
+  if (followupOnly) {
+    if (!needsFollowup) throw new Error('Un punto conforme o no aplicable no requiere seguimiento.')
+    return throwIfError(await requireSupabase().from('quality_inspection_answers')
+      .update({
+        corrective_action: correctiveAction?.trim() || null,
+        followup_status: state, due_date: dueDate || null,
+        evidence_after: evidenceAfter || null,
+      })
+      .eq('company_id', companyId).eq('inspection_id', inspectionId).eq('item_number', itemNumber)
+      .select('id, item_number').single())
+  }
   return throwIfError(await requireSupabase().from('quality_inspection_answers').upsert({
     company_id: companyId, inspection_id: inspectionId, checklist_revision: revision, item_number: itemNumber,
     result, comments: comments?.trim() || null, corrective_action: correctiveAction?.trim() || null,
