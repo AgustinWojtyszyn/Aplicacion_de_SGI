@@ -158,8 +158,9 @@ export default function QualityInspectionsPage() {
   const qrUrl = `${APP_URL}/inspections`
   const findingCount = Object.values(answers).filter((row) => ['non_complies','partial'].includes(row.result)).length
   const answered = Object.values(answers).filter((answer) => Boolean(answer.result))
-  const score = qualityScore(answered)
-  const required = template.length || 50
+  const score = qualityScore(answered, required)
+  const required = template.filter((item) => item.item_number <= 48).length || 48
+  const savedRequired = savedItems.filter((itemNumber) => itemNumber <= 48).length
   const grouped = useMemo(() => {
     const result = []
     template.forEach((item) => {
@@ -249,7 +250,7 @@ export default function QualityInspectionsPage() {
     } catch (err) { popup?.close(); setError(err.message) }
   }
   async function finishInspection() {
-    if (savedItems.length !== required || dirtyItems.length) {
+    if (savedRequired !== required || dirtyItems.length) {
       setError('Antes de cerrar, guardá todos los controles y sus cambios pendientes.')
       return
     }
@@ -319,14 +320,14 @@ export default function QualityInspectionsPage() {
               <h2>{sites.find((site) => site.id === inspection.site_id)?.name || 'Comedor'}</h2>
               <p>{shortDate(inspection.inspection_date)} · {inspection.inspector_name} · {inspection.status==='closed'?'Cerrada':'En elaboración'}</p></div>
             {canEdit && inspection.status==='draft' &&
-              <button className="primary-button" onClick={finishInspection} disabled={working||savedItems.length!==required||dirtyItems.length>0}>
+              <button className="primary-button" onClick={finishInspection} disabled={working||savedRequired!==required||dirtyItems.length>0}>
                 <CheckCircle2 size={17}/> Cerrar inspección
               </button>}
           </div>
           <div className="quality-stats">
-            <div><strong>{savedItems.length}/{required}</strong><span>Controles guardados</span></div>
-            <div><strong>{Math.round(100 * savedItems.length / required)}%</strong><span>Checklist guardado</span></div>
-            <div><strong>{score.percentage}%</strong><span>Cumplimiento (sin N/A)</span></div>
+            <div><strong>{savedRequired}/{required}</strong><span>Controles obligatorios guardados</span></div>
+            <div><strong>{Math.round(100 * savedRequired / required)}%</strong><span>Checklist guardado</span></div>
+            <div><strong>{score.percentage.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</strong><span>Cumplimiento provisional (sin N/A)</span></div>
             <div><strong>{score.pending}</strong><span>Hallazgos pendientes</span></div>
           </div>
           <div className="quality-module-tabs" role="tablist" aria-label="Secciones de la inspección">
@@ -335,7 +336,7 @@ export default function QualityInspectionsPage() {
             <button type="button" role="tab" aria-selected={tab === 'findings'} className={tab === 'findings' ? 'active' : ''}
               onClick={() => setTab('findings')}><CheckCircle2 size={16}/> Hallazgos y seguimiento ({findingCount})</button>
           </div>
-          {inspection.status==='draft' && tab === 'checklist' && <p className="quality-help">Las respuestas se guardan por punto. Para cerrar la inspección deben completarse los {required} controles.</p>}
+          {inspection.status==='draft' && tab === 'checklist' && <p className="quality-help">Las respuestas se guardan por punto. Para cerrar la inspección deben guardarse los {required} controles estándar. Los números 49 y 50 («Otros») son opcionales.</p>}
           {tab === 'findings' && <QualityFindingsPanel
             template={template} answers={answers} savedItems={savedItems} canEdit={canEdit}
             savingItem={savingItem} inspection={inspection}
@@ -350,7 +351,7 @@ export default function QualityInspectionsPage() {
                 const originalLocked = inspection.status==='closed'
                 const disabled = !canEdit || savingItem===item.item_number
                 return <article key={item.item_number} className="quality-check-item">
-                  <div className="quality-check-title"><span>{item.item_number}</span><strong>{item.question}</strong></div>
+                  <div className="quality-check-title"><span>{item.item_number}</span><strong>{item.question}</strong>{item.item_number > 48 && <small>Opcional</small>}</div>
                   <div className="quality-check-fields">
                     <label className="quality-field">Resultado<select value={answer.result} disabled={disabled||originalLocked}
                       onChange={(e)=>{
