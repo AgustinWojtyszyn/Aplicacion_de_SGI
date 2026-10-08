@@ -1,6 +1,6 @@
 import { ArrowRight, Building2, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
 import LandingPreview from '../components/LandingPreview'
 import '../styles/landing.css'
@@ -33,6 +33,8 @@ export default function CompanyGatePage() {
   }
 
   const { configured, user, loading } = useAuth()
+  const location = useLocation()
+  const returnTo = new URLSearchParams(location.search).get('returnTo') === '/inspections' ? '/inspections' : '/dashboard'
   const [companies, setCompanies] = useState([])
   const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [error, setError] = useState('')
@@ -61,7 +63,7 @@ export default function CompanyGatePage() {
     return () => { mounted = false }
   }, [configured])
 
-  if (!loading && user) return <Navigate to="/dashboard" replace />
+  if (!loading && user) return <Navigate to={returnTo} replace />
 
   return (
     <div className="sgi-landing" data-theme={theme} id="inicio">
@@ -131,7 +133,7 @@ export default function CompanyGatePage() {
                   {companies.map((company) => (
                     <Link
                       key={company.id}
-                      to={`/login/${company.slug}`}
+                      to={returnTo === '/inspections' ? `/login/${company.slug}?returnTo=%2Finspections` : `/login/${company.slug}`}
                       className="landing-company-option"
                       onClick={() => rememberSelectedCompany(company)}
                     >
