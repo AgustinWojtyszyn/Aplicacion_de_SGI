@@ -163,7 +163,8 @@ returns trigger language plpgsql set search_path = public, pg_temp as $$
 declare v_total integer;
 begin
   if tg_op = 'INSERT' then
-    if new.status <> 'draft' then raise exception 'quality_inspection_must_start_draft'; end if;
+    if new.status <> 'draft' or new.closed_at is not null then
+      raise exception 'quality_inspection_must_start_draft'; end if;
     new.created_by := auth.uid();
   else
     if new.company_id is distinct from old.company_id
@@ -172,9 +173,9 @@ begin
       or new.checklist_revision is distinct from old.checklist_revision
       then raise exception 'quality_inspection_identity_immutable'; end if;
     if old.status = 'closed' and
-      (new.inspection_date,new.previous_inspection_date,new.start_time,new.end_time,new.inspector_name,new.notes,new.status)
+      (new.inspection_date,new.previous_inspection_date,new.start_time,new.end_time,new.inspector_name,new.notes,new.status,new.closed_at)
       is distinct from
-      (old.inspection_date,old.previous_inspection_date,old.start_time,old.end_time,old.inspector_name,old.notes,old.status)
+      (old.inspection_date,old.previous_inspection_date,old.start_time,old.end_time,old.inspector_name,old.notes,old.status,old.closed_at)
       then raise exception 'quality_inspection_closed'; end if;
     if old.status = 'draft' and new.status = 'closed' then
       select count(*) into v_total from public.quality_inspection_answers a where a.inspection_id = old.id;
@@ -244,37 +245,50 @@ alter table public.quality_inspections enable row level security;
 alter table public.quality_inspection_answers enable row level security;
 alter table public.quality_inspection_activity enable row level security;
 
+drop policy if exists quality_sites_read on public.quality_sites;
 create policy quality_sites_read on public.quality_sites for select to authenticated
   using (public.is_company_member(company_id));
+drop policy if exists quality_sites_write on public.quality_sites;
 create policy quality_sites_write on public.quality_sites for insert to authenticated
   with check (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]) and created_by=auth.uid());
+drop policy if exists quality_sites_edit on public.quality_sites;
 create policy quality_sites_edit on public.quality_sites for update to authenticated
   using (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]))
   with check (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]));
+drop policy if exists quality_templates_read on public.quality_checklist_items;
 create policy quality_templates_read on public.quality_checklist_items for select to authenticated
   using (true);
+drop policy if exists quality_inspections_read on public.quality_inspections;
 create policy quality_inspections_read on public.quality_inspections for select to authenticated
   using (public.is_company_member(company_id));
+drop policy if exists quality_inspections_write on public.quality_inspections;
 create policy quality_inspections_write on public.quality_inspections for insert to authenticated
   with check (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]) and created_by=auth.uid());
+drop policy if exists quality_inspections_edit on public.quality_inspections;
 create policy quality_inspections_edit on public.quality_inspections for update to authenticated
   using (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]))
   with check (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]));
+drop policy if exists quality_answers_read on public.quality_inspection_answers;
 create policy quality_answers_read on public.quality_inspection_answers for select to authenticated
   using (public.is_company_member(company_id));
+drop policy if exists quality_answers_write on public.quality_inspection_answers;
 create policy quality_answers_write on public.quality_inspection_answers for insert to authenticated
   with check (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]) and updated_by=auth.uid());
+drop policy if exists quality_answers_edit on public.quality_inspection_answers;
 create policy quality_answers_edit on public.quality_inspection_answers for update to authenticated
   using (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]))
   with check (public.has_company_role(company_id,array['admin'::public.company_role,'responsible'::public.company_role]));
+drop policy if exists quality_activity_read on public.quality_inspection_activity;
 create policy quality_activity_read on public.quality_inspection_activity for select to authenticated
   using (public.is_company_member(company_id));
 
 grant select on public.quality_sites,public.quality_checklist_items,public.quality_inspections,
   public.quality_inspection_answers,public.quality_inspection_activity to authenticated;
 grant insert,update on public.quality_sites,public.quality_inspections,public.quality_inspection_answers to authenticated;
-grant usage,select on all sequences in schema public to authenticated;
+grant usage,select on sequence public.quality_inspections_inspection_number_seq,
+  public.quality_inspection_activity_id_seq to authenticated;
 revoke all on public.quality_inspection_activity from anon,public;
+revoke all on function public.quality_log_activity() from public,anon,authenticated;
 revoke insert,update,delete on public.quality_inspection_activity from authenticated;
 
 -- Bucket privado, sin enlaces públicos y con fotografías limitadas a miembros habilitados.
@@ -282,9 +296,11 @@ insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values ('quality-evidence','quality-evidence',false,5242880,array['image/jpeg','image/png','image/webp'])
 on conflict (id) do update set public=false, file_size_limit=5242880, allowed_mime_types=array['image/jpeg','image/png','image/webp'];
 
+drop policy if exists quality_evidence_read on storage.objects;
 create policy quality_evidence_read on storage.objects for select to authenticated using (
   bucket_id='quality-evidence' and public.is_company_member(public.safe_storage_company_id(name))
 );
+drop policy if exists quality_evidence_upload on storage.objects;
 create policy quality_evidence_upload on storage.objects for insert to authenticated with check (
   bucket_id='quality-evidence'
   and public.has_company_role(public.safe_storage_company_id(name),array['admin'::public.company_role,'responsible'::public.company_role])
