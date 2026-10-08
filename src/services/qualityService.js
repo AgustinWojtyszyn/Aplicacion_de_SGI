@@ -51,7 +51,7 @@ export async function getQualityInspection(companyId, inspectionId) {
 }
 export async function listQualityAnswers(companyId, inspectionId) {
   return throwIfError(await requireSupabase().from('quality_inspection_answers')
-    .select('id, item_number, result, comments, corrective_action, followup_status, due_date, evidence_before, evidence_after, updated_at')
+    .select('id, item_number, result, comments, corrective_action, followup_status, due_date, followup_category, evidence_before, evidence_after, updated_at')
     .eq('company_id', companyId).eq('inspection_id', inspectionId).order('item_number'))
 }
 export async function createQualityInspection({ companyId, siteId, inspectorName, inspectionDate }) {
@@ -65,7 +65,7 @@ export async function createQualityInspection({ companyId, siteId, inspectorName
     })
     .select('id, inspection_number').single())
 }
-export async function saveQualityAnswer({ companyId, inspectionId, itemNumber, revision = 1, result, comments, correctiveAction, followupStatus, dueDate, evidenceBefore, evidenceAfter, followupOnly = false }) {
+export async function saveQualityAnswer({ companyId, inspectionId, itemNumber, revision = 1, result, comments, correctiveAction, followupStatus, dueDate, evidenceBefore, evidenceAfter, followupCategory, followupOnly = false }) {
   const needsFollowup = result === 'non_complies' || result === 'partial'
   const state = needsFollowup ? (followupStatus === 'not_required' ? 'open' : followupStatus || 'open') : 'not_required'
   // Las inspecciones cerradas conservan el hallazgo original. Solo puede actualizarse
@@ -76,6 +76,7 @@ export async function saveQualityAnswer({ companyId, inspectionId, itemNumber, r
       .update({
         corrective_action: correctiveAction?.trim() || null,
         followup_status: state, due_date: dueDate || null,
+        followup_category: followupCategory || null,
         evidence_after: evidenceAfter || null,
       })
       .eq('company_id', companyId).eq('inspection_id', inspectionId).eq('item_number', itemNumber)
@@ -85,6 +86,7 @@ export async function saveQualityAnswer({ companyId, inspectionId, itemNumber, r
     company_id: companyId, inspection_id: inspectionId, checklist_revision: revision, item_number: itemNumber,
     result, comments: comments?.trim() || null, corrective_action: correctiveAction?.trim() || null,
     followup_status: state, due_date: needsFollowup && dueDate ? dueDate : null,
+    followup_category: needsFollowup ? (followupCategory || null) : null,
     evidence_before: evidenceBefore || null, evidence_after: evidenceAfter || null,
   }, { onConflict: 'inspection_id,item_number' }).select('id, item_number').single())
 }
