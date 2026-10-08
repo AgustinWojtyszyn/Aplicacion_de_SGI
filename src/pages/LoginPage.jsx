@@ -1,12 +1,15 @@
 import { ArrowLeft, Building2, LockKeyhole, ShieldCheck, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 import { getLoginCompany, rememberSelectedCompany } from '../services/tenantService'
 
 export default function LoginPage() {
   const { companySlug } = useParams()
+  const location = useLocation()
+  const requestedReturn = new URLSearchParams(location.search).get('returnTo')
+  const returnTo = requestedReturn?.startsWith('/inspections/') && !requestedReturn.startsWith('//') ? requestedReturn : '/dashboard'
   const { configured, user, loading, signIn, signUp, requestPasswordReset } = useAuth()
   const [company, setCompany] = useState(null)
   const [companyLoading, setCompanyLoading] = useState(true)
@@ -56,7 +59,7 @@ export default function LoginPage() {
     setNotice('')
   }, [email, password, fullName, mode])
 
-  if (!loading && user) return <Navigate to="/dashboard" replace />
+  if (!loading && user) return <Navigate to={returnTo} replace />
   if (!companySlug) return <Navigate to="/" replace />
 
   async function handleSubmit(event) {
