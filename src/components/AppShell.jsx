@@ -3,6 +3,7 @@ import {
   BriefcaseBusiness,
   Building2,
   ChevronDown,
+  ClipboardCheck,
   FileText,
   History,
   LayoutDashboard,
@@ -85,6 +86,7 @@ export default function AppShell() {
         items: [
           { to: '/sgi', label: 'SGI / ISO', icon: ShieldCheck },
           { to: '/documents', label: 'Documentos', icon: FileText },
+          { to: '/inspections', label: 'Inspecciones BPM', icon: ClipboardCheck },
           { to: '/notifications', label: 'Alertas', icon: BellRing },
         ],
       },
