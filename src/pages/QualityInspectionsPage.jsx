@@ -1,4 +1,4 @@
-import { ClipboardCheck, Plus, QrCode, Camera, CheckCircle2, RefreshCw, Printer, CalendarDays, AlertTriangle, ExternalLink } from 'lucide-react'
+import { ClipboardCheck, Plus, QrCode, Camera, CheckCircle2, RefreshCw, Printer, CalendarDays, ExternalLink } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { APP_URL } from '../lib/constants'
