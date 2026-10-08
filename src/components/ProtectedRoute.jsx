@@ -1,9 +1,10 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AccessPendingPage from '../pages/AccessPendingPage'
 
 export default function ProtectedRoute() {
   const { configured, user, membership, loading, workspaceError, preferredCompany } = useAuth()
+  const location = useLocation()
 
   if (!configured) {
     return <Navigate to="/" replace />
@@ -21,7 +22,10 @@ export default function ProtectedRoute() {
   }
 
   if (!user) {
-    const loginPath = preferredCompany?.slug ? `/login/${preferredCompany.slug}` : '/'
+    const requestedSlug = new URLSearchParams(location.search).get('company')
+    const companySlug = requestedSlug || preferredCompany?.slug
+    const returnTo = `${location.pathname}${location.search}`
+    const loginPath = companySlug ? `/login/${encodeURIComponent(companySlug)}?returnTo=${encodeURIComponent(returnTo)}` : '/'
     return <Navigate to={loginPath} replace />
   }
 
