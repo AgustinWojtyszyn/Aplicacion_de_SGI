@@ -17,8 +17,8 @@ describe('inspecciones BPM', () => {
       { result: 'na', followup_status: 'not_required' },
       { result: 'non_complies', followup_status: 'open' },
       { result: 'partial', followup_status: 'closed' },
-    ])).toEqual({
-      inspected: 3, complies: 1, partial: 1, findings: 2, pending: 1, percentage: 33,
+    ], 4)).toEqual({
+      inspected: 3, complies: 1, partial: 1, findings: 2, pending: 1, percentage: 33.33,
     })
   })
 })
