@@ -1,6 +1,7 @@
 import { ClipboardCheck, Plus, QrCode, Camera, CheckCircle2, RefreshCw, Printer, CalendarDays, ExternalLink } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import QualityFindingsPanel, { inferFollowupCategory } from '../components/QualityFindingsPanel'
 import { APP_URL } from '../lib/constants'
 import qrcode from '../vendor/qrcode-generator.mjs'
 import {
@@ -18,17 +19,16 @@ const resultOptions = [
   ['','Sin evaluar'], ['complies','Cumple'], ['non_complies','No cumple'],
   ['partial','Cumple parcial'], ['na','No aplica'],
 ]
-const progressOptions = [['open','Pendiente'],['in_progress','En proceso'],['closed','Cumplido']]
 function emptyAnswer() {
   return { result: '', comments: '', correctiveAction: '', followupStatus: 'not_required',
-    dueDate: '', evidenceBefore: '', evidenceAfter: '' }
+    dueDate: '', followupCategory: '', evidenceBefore: '', evidenceAfter: '' }
 }
 function mapAnswer(row) {
   return {
     result: row.result || '', comments: row.comments || '',
     correctiveAction: row.corrective_action || '',
     followupStatus: row.followup_status || 'not_required',
-    dueDate: row.due_date || '', evidenceBefore: row.evidence_before || '',
+    dueDate: row.due_date || '', followupCategory: row.followup_category || '', evidenceBefore: row.evidence_before || '',
     evidenceAfter: row.evidence_after || '',
   }
 }
@@ -53,8 +53,9 @@ function CentralQR({ url }) {
     }
   }, [url])
   return (
-    <div className="quality-qr-card" id="quality-site-qr">
+    <div className="quality-qr-card" id="quality-global-qr">
       <div className="quality-qr-heading"><QrCode size={18} /> QR ÚNICO · AUDITORÍAS</div>
+      {!cells && <p role="alert">No se pudo dibujar el QR. Podés compartir el enlace del módulo.</p>}
       {cells && <svg className="quality-qr-image" viewBox={`0 0 ${cells.count+8} ${cells.count+8}`} shapeRendering="crispEdges"
         role="img" aria-label="Código QR único para el acceso a las auditorías">
         <rect width={cells.count+8} height={cells.count+8} fill="white" />
@@ -63,7 +64,10 @@ function CentralQR({ url }) {
       <strong>Auditorías de comedores</strong>
       <p>Un único QR para todas las fábricas y todas las inspecciones. Quien ingresa ve los registros habilitados según su cuenta. No se generan QR por establecimiento.</p>
       <div className="quality-qr-actions">
-        <button type="button" className="secondary-button" onClick={() => navigator.clipboard.writeText(url)}>Copiar enlace</button>
+        <a className="secondary-button" href={url} target="_blank" rel="noopener noreferrer">Abrir enlace</a>
+        <button type="button" className="secondary-button" onClick={async () => {
+          try { await navigator.clipboard.writeText(url) } catch { window.prompt('Copiá este enlace:', url) }
+        }}>Copiar enlace</button>
         <button type="button" className="secondary-button" onClick={() => window.print()}><Printer size={15} /> Imprimir QR</button>
       </div>
     </div>
@@ -78,6 +82,7 @@ export default function QualityInspectionsPage() {
   const [inspections, setInspections] = useState([])
   const [inspectionId, setInspectionId] = useState('')
   const [inspection, setInspection] = useState(null)
+  const [tab, setTab] = useState('checklist')
   const [template, setTemplate] = useState([])
   const [answers, setAnswers] = useState({})
   const [savedItems, setSavedItems] = useState([])
@@ -145,11 +150,13 @@ export default function QualityInspectionsPage() {
       setSavedItems(responses.map((response) => response.item_number))
       setDirtyItems([])
       setActivity(log)
+      setTab('checklist')
     } catch (err) { setError(err.message); setInspection(null) }
     finally { setLoading(false) }
   }
   const activeSite = sites.find((site) => site.id === siteId)
   const qrUrl = `${APP_URL}/inspections`
+  const findingCount = Object.values(answers).filter((row) => ['non_complies','partial'].includes(row.result)).length
   const answered = Object.values(answers).filter((answer) => Boolean(answer.result))
   const score = qualityScore(answered)
   const required = template.length || 50
@@ -203,6 +210,7 @@ export default function QualityInspectionsPage() {
       await saveQualityAnswer({
         companyId: company.id, inspectionId, itemNumber, ...answer,
         evidenceBefore: answer.evidenceBefore, evidenceAfter: answer.evidenceAfter,
+        followupCategory: answer.followupCategory || inferFollowupCategory(template.find((item) => item.item_number === itemNumber)),
         followupOnly: inspection.status === 'closed',
       })
       setSavedItems((prev) => prev.includes(itemNumber) ? prev : [...prev, itemNumber])
@@ -221,6 +229,7 @@ export default function QualityInspectionsPage() {
       const path = await uploadQualityEvidence(company.id, inspectionId, itemNumber, stage, file)
       const patch = stage === 'before' ? { evidenceBefore: path } : { evidenceAfter: path }
       await saveQualityAnswer({ companyId: company.id, inspectionId, itemNumber, ...answer, ...patch,
+        followupCategory: answer.followupCategory || inferFollowupCategory(template.find((item) => item.item_number === itemNumber)),
         followupOnly: inspection.status === 'closed' })
       patchAnswer(itemNumber, patch)
       setSavedItems((prev) => prev.includes(itemNumber) ? prev : [...prev, itemNumber])
@@ -320,13 +329,24 @@ export default function QualityInspectionsPage() {
             <div><strong>{score.percentage}%</strong><span>Cumplimiento (sin N/A)</span></div>
             <div><strong>{score.pending}</strong><span>Hallazgos pendientes</span></div>
           </div>
-          {inspection.status==='draft' && <p className="quality-help">Las respuestas se guardan por punto. Para cerrar la inspección deben completarse los {required} controles.</p>}
-          <div className="quality-checklist">
+          <div className="quality-module-tabs" role="tablist" aria-label="Secciones de la inspección">
+            <button type="button" role="tab" aria-selected={tab === 'checklist'} className={tab === 'checklist' ? 'active' : ''}
+              onClick={() => setTab('checklist')}><ClipboardCheck size={16}/> Inspecciones BPM</button>
+            <button type="button" role="tab" aria-selected={tab === 'findings'} className={tab === 'findings' ? 'active' : ''}
+              onClick={() => setTab('findings')}><CheckCircle2 size={16}/> Hallazgos y seguimiento ({findingCount})</button>
+          </div>
+          {inspection.status==='draft' && tab === 'checklist' && <p className="quality-help">Las respuestas se guardan por punto. Para cerrar la inspección deben completarse los {required} controles.</p>}
+          {tab === 'findings' && <QualityFindingsPanel
+            template={template} answers={answers} savedItems={savedItems} canEdit={canEdit}
+            savingItem={savingItem} inspection={inspection}
+            onChange={patchAnswer} onSave={persistAnswer}
+            onAttachEvidence={attachEvidence} onShowEvidence={showEvidence}
+          />}
+          {tab === 'checklist' && <div className="quality-checklist">
             {grouped.map((section)=><section key={section.title} className="quality-section">
               <h3>{section.title}</h3>
               {section.items.map((item)=>{
                 const answer = { ...emptyAnswer(), ...answers[item.item_number] }
-                const isFinding = ['non_complies','partial'].includes(answer.result)
                 const originalLocked = inspection.status==='closed'
                 const disabled = !canEdit || savingItem===item.item_number
                 return <article key={item.item_number} className="quality-check-item">
@@ -342,24 +362,15 @@ export default function QualityInspectionsPage() {
                     <label className="quality-field quality-field-wide">Observaciones<textarea rows={2} value={answer.comments}
                       disabled={disabled||originalLocked} onChange={(e)=>patchAnswer(item.item_number,{comments:e.target.value})}
                       placeholder="Descripción de lo observado" /></label>
-                    {isFinding && <>
-                      <label className="quality-field quality-field-wide">Acción correctiva<textarea rows={2} value={answer.correctiveAction}
-                        disabled={disabled} onChange={(e)=>patchAnswer(item.item_number,{correctiveAction:e.target.value})}
-                        placeholder="Qué se corregirá y cómo" /></label>
-                      <label className="quality-field">Seguimiento<select value={answer.followupStatus} disabled={disabled}
-                        onChange={(e)=>patchAnswer(item.item_number,{followupStatus:e.target.value})}>
-                        {progressOptions.map(([value,label])=><option key={value} value={value}>{label}</option>)}
-                      </select></label>
-                      <label className="quality-field">Fecha objetivo<input type="date" value={answer.dueDate} disabled={disabled}
-                        onChange={(e)=>patchAnswer(item.item_number,{dueDate:e.target.value})}/></label>
-                    </>}
+                    {['non_complies','partial'].includes(answer.result) && 
+                      <p className="quality-help quality-field-wide">Este resultado genera un hallazgo. Guardá el punto y completá el seguimiento en la segunda pestaña.</p>}
                   </div>
                   <div className="quality-check-actions">
                     {canEdit && answer.result && <button type="button" className="secondary-button"
                       disabled={disabled} onClick={()=>persistAnswer(item.item_number)}>
                       {savingItem===item.item_number?'Guardando…':'Guardar punto'}
                     </button>}
-                    {['before','after'].map((stage)=>{
+                    {['before'].map((stage)=>{
                       const key=stage==='before'?'evidenceBefore':'evidenceAfter'
                       return <div key={stage} className="quality-evidence-action">
                         {canEdit && answer.result && !(originalLocked && stage === 'before') && <label className="quality-photo-label">
@@ -376,7 +387,7 @@ export default function QualityInspectionsPage() {
                 </article>
               })}
             </section>)}
-          </div>
+          </div>}
           <section className="quality-activity">
             <h3>Historial de modificaciones</h3>
             <p>Se registran altas y actualizaciones. Los resultados de una inspección cerrada no se pueden reescribir.</p>
