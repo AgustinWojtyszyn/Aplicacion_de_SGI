@@ -80,6 +80,8 @@ export default function QualityInspectionsPage() {
   const [inspection, setInspection] = useState(null)
   const [template, setTemplate] = useState([])
   const [answers, setAnswers] = useState({})
+  const [savedItems, setSavedItems] = useState([])
+  const [dirtyItems, setDirtyItems] = useState([])
   const [activity, setActivity] = useState([])
   const [newSiteName, setNewSiteName] = useState('')
   const [inspector, setInspector] = useState('')
@@ -119,6 +121,8 @@ export default function QualityInspectionsPage() {
     setInspectionId('')
     setInspection(null)
     setAnswers({})
+    setSavedItems([])
+    setDirtyItems([])
     loadInspections(siteId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId, company?.id])
@@ -138,6 +142,8 @@ export default function QualityInspectionsPage() {
       setInspection(detail)
       setTemplate(items)
       setAnswers(mapped)
+      setSavedItems(responses.map((response) => response.item_number))
+      setDirtyItems([])
       setActivity(log)
     } catch (err) { setError(err.message); setInspection(null) }
     finally { setLoading(false) }
@@ -147,7 +153,6 @@ export default function QualityInspectionsPage() {
   const answered = Object.values(answers).filter((answer) => Boolean(answer.result))
   const score = qualityScore(answered)
   const required = template.length || 50
-  const completion = Math.round(100 * answered.length / required)
   const grouped = useMemo(() => {
     const result = []
     template.forEach((item) => {
@@ -163,6 +168,7 @@ export default function QualityInspectionsPage() {
 
   function patchAnswer(itemNumber, fields) {
     setAnswers((prev) => ({ ...prev, [itemNumber]: { ...emptyAnswer(), ...prev[itemNumber], ...fields } }))
+    setDirtyItems((prev) => prev.includes(itemNumber) ? prev : [...prev, itemNumber])
   }
   async function addSite(event) {
     event.preventDefault()
@@ -197,7 +203,10 @@ export default function QualityInspectionsPage() {
       await saveQualityAnswer({
         companyId: company.id, inspectionId, itemNumber, ...answer,
         evidenceBefore: answer.evidenceBefore, evidenceAfter: answer.evidenceAfter,
+        followupOnly: inspection.status === 'closed',
       })
+      setSavedItems((prev) => prev.includes(itemNumber) ? prev : [...prev, itemNumber])
+      setDirtyItems((prev) => prev.filter((id) => id !== itemNumber))
       setNotice(`Punto ${itemNumber} guardado.`)
       setActivity(await listQualityActivity(company.id, inspectionId))
     } catch (err) { setError(err.message) }
@@ -211,8 +220,11 @@ export default function QualityInspectionsPage() {
     try {
       const path = await uploadQualityEvidence(company.id, inspectionId, itemNumber, stage, file)
       const patch = stage === 'before' ? { evidenceBefore: path } : { evidenceAfter: path }
-      await saveQualityAnswer({ companyId: company.id, inspectionId, itemNumber, ...answer, ...patch })
+      await saveQualityAnswer({ companyId: company.id, inspectionId, itemNumber, ...answer, ...patch,
+        followupOnly: inspection.status === 'closed' })
       patchAnswer(itemNumber, patch)
+      setSavedItems((prev) => prev.includes(itemNumber) ? prev : [...prev, itemNumber])
+      setDirtyItems((prev) => prev.filter((id) => id !== itemNumber))
       setNotice('Fotografía almacenada de forma privada.')
       setActivity(await listQualityActivity(company.id, inspectionId))
     } catch (err) { setError(err.message) }
@@ -228,6 +240,10 @@ export default function QualityInspectionsPage() {
     } catch (err) { popup?.close(); setError(err.message) }
   }
   async function finishInspection() {
+    if (savedItems.length !== required || dirtyItems.length) {
+      setError('Antes de cerrar, guardá todos los controles y sus cambios pendientes.')
+      return
+    }
     if (!window.confirm('¿Cerrar esta inspección? Las respuestas originales quedarán bloqueadas; el seguimiento de acciones seguirá habilitado.')) return
     setWorking(true); setError('')
     try {
@@ -294,13 +310,13 @@ export default function QualityInspectionsPage() {
               <h2>{sites.find((site) => site.id === inspection.site_id)?.name || 'Comedor'}</h2>
               <p>{shortDate(inspection.inspection_date)} · {inspection.inspector_name} · {inspection.status==='closed'?'Cerrada':'En elaboración'}</p></div>
             {canEdit && inspection.status==='draft' &&
-              <button className="primary-button" onClick={finishInspection} disabled={working||answered.length!==required}>
+              <button className="primary-button" onClick={finishInspection} disabled={working||savedItems.length!==required||dirtyItems.length>0}>
                 <CheckCircle2 size={17}/> Cerrar inspección
               </button>}
           </div>
           <div className="quality-stats">
-            <div><strong>{answered.length}/{required}</strong><span>Controles registrados</span></div>
-            <div><strong>{completion}%</strong><span>Checklist completo</span></div>
+            <div><strong>{savedItems.length}/{required}</strong><span>Controles guardados</span></div>
+            <div><strong>{Math.round(100 * savedItems.length / required)}%</strong><span>Checklist guardado</span></div>
             <div><strong>{score.percentage}%</strong><span>Cumplimiento (sin N/A)</span></div>
             <div><strong>{score.pending}</strong><span>Hallazgos pendientes</span></div>
           </div>
@@ -346,7 +362,7 @@ export default function QualityInspectionsPage() {
                     {['before','after'].map((stage)=>{
                       const key=stage==='before'?'evidenceBefore':'evidenceAfter'
                       return <div key={stage} className="quality-evidence-action">
-                        {canEdit && answer.result && <label className="quality-photo-label">
+                        {canEdit && answer.result && !(originalLocked && stage === 'before') && <label className="quality-photo-label">
                           <Camera size={15}/> {stage==='before'?'Foto antes':'Foto después'}
                           <input type="file" accept="image/png,image/jpeg,image/webp" disabled={disabled} hidden
                             onChange={(e)=>{const file=e.target.files?.[0];e.target.value='';attachEvidence(item.item_number,stage,file)}} />
