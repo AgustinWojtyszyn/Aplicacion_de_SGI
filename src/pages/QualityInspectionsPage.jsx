@@ -1,6 +1,5 @@
 import { ClipboardCheck, Plus, QrCode, Camera, CheckCircle2, RefreshCw, Printer, CalendarDays, AlertTriangle, ExternalLink } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { APP_URL } from '../lib/constants'
 import qrcode from '../vendor/qrcode-generator.mjs'
@@ -36,7 +35,7 @@ function mapAnswer(row) {
 function shortDate(value) {
   return value ? new Date(`${value}T12:00:00`).toLocaleDateString('es-AR') : '—'
 }
-function SiteQR({ url, name }) {
+function CentralQR({ url }) {
   const cells = useMemo(() => {
     if (!url) return null
     try {
@@ -55,14 +54,14 @@ function SiteQR({ url, name }) {
   }, [url])
   return (
     <div className="quality-qr-card" id="quality-site-qr">
-      <div className="quality-qr-heading"><QrCode size={18} /> Acceso del establecimiento</div>
+      <div className="quality-qr-heading"><QrCode size={18} /> QR ÚNICO · AUDITORÍAS</div>
       {cells && <svg className="quality-qr-image" viewBox={`0 0 ${cells.count+8} ${cells.count+8}`} shapeRendering="crispEdges"
-        role="img" aria-label={`Código QR del establecimiento ${name}`}>
+        role="img" aria-label="Código QR único para el acceso a las auditorías">
         <rect width={cells.count+8} height={cells.count+8} fill="white" />
         <g fill="black">{cells.rects}</g>
       </svg>}
-      <strong>{name}</strong>
-      <p>El QR es permanente. El acceso al historial requiere iniciar sesión y tener permiso para esta empresa.</p>
+      <strong>Auditorías de comedores</strong>
+      <p>Un único QR para todas las fábricas y todas las inspecciones. Quien ingresa ve los registros habilitados según su cuenta. No se generan QR por establecimiento.</p>
       <div className="quality-qr-actions">
         <button type="button" className="secondary-button" onClick={() => navigator.clipboard.writeText(url)}>Copiar enlace</button>
         <button type="button" className="secondary-button" onClick={() => window.print()}><Printer size={15} /> Imprimir QR</button>
@@ -72,7 +71,6 @@ function SiteQR({ url, name }) {
 }
 
 export default function QualityInspectionsPage() {
-  const { siteId: routeSiteId } = useParams()
   const { company, role, profile } = useAuth()
   const canEdit = canManageInspections(role)
   const [sites, setSites] = useState([])
@@ -103,13 +101,13 @@ export default function QualityInspectionsPage() {
     listQualitySites(company.id).then((list) => {
       if (!alive) return
       setSites(list)
-      setSiteId(routeSiteId || list[0]?.id || '')
+      setSiteId('')
     }).catch((err) => { if (alive) setError(err.message) })
     return () => { alive = false }
-  }, [company?.id, routeSiteId])
+  }, [company?.id])
 
   async function loadInspections(selectedSiteId = siteId) {
-    if (!company?.id || !selectedSiteId) { setInspections([]); return }
+    if (!company?.id) { setInspections([]); return }
     setLoading(true)
     try {
       const data = await listQualityInspections(company.id, selectedSiteId)
@@ -135,7 +133,7 @@ export default function QualityInspectionsPage() {
         getQualityInspection(company.id, id), listQualityTemplate(),
         listQualityAnswers(company.id, id), listQualityActivity(company.id, id),
       ])
-      if (detail.site_id !== siteId) throw new Error('La inspección pertenece a otro establecimiento.')
+      if (!sites.some((site) => site.id === detail.site_id)) throw new Error('La inspección no pertenece a una fábrica accesible.')
       const mapped = Object.fromEntries(responses.map((row) => [row.item_number, mapAnswer(row)]))
       setInspection(detail)
       setTemplate(items)
@@ -145,7 +143,7 @@ export default function QualityInspectionsPage() {
     finally { setLoading(false) }
   }
   const activeSite = sites.find((site) => site.id === siteId)
-  const siteUrl = activeSite ? `${APP_URL}/inspections/site/${activeSite.id}?company=${encodeURIComponent(company.slug)}` : ''
+  const qrUrl = `${APP_URL}/inspections`
   const answered = Object.values(answers).filter((answer) => Boolean(answer.result))
   const score = qualityScore(answered)
   const required = template.length || 50
@@ -173,7 +171,7 @@ export default function QualityInspectionsPage() {
       const next = await createQualitySite(company.id, newSiteName)
       setSites((prev) => [...prev, { ...next, active: true }].sort((a,b) => a.name.localeCompare(b.name)))
       setSiteId(next.id); setNewSiteName('')
-      setNotice('Establecimiento creado. Ya podés imprimir su QR permanente.')
+      setNotice('Establecimiento creado. Usará el mismo QR general de auditorías.')
     } catch (err) { setError(err.message) }
     finally { setWorking(false) }
   }
@@ -245,7 +243,7 @@ export default function QualityInspectionsPage() {
     <header className="page-heading quality-heading">
       <div><p className="eyebrow">CALIDAD · MEJORA CONTINUA</p><h1>Inspecciones de comedores</h1>
         <p>Checklist BPM P-07-R-06 · revisión solicitada 01 · observaciones y seguimiento por establecimiento.</p></div>
-      <button className="secondary-button" onClick={() => loadInspections()} disabled={!siteId}><RefreshCw size={16} /> Actualizar</button>
+      <button className="secondary-button" onClick={() => loadInspections()}><RefreshCw size={16} /> Actualizar</button>
     </header>
     {error && <div className="page-error" role="alert">{error}</div>}
     {notice && <div className="page-success" role="status">{notice}</div>}
@@ -255,7 +253,7 @@ export default function QualityInspectionsPage() {
           <h2>Establecimientos</h2>
           <label className="quality-field">Elegir comedor
             <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
-              <option value="">Seleccionar...</option>
+              <option value="">Todos los establecimientos</option>
               {sites.map((site) => <option value={site.id} key={site.id}>{site.name}{!site.active ? ' (inactivo)' : ''}</option>)}
             </select>
           </label>
@@ -264,10 +262,10 @@ export default function QualityInspectionsPage() {
             <button className="secondary-button" disabled={working}><Plus size={15} /> Agregar</button>
           </form>}
         </div>
-        {activeSite && <SiteQR url={siteUrl} name={activeSite.name} />}
-        {activeSite && <div className="quality-panel">
-          <h2>Inspecciones</h2>
-          {canEdit && activeSite.active && <form onSubmit={addInspection} className="quality-new-inspection">
+        <CentralQR url={qrUrl} />
+        <div className="quality-panel">
+          <h2>Inspecciones {activeSite ? `· ${activeSite.name}` : '· Todas'}</h2>
+          {canEdit && activeSite?.active && <form onSubmit={addInspection} className="quality-new-inspection">
             <label className="quality-field">Fecha<input type="date" value={inspectionDate} onChange={(e)=>setInspectionDate(e.target.value)} required /></label>
             <label className="quality-field">Inspector/a<input value={inspector} onChange={(e)=>setInspector(e.target.value)} minLength={2} required /></label>
             <button className="primary-button" disabled={working}><Plus size={16}/> Nueva inspección</button>
@@ -278,22 +276,22 @@ export default function QualityInspectionsPage() {
             {inspections.map((item)=><button key={item.id} type="button"
               className={`quality-inspection-button ${inspectionId===item.id?'selected':''}`} onClick={()=>openInspection(item.id)}>
               <strong>{inspectionCode(item.inspection_number)}</strong>
-              <span>{shortDate(item.inspection_date)} · {item.status==='closed'?'Finalizada':'Borrador'}</span>
+              <span>{item.site?.name || 'Comedor'} · {shortDate(item.inspection_date)} · {item.status==='closed'?'Finalizada':'Borrador'}</span>
               <small>{item.inspector_name}</small>
             </button>)}
           </div>
-        </div>}
+        </div>
       </aside>
       <div className="quality-main">
         {!inspection && <div className="quality-panel quality-welcome">
           <ClipboardCheck size={36} />
-          <h2>{activeSite ? 'Seleccioná una inspección' : 'Seleccioná un establecimiento'}</h2>
-          <p>{activeSite ? 'Revisá observaciones anteriores o creá una auditoría nueva para registrar los controles BPM.' : 'Cada comedor tiene su propio QR, historial y acciones de mejora.'}</p>
+          <h2>Seleccioná una inspección</h2>
+          <p>Seleccioná una inspección del historial. Todas las fábricas y sus observaciones se consultan mediante el mismo QR central.</p>
         </div>}
         {inspection && <div className="quality-panel quality-inspection-detail">
           <div className="quality-detail-head">
             <div><p className="eyebrow">INSPECCIÓN {inspectionCode(inspection.inspection_number)}</p>
-              <h2>{activeSite?.name}</h2>
+              <h2>{sites.find((site) => site.id === inspection.site_id)?.name || 'Comedor'}</h2>
               <p>{shortDate(inspection.inspection_date)} · {inspection.inspector_name} · {inspection.status==='closed'?'Cerrada':'En elaboración'}</p></div>
             {canEdit && inspection.status==='draft' &&
               <button className="primary-button" onClick={finishInspection} disabled={working||answered.length!==required}>
