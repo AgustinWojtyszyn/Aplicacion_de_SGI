@@ -15,6 +15,7 @@ import SetPasswordPage from './pages/SetPasswordPage'
 import SgiPage from './pages/SgiPage'
 import UsersPage from './pages/UsersPage'
 import WorkEntriesPage from './pages/WorkEntriesPage'
+import QualityInspectionsPage from './pages/QualityInspectionsPage'
 
 export default function App() {
   return <AuthProvider><Routes>
@@ -25,6 +26,8 @@ export default function App() {
     <Route element={<ProtectedRoute />}><Route element={<AppShell />}>
       <Route path="/dashboard" element={<DashboardWorkspacePage />} />
       <Route path="/work" element={<WorkEntriesPage />} />
+      <Route path="/inspections" element={<QualityInspectionsPage />} />
+      <Route path="/inspections/site/:siteId" element={<QualityInspectionsPage />} />
       <Route path="/sgi" element={<SgiPage />} />
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
