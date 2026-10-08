@@ -157,9 +157,11 @@ export default function QualityInspectionsPage() {
   const activeSite = sites.find((site) => site.id === siteId)
   const qrUrl = `${APP_URL}/inspections`
   const findingCount = Object.values(answers).filter((row) => ['non_complies','partial'].includes(row.result)).length
-  const answered = Object.values(answers).filter((answer) => Boolean(answer.result))
-  const score = qualityScore(answered, required)
   const required = template.filter((item) => item.item_number <= 48).length || 48
+  const answered = Object.entries(answers)
+    .filter(([, answer]) => Boolean(answer.result))
+    .map(([itemNumber, answer]) => ({ ...answer, item_number: Number(itemNumber) }))
+  const score = qualityScore(answered, required)
   const savedRequired = savedItems.filter((itemNumber) => itemNumber <= 48).length
   const grouped = useMemo(() => {
     const result = []
@@ -327,7 +329,7 @@ export default function QualityInspectionsPage() {
           <div className="quality-stats">
             <div><strong>{savedRequired}/{required}</strong><span>Controles obligatorios guardados</span></div>
             <div><strong>{Math.round(100 * savedRequired / required)}%</strong><span>Checklist guardado</span></div>
-            <div><strong>{score.percentage.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</strong><span>Cumplimiento provisional (sin N/A)</span></div>
+            <div><strong>{score.percentage.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</strong><span>Cumplimiento {inspection.status === 'closed' ? 'final' : 'provisional'} (sin N/A)</span></div>
             <div><strong>{score.pending}</strong><span>Hallazgos pendientes</span></div>
           </div>
           <div className="quality-module-tabs" role="tablist" aria-label="Secciones de la inspección">
