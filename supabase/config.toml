@@ -2,5 +2,5 @@
 # y los permisos de empresa antes de interactuar con Resend.
 # Desactivar la verificación en el gateway permite que el preflight
 # CORS llegue a la función, sin volver público el envío de correos.
-[functions.send-review-email]
+[functions.smart-handler]
 verify_jwt = false
