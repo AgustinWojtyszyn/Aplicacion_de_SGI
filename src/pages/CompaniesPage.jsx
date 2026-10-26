@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { getCompanyDeletionBlockReason } from '../lib/companyDeletion'
 import {
   createCompanyWorkspace,
   deleteCompanyWorkspace,
@@ -40,6 +41,8 @@ export default function CompaniesPage() {
   const [submitting, setSubmitting] = useState(false)
   const [openingCompanyId, setOpeningCompanyId] = useState('')
   const [deletingCompanyId, setDeletingCompanyId] = useState('')
+  const [companyToDelete, setCompanyToDelete] = useState(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -177,27 +180,36 @@ export default function CompaniesPage() {
     }
   }
 
-  async function handleDelete(item) {
-    if (item.is_active || item.slug === 'ep-consultora' || deletingCompanyId) return
 
-    const confirmation = window.prompt(
-      `Esta acción elimina definitivamente "${item.name}" junto con sus documentos, trabajos, usuarios asignados e historial de la empresa.\n\nEscribí exactamente el nombre de la empresa para confirmar:`,
-    )
+  function openDelete(item) {
+    setCompanyToDelete(item)
+    setDeleteConfirmation('')
+    setError('')
+    setNotice('')
+  }
 
-    if (confirmation !== item.name) return
+  function closeDelete() {
+    if (deletingCompanyId) return
+    setCompanyToDelete(null)
+    setDeleteConfirmation('')
+  }
+
+  async function handleDelete(event) {
+    event.preventDefault()
+    const item = companyToDelete
+    if (!item || deletingCompanyId || getCompanyDeletionBlockReason(item)) return
+    if (deleteConfirmation !== item.name) return
 
     setDeletingCompanyId(item.id)
     setError('')
     setNotice('')
 
     try {
-      const result = await deleteCompanyWorkspace(item.id)
+      await deleteCompanyWorkspace(item.id)
+      setCompanyToDelete(null)
+      setDeleteConfirmation('')
       await syncCompanies()
-      setNotice(
-        result?.cleanupFailed
-          ? `${item.name} fue eliminada. Algunos archivos de Storage no pudieron limpiarse automáticamente.`
-          : `${item.name} fue eliminada definitivamente.`,
-      )
+      setNotice(item.name + ' fue eliminada definitivamente.')
     } catch (deleteError) {
       console.error(deleteError)
       setError(deleteError.message || 'No se pudo eliminar la empresa.')
@@ -316,12 +328,13 @@ export default function CompaniesPage() {
                     >
                       {item.is_active ? <Archive size={16} /> : <RotateCcw size={16} />}
                     </button>
-                    {!item.is_active && item.slug !== 'ep-consultora' && (
+                    {item.slug !== 'ep-consultora' && (
                       <button
                         className="company-icon-action delete"
                         type="button"
-                        onClick={() => handleDelete(item)}
-                        title="Eliminar definitivamente"
+                        onClick={() => openDelete(item)}
+                        title="Revisar eliminación de empresa"
+                        aria-label={item.name + " - revisar eliminación"}
                         disabled={deletingCompanyId === item.id}
                       >
                         <Trash2 size={16} />
@@ -398,6 +411,55 @@ export default function CompaniesPage() {
                 >
                   {submitting ? 'Guardando…' : modalMode === 'create' ? 'Crear empresa' : 'Guardar cambios'}
                 </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {companyToDelete && (
+        <div className="company-modal-layer" role="presentation">
+          <button className="company-modal-backdrop" type="button" onClick={closeDelete} aria-label="Cerrar" />
+          <section className="company-modal" role="dialog" aria-modal="true" aria-labelledby="company-delete-title">
+            <header>
+              <div>
+                <span>ADMINISTRACIÓN DE EMPRESAS</span>
+                <h2 id="company-delete-title">Eliminar {companyToDelete.name}</h2>
+              </div>
+              <button className="icon-button" type="button" onClick={closeDelete} disabled={Boolean(deletingCompanyId)} aria-label="Cerrar"><X size={19} /></button>
+            </header>
+            <form className="company-simple-form" onSubmit={handleDelete}>
+              {getCompanyDeletionBlockReason(companyToDelete) ? (
+                <p className="company-delete-blocked" role="status">{getCompanyDeletionBlockReason(companyToDelete)}</p>
+              ) : (
+                <>
+                  <p className="company-delete-explanation">
+                    La empresa está archivada y no tiene documentos. Antes de eliminarla también se comprobará que no tenga carpetas ni historial de trabajos.
+                  </p>
+                  <label>
+                    Para confirmar, escribí exactamente <strong>{companyToDelete.name}</strong>
+                    <input
+                      autoFocus
+                      autoComplete="off"
+                      value={deleteConfirmation}
+                      onChange={(event) => setDeleteConfirmation(event.target.value)}
+                      placeholder="Nombre completo de la empresa"
+                      disabled={Boolean(deletingCompanyId)}
+                      required
+                    />
+                  </label>
+                </>
+              )}
+              {error && <div className="form-error" role="alert">{error}</div>}
+              <div className="company-modal-actions">
+                <button className="secondary-button" type="button" onClick={closeDelete} disabled={Boolean(deletingCompanyId)}>
+                  {getCompanyDeletionBlockReason(companyToDelete) ? 'Entendido' : 'Cancelar'}
+                </button>
+                {!getCompanyDeletionBlockReason(companyToDelete) && (
+                  <button className="primary-button" type="submit" disabled={Boolean(deletingCompanyId) || deleteConfirmation !== companyToDelete.name}>
+                    {deletingCompanyId ? 'Eliminando…' : 'Eliminar definitivamente'}
+                  </button>
+                )}
               </div>
             </form>
           </section>
