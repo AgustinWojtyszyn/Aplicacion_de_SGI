@@ -149,7 +149,7 @@ returns void
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_slug text;
   v_is_active boolean;
@@ -183,7 +183,7 @@ begin
   delete from public.companies
   where id = p_company_id;
 end;
-$;
+$$;
 
 revoke all on function public.list_managed_companies() from public;
 revoke all on function public.update_company_workspace(uuid, text, text) from public;
