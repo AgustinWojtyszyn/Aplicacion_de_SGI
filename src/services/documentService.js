@@ -1,4 +1,4 @@
-import { FunctionsHttpError } from '@supabase/supabase-js'
+import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js'
 import {
   ALLOWED_DOCUMENT_EXTENSIONS,
   ALLOWED_DOCUMENT_MIME_TYPES,
@@ -9,21 +9,35 @@ import { requireSupabase } from '../lib/supabase'
 
 async function readReviewEmailError(error, data) {
   let payload = data
-  if (!payload && error instanceof FunctionsHttpError && error.context) {
-    try {
-      payload = await error.context.clone().json()
-    } catch {
-      // Keep SDK message as fallback.
+  let httpStatus = 0
+  if (error instanceof FunctionsHttpError && error.context) {
+    httpStatus = error.context.status || 0
+    if (!payload) {
+      try {
+        payload = await error.context.clone().json()
+      } catch {
+        // Platform errors do not always return JSON.
+      }
     }
   }
 
   const message = String(payload?.error || payload?.message || error?.message || '')
   if (message === 'resend_not_configured') return 'El servicio de correo no tiene configurada la API de Resend.'
   if (message === 'review_email_from_not_configured') return 'Falta configurar el remitente de los correos de revisión.'
+  if (message === 'server_not_configured') return 'La función de correo no tiene configurada la conexión de Supabase.'
+  if (message === 'email_provider_unreachable') return 'El servicio de correo no pudo comunicarse con Resend. Intentá nuevamente más tarde.'
   if (message === 'recipient_required') return 'Seleccioná a quién querés enviarle el correo.'
   if (message === 'recipient_not_available') return 'El destinatario no tiene un correo activo dentro de esta empresa.'
+  if (message === 'document_not_found') return 'No se encontró el documento dentro de esta empresa.'
   if (message === 'not_authenticated') return 'Tu sesión venció. Volvé a iniciar sesión.'
   if (message === 'not_authorized') return 'No tenés permisos para enviar este correo.'
+
+  if (error instanceof FunctionsFetchError || /failed to send a request to the edge function/i.test(message)) {
+    return 'No se pudo conectar con el servicio de correo. Verificá el despliegue de send-review-email en Supabase y la conexión/CORS antes de reenviar.'
+  }
+  if (error instanceof FunctionsRelayError) return 'Supabase no pudo comunicarse con la función de correo. Intentá nuevamente más tarde.'
+  if (httpStatus === 404) return 'No se encontró la función de correo en Supabase. Verificá que send-review-email esté desplegada.'
+  if (httpStatus === 401) return 'No se pudo autenticar el envío. Cerrá sesión y volvé a ingresar.'
   return message || 'No se pudo enviar el correo.'
 }
 
