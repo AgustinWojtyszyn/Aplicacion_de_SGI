@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import {
   COMPANY_ROLES,
+  assignExistingCompanyUser,
   deleteUserCompletely,
   inviteCompanyUser,
   listAllCompanyUsers,
@@ -25,7 +26,7 @@ function membershipKey(member) {
 }
 
 export default function UsersPage() {
-  const { company, user, isPlatformAdmin } = useAuth()
+  const { company, companies, user, isPlatformAdmin } = useAuth()
   const [members, setMembers] = useState([])
   const [scope, setScope] = useState('company')
   const [search, setSearch] = useState('')
@@ -38,6 +39,11 @@ export default function UsersPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [inviteValues, setInviteValues] = useState({ fullName: '', email: '', role: 'member' })
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [assignLoading, setAssignLoading] = useState(false)
+  const [assigning, setAssigning] = useState(false)
+  const [knownMembers, setKnownMembers] = useState([])
+  const [assignValues, setAssignValues] = useState({ userId: '', companyId: '', role: 'admin' })
 
   const visibleMembers = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -56,6 +62,62 @@ export default function UsersPage() {
     () => members.filter((member) => member.role === 'admin' && member.is_active).length,
     [members],
   )
+
+  const knownPeople = useMemo(() => {
+    const users = new Map()
+    knownMembers.forEach((member) => {
+      if (member.user && !users.has(member.user_id)) users.set(member.user_id, member.user)
+    })
+    return [...users.values()].sort((a, b) =>
+      (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '', 'es'))
+  }, [knownMembers])
+  const targetCompanyId = assignValues.companyId || company?.id || ''
+  const accessAlreadyExists = knownMembers.some((member) =>
+    member.user_id === assignValues.userId && member.company_id === targetCompanyId)
+
+  async function toggleAssignment() {
+    if (assignOpen) {
+      setAssignOpen(false)
+      return
+    }
+    setAssignOpen(true)
+    setAssignLoading(true)
+    setError('')
+    try {
+      setKnownMembers(await listAllCompanyUsers())
+    } catch (loadError) {
+      setError(loadError.message || 'No se pudieron consultar los usuarios existentes.')
+    } finally {
+      setAssignLoading(false)
+    }
+  }
+
+  async function handleAssignment(event) {
+    event.preventDefault()
+    if (!isPlatformAdmin || accessAlreadyExists) return
+    setAssigning(true)
+    setError('')
+    setNotice('')
+    try {
+      const assignedCompany = companies.find((item) => item.id === targetCompanyId)
+      const assignedUser = knownPeople.find((item) => item.id === assignValues.userId)
+      const assigned = await assignExistingCompanyUser({
+        companyId: targetCompanyId,
+        userId: assignValues.userId,
+        role: assignValues.role,
+      })
+      setKnownMembers((current) => [...current, assigned])
+      setAssignValues({ userId: '', companyId: '', role: 'admin' })
+      setAssignOpen(false)
+      setNotice(`Acceso asignado a ${assignedUser?.full_name || assignedUser?.email || 'la persona'} en ${assignedCompany?.name || 'la empresa'}.`)
+      if (scope === 'all') await load()
+      else setScope('all')
+    } catch (assignmentError) {
+      setError(assignmentError.message || 'No se pudo asignar el acceso.')
+    } finally {
+      setAssigning(false)
+    }
+  }
 
   async function load() {
     if (!company?.id) return
@@ -169,6 +231,11 @@ export default function UsersPage() {
           <button className="secondary-button" onClick={load} disabled={loading}>
             <RefreshCw size={17} /> Actualizar
           </button>
+          {isPlatformAdmin && (
+            <button className="secondary-button" type="button" onClick={toggleAssignment}>
+              <UserPlus size={17} /> {assignOpen ? 'Cerrar asignación' : 'Asignar empresa a usuario'}
+            </button>
+          )}
           <button className="primary-button" onClick={() => setInviteOpen((open) => !open)}>
             <UserPlus size={17} /> Invitar a {company?.name || 'empresa'}
           </button>
@@ -236,6 +303,59 @@ export default function UsersPage() {
           <button className="primary-button invite-submit" disabled={inviting}>
             {inviting ? 'Enviando…' : 'Enviar invitación'}
           </button>
+        </form>
+      )}
+
+      {isPlatformAdmin && assignOpen && (
+        <form className="invite-user-panel user-assignment-panel" onSubmit={handleAssignment}>
+          <div className="invite-user-copy">
+            <strong>Asignar acceso a una empresa</strong>
+            <span>Solo empresas seleccionadas. No concede administración global ni modifica otros accesos.</span>
+          </div>
+          <label className="field">
+            <span>Usuario existente</span>
+            <select
+              required
+              value={assignValues.userId}
+              onChange={(event) => setAssignValues((current) => ({ ...current, userId: event.target.value }))}
+              disabled={assignLoading || assigning}
+            >
+              <option value="">Seleccioná un usuario</option>
+              {knownPeople.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.full_name || person.email} ({person.email})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Empresa habilitada</span>
+            <select
+              required
+              value={targetCompanyId}
+              onChange={(event) => setAssignValues((current) => ({ ...current, companyId: event.target.value }))}
+              disabled={assignLoading || assigning}
+            >
+              {companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span>Rol en esta empresa</span>
+            <select
+              value={assignValues.role}
+              onChange={(event) => setAssignValues((current) => ({ ...current, role: event.target.value }))}
+              disabled={assignLoading || assigning}
+            >
+              {COMPANY_ROLES.map((itemRole) => (
+                <option key={itemRole} value={itemRole}>{ROLE_LABELS[itemRole]}</option>
+              ))}
+            </select>
+          </label>
+          <button className="primary-button invite-submit" disabled={assignLoading || assigning || !assignValues.userId || !targetCompanyId || accessAlreadyExists}>
+            {assignLoading ? 'Cargando…' : assigning ? 'Asignando…' : 'Asignar acceso'}
+          </button>
+          {accessAlreadyExists && <p className="assignment-hint">La persona ya pertenece a esa empresa. Podés modificar su acceso en el listado.</p>}
+          {!assignLoading && knownPeople.length === 0 && <p className="assignment-hint">Primero invitá o registrá a la persona en una empresa.</p>}
         </form>
       )}
 

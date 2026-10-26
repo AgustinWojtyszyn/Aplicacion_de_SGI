@@ -245,23 +245,38 @@ export function AuthProvider({ children }) {
   }, [])
 
   const switchCompany = useCallback(async (companyId) => {
-    if (!isPlatformAdmin) throw new Error('Solo un administrador global puede cambiar de empresa.')
+    if (!session?.user) throw new Error('Tu sesión ya no está activa.')
     const nextCompany = companies.find((item) => item.id === companyId)
-    if (!nextCompany) throw new Error('Empresa no disponible.')
+    if (!nextCompany) throw new Error('Esta empresa no está asignada a tu cuenta.')
 
     setLoading(true)
     setWorkspaceError('')
     try {
+      let nextRole = 'admin'
+      if (!isPlatformAdmin) {
+        // Never trust the cached list: access could have been revoked since login.
+        const { data, error } = await requireSupabase()
+          .from('company_members')
+          .select('role')
+          .eq('company_id', nextCompany.id)
+          .eq('user_id', session.user.id)
+          .eq('is_active', true)
+          .maybeSingle()
+        if (error) throw error
+        if (!data) throw new Error('Ya no tenés acceso a esta empresa. Actualizá la sesión.')
+        nextRole = data.role
+      }
+
       const nextModules = await loadModules(nextCompany.id)
       rememberSelectedCompany(nextCompany)
       setPreferredCompany(nextCompany)
       setCompany(nextCompany)
-      setMembership({ role: 'admin', isActive: true, company: nextCompany })
+      setMembership({ role: nextRole, isActive: true, company: nextCompany })
       setModules(nextModules)
     } finally {
       setLoading(false)
     }
-  }, [companies, isPlatformAdmin])
+  }, [companies, isPlatformAdmin, session])
 
   const refreshWorkspace = useCallback(async () => {
     if (!session?.user) return

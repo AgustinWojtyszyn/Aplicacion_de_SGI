@@ -136,6 +136,25 @@ export async function inviteCompanyUser({ companyId, email, fullName, role }) {
   return data
 }
 
+// Use the existing company_members RLS policies: a global admin can add a
+// membership, but this never grants platform-admin privileges.
+export async function assignExistingCompanyUser({ companyId, userId, role = 'admin' }) {
+  if (!COMPANY_ROLES.includes(role)) throw new Error('Rol inválido.')
+  if (!companyId || !userId) throw new Error('Seleccioná una empresa y una persona.')
+
+  const { data, error } = await requireSupabase()
+    .from('company_members')
+    .insert({ company_id: companyId, user_id: userId, role, is_active: true })
+    .select(membershipSelect)
+    .single()
+
+  if (error?.code === '23505') {
+    throw new Error('Esta persona ya está vinculada a la empresa. Editá su acceso desde el listado de usuarios.')
+  }
+  if (error) throw error
+  return data
+}
+
 export async function deleteUserCompletely({ userId, companyId }) {
   const supabase = requireSupabase()
   const { data, error } = await supabase.functions.invoke('delete-user', {

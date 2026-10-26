@@ -75,3 +75,34 @@ La función autoriza al administrador global para cualquier empresa y al adminis
 7. Crear documentos en dos empresas distintas.
 8. Confirmar que el usuario normal solo ve documentación de su empresa.
 9. Confirmar que el administrador global sí puede cambiar entre espacios.
+
+## Gestión delegada de varias empresas
+
+El esquema `company_members` permite asociar a una misma persona con varias empresas,
+con un rol y estado independientes por empresa. No se requiere un rol global nuevo.
+
+1. Desde `Usuarios`, el administrador global elige **Asignar empresa a usuario**.
+2. Selecciona una cuenta ya existente, la empresa y el rol (por ejemplo, **Administrador**).
+3. Repite el proceso para cada empresa que quiera delegar.
+4. El gestor utiliza el selector **Empresa** en la barra superior para cambiar entre las empresas activas que tenga asignadas. Su rol cambia con el espacio.
+5. Para retirar acceso, se desactiva la membresía únicamente en esa empresa desde `Usuarios`.
+
+Si la persona todavía no tiene cuenta, primero hay que invitarla desde una empresa.
+Las empresas que no tiene asignadas no aparecen en el selector interno y siguen
+protegidas por RLS en documentos, trabajos, SGI y archivos de Storage.
+
+**Separación importante:** el rol `admin` de una membresía no incluye acceso a
+`Empresas` (administración global). Solo un usuario de `platform_admins`
+puede crear empresas, asignar usuarios a distintas empresas y ver todo el conjunto.
+
+Esta funcionalidad aprovecha las tablas, políticas RLS y permisos de INSERT ya
+existentes. Si la instalación tiene todas las migraciones previas aplicadas,
+no requiere SQL nuevo ni despliegue de Edge Functions.
+
+### Verificaciones de aceptación
+
+- Gestor asignado a A y B: puede ver/cambiar entre A y B, y gestionar usuarios de cada una.
+- Gestor sin acceso a C: no aparece C en su selector y las consultas directas a C deben ser denegadas por RLS.
+- Gestor con rol admin en A y miembro en B: permisos de admin solo en A.
+- Al desactivar la membresía en B, la siguiente carga o cambio de espacio debe revocar B.
+- Administrador global: conserva acceso a todas las empresas y al menú Empresas.

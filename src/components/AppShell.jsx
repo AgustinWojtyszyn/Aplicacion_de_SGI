@@ -67,6 +67,7 @@ function NavigationGroup({ label, icon: Icon, items, onNavigate }) {
 export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [switchingCompany, setSwitchingCompany] = useState(false)
+  const [switchError, setSwitchError] = useState('')
   const { profile, company, companies, role, isPlatformAdmin, switchCompany, signOut } = useAuth()
 
   const navigationGroups = useMemo(() => {
@@ -107,10 +108,12 @@ export default function AppShell() {
     const companyId = event.target.value
     if (!companyId || companyId === company?.id) return
     setSwitchingCompany(true)
+    setSwitchError('')
     try {
       await switchCompany(companyId)
     } catch (error) {
       console.error(error)
+      setSwitchError(error.message || 'No pudimos cambiar de empresa.')
     } finally {
       setSwitchingCompany(false)
     }
@@ -153,7 +156,7 @@ export default function AppShell() {
             <strong>{company?.name || 'Gestión integrada'}</strong>
           </div>
 
-          {isPlatformAdmin && companies.length > 0 ? (
+          {(isPlatformAdmin || companies.length > 1) && companies.length > 0 ? (
             <label className="company-switcher">
               <Building2 size={16} />
               <span>{switchingCompany ? 'Cambiando…' : 'Empresa'}</span>
@@ -164,6 +167,7 @@ export default function AppShell() {
           ) : (
             <div className="stage-pill">ISO 9001 · 14001 · 45001</div>
           )}
+          {switchError && <span className="company-switch-error" role="alert">{switchError}</span>}
         </header>
         <main className="page-content"><Outlet /></main>
       </div>
