@@ -1,0 +1,6 @@
+# El backend valida explícitamente el JWT con auth.getUser(token)
+# y los permisos de empresa antes de interactuar con Resend.
+# Desactivar la verificación en el gateway permite que el preflight
+# CORS llegue a la función, sin volver público el envío de correos.
+[functions.send-review-email]
+verify_jwt = false
