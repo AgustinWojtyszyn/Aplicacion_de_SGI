@@ -2,7 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-api-version, x-request-id, x-region',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 const appUrl = (Deno.env.get('APP_URL') || 'https://aplicacion-de-sgi-1.onrender.com').replace(/\/+$/, '')
@@ -108,9 +109,15 @@ Deno.serve(async (request) => {
     const emailId = payload.emailId?.trim()
     if (!emailId) return json({ error: 'email_id_required' }, 400)
 
-    const response = await fetch(`https://api.resend.com/emails/${encodeURIComponent(emailId)}`, {
-      headers: { Authorization: `Bearer ${resendApiKey}` },
-    })
+    let response: Response
+    try {
+      response = await fetch(`https://api.resend.com/emails/${encodeURIComponent(emailId)}`, {
+        headers: { Authorization: `Bearer ${resendApiKey}` },
+      })
+    } catch (error) {
+      console.error('Review email status provider request failed', error)
+      return json({ error: 'email_provider_unreachable' }, 502)
+    }
     const data = await response.json().catch(() => ({}))
     if (!response.ok) return json({ error: data?.message || data?.name || 'email_status_failed' }, response.status)
 
@@ -181,13 +188,15 @@ Deno.serve(async (request) => {
   const safeNote = escapeHtml(note).replaceAll('\n', '<br />')
   const documentsUrl = `${appUrl}/documents`
 
-  const resendResponse = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  let resendResponse: Response
+  try {
+    resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
       from: emailFrom,
       to: [recipient.email],
       subject: `Revisión requerida · ${document.title}`,
@@ -208,8 +217,12 @@ Deno.serve(async (request) => {
         <p><a href="${documentsUrl}" style="display:inline-block;padding:11px 16px;border-radius:8px;background:#173B6C;color:#fff;text-decoration:none;font-weight:700">Abrir documentos</a></p>
         <p style="color:#667085;font-size:12px">gestiQa · notificación del flujo documental</p>
       </div>`,
-    }),
-  })
+      }),
+    })
+  } catch (error) {
+    console.error('Review email provider request failed', error)
+    return json({ error: 'email_provider_unreachable' }, 502)
+  }
 
   const resendData = await resendResponse.json().catch(() => ({}))
   if (!resendResponse.ok || !resendData?.id) {
