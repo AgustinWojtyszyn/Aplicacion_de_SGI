@@ -80,7 +80,7 @@ Publicar las funciones:
 
 ```bash
 npx supabase functions deploy invite-user --project-ref TU_PROJECT_REF
-npx supabase functions deploy send-review-email --project-ref TU_PROJECT_REF
+npx supabase functions deploy smart-handler --project-ref TU_PROJECT_REF --no-verify-jwt
 ```
 
 Para los correos de revisión, configurar los secretos del proyecto Supabase:
