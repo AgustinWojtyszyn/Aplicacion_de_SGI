@@ -1,4 +1,3 @@
-import { DOCUMENT_BUCKET } from '../lib/constants'
 import { requireSupabase } from '../lib/supabase'
 
 export const COMPANY_SELECTION_KEY = 'ep-consultora.selected-company'
@@ -122,50 +121,45 @@ export async function setCompanyActive({ companyId, isActive }) {
 export async function deleteCompanyWorkspace(companyId) {
   const supabase = requireSupabase()
 
-  const [documentsResult, versionsResult] = await Promise.all([
-    supabase
-      .from('documents')
-      .select('file_path')
-      .eq('company_id', companyId),
-    supabase
-      .from('document_versions')
-      .select('file_path, document:documents!inner(company_id)')
-      .eq('document.company_id', companyId),
-  ])
+  // No iniciar nunca un borrado sin verificar también el contenido oculto
+  // (carpetas, trabajos y registros de trabajos ya eliminados).
+  const tables = ['documents', 'document_folders', 'work_entries', 'work_entry_activity']
+  const results = await Promise.all(tables.map((table) => (
+    supabase.from(table).select('id', { count: 'exact', head: true }).eq('company_id', companyId)
+  )))
 
-  if (documentsResult.error) throw documentsResult.error
-  if (versionsResult.error) throw versionsResult.error
+  if (results.some((result) => result.error)) {
+    throw new Error('No se pudo comprobar si la empresa tiene información. No se eliminó nada.')
+  }
 
-  const storagePaths = [...new Set([
-    ...(documentsResult.data ?? []).map((item) => item.file_path),
-    ...(versionsResult.data ?? []).map((item) => item.file_path),
-  ].filter(Boolean))]
+  if (results[0].count > 0) {
+    throw new Error('Esta empresa tiene documentos. Eliminá primero su documentación o archivala para ocultarla del acceso.')
+  }
+  if (results[1].count > 0) {
+    throw new Error('Esta empresa todavía tiene carpetas. Eliminá primero las carpetas vacías o mantenela archivada.')
+  }
+  if (results[2].count > 0 || results[3].count > 0) {
+    throw new Error('Esta empresa tiene trabajos o historial operativo. Para conservar esos registros, solo se puede archivar.')
+  }
 
   const { error } = await supabase.rpc('delete_company_workspace', {
     p_company_id: companyId,
   })
 
   if (error) {
-    if (error.message?.includes('system_company_cannot_be_deleted')) {
-      throw new Error('El espacio principal de gestiQa no se puede eliminar.')
+    const messages = {
+      system_company_cannot_be_deleted: 'El espacio principal de gestiQa no se puede eliminar.',
+      company_must_be_archived_before_delete: 'Primero archivá la empresa y después podrás eliminarla.',
+      company_has_documents: 'La empresa tiene documentos. No se eliminó nada; primero quitá su documentación o archivala.',
+      company_has_folders: 'La empresa tiene carpetas. No se eliminó nada.',
+      company_has_work_history: 'La empresa tiene trabajos o historial operativo. No se eliminó nada; podés archivarla.',
+      not_authorized: 'Solo una persona con permisos de administración global puede eliminar empresas.',
+      company_not_found: 'La empresa ya no existe. Actualizá el listado.',
     }
-    if (error.message?.includes('company_must_be_archived_before_delete')) {
-      throw new Error('Primero archivá la empresa y después podés eliminarla definitivamente.')
-    }
+    const knownCode = Object.keys(messages).find((code) => error.message?.includes(code))
+    if (knownCode) throw new Error(messages[knownCode])
     throw error
   }
-
-  let cleanupFailed = false
-  for (let index = 0; index < storagePaths.length; index += 100) {
-    const batch = storagePaths.slice(index, index + 100)
-    const { error: storageError } = await supabase.storage.from(DOCUMENT_BUCKET).remove(batch)
-    if (storageError) {
-      console.error('Company deleted but storage cleanup failed', storageError)
-      cleanupFailed = true
-    }
-  }
-
-  return { cleanupFailed }
 }
 
 export function slugifyCompanyName(value = '') {
