@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, ChevronDown, FilePlus2, FileText, FolderOpen, RefreshCw, Search, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronDown, Clock3, FilePlus2, FileText, FolderOpen, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import DocumentDetailDrawer from '../components/DocumentDetailDrawer'
@@ -35,9 +35,12 @@ export function getChapters(norm, requirements, documents) {
     const related = documents.filter((document) => ids.has(document.requirement_id))
     const covered = tracked.filter((requirement) => related.some((document) => document.requirement_id === requirement.id && document.status === 'approved')).length
     const approved = related.filter((document) => document.status === 'approved').length
+    const historicApproved = clauses.length
+      ? related.filter((document) => document.requirement_id === root.id && document.status === 'approved').length
+      : 0
     return {
       chapter, root, requirements: tracked, legacyRoot: clauses.length ? root : null,
-      documents: related, total: tracked.length, covered, approved,
+      documents: related, total: tracked.length, covered, approved, historicApproved,
       pending: related.length - approved,
       percent: tracked.length ? Math.round(covered * 100 / tracked.length) : 0,
     }
@@ -46,6 +49,26 @@ export function getChapters(norm, requirements, documents) {
 
 const evalLabel = (status) => EVALUATION_OPTIONS.find((option) => option.value === status)?.label || 'Sin evaluar'
 const formatDate = (date) => date ? new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(date)) : '—'
+
+// Uses the existing documentary workflow; does not fabricate a separate
+// corrective-action record or change existing document status semantics.
+export function nextDocumentAction(document, now = new Date()) {
+  if (document.status === 'approved') return null
+  const due = document.review_due_at ? new Date(document.review_due_at) : null
+  const overdue = Boolean(due && !Number.isNaN(due.getTime()) && due < now)
+  if (document.status === 'in_progress') {
+    return {
+      label: document.reviewed_at ? 'Pendiente de aprobación' : 'Pendiente de revisión',
+      overdue,
+      due: document.review_due_at,
+    }
+  }
+  return { label: 'Preparar y enviar a revisión', overdue, due: document.review_due_at }
+}
+
+function personName(person) {
+  return person?.full_name || person?.email || 'Sin asignar'
+}
 
 export default function SgiPage() {
   const { company, user, role } = useAuth()
@@ -56,6 +79,7 @@ export default function SgiPage() {
   const [documents, setDocuments] = useState([])
   const [evaluations, setEvaluations] = useState([])
   const [evaluationAvailable, setEvaluationAvailable] = useState(false)
+  const [loadedCompanyId, setLoadedCompanyId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
@@ -76,10 +100,6 @@ export default function SgiPage() {
     let active = true
     setLoading(Boolean(company?.id))
     setError('')
-    setRequirements([])
-    setDocuments([])
-    setEvaluations([])
-    setEvaluationAvailable(false)
     if (company?.id) {
       Promise.all([
         listSgiRequirements(company.id),
@@ -91,9 +111,16 @@ export default function SgiPage() {
         setDocuments(nextDocuments)
         setEvaluations(result.rows)
         setEvaluationAvailable(result.available)
+        setLoadedCompanyId(company.id)
       }).catch((loadError) => {
         if (active) setError(loadError.message || 'No se pudo cargar el SGI.')
       }).finally(() => { if (active) setLoading(false) })
+    } else {
+      setLoadedCompanyId('')
+      setRequirements([])
+      setDocuments([])
+      setEvaluations([])
+      setEvaluationAvailable(false)
     }
     return () => { active = false }
   }, [company?.id, revision])
@@ -105,9 +132,14 @@ export default function SgiPage() {
     setStatus('')
   }, [selectedNorm, selectedChapter])
 
+  // Never render cached data from another company while the new one loads.
+  const currentRequirements = loadedCompanyId === company?.id ? requirements : []
+  const currentDocuments = loadedCompanyId === company?.id ? documents : []
+  const currentEvaluations = loadedCompanyId === company?.id ? evaluations : []
+  const currentEvaluationAvailable = loadedCompanyId === company?.id && evaluationAvailable
   const groups = useMemo(
-    () => Object.fromEntries(NORMS.map((norm) => [norm, getChapters(norm, requirements, documents)])),
-    [requirements, documents],
+    () => Object.fromEntries(NORMS.map((norm) => [norm, getChapters(norm, currentRequirements, currentDocuments)])),
+    [currentRequirements, currentDocuments],
   )
   const chapters = groups[selectedNorm]
   const chapter = chapters.find((item) => item.chapter === selectedChapter)
@@ -115,7 +147,7 @@ export default function SgiPage() {
   const covered = chapters.reduce((sum, item) => sum + item.covered, 0)
   const percent = total ? Math.round(covered * 100 / total) : 0
   const openedRequirement = chapter?.requirements.find((requirement) => requirement.id === expandedId) || chapter?.requirements[0] || null
-  const evaluation = evaluations.find((item) => item.requirement_id === openedRequirement?.id)
+  const evaluation = currentEvaluations.find((item) => item.requirement_id === openedRequirement?.id)
   const requirementDocuments = chapter?.documents.filter((document) => document.requirement_id === openedRequirement?.id) || []
   const visibleDocuments = requirementDocuments.filter((document) => {
     if (status && document.status !== status) return false
@@ -125,6 +157,8 @@ export default function SgiPage() {
   const approvedDocuments = requirementDocuments.filter((document) => document.status === 'approved')
   const pendingDocuments = requirementDocuments.filter((document) => document.status !== 'approved')
   const canEvaluate = role === 'admin' || role === 'responsible'
+  const actions = chapter?.documents.map((document) => ({ document, next: nextDocumentAction(document) })).filter(({ next }) => Boolean(next)) || []
+
 
   useEffect(() => {
     setDraftStatus(evaluation?.status || 'not_evaluated')
@@ -143,7 +177,7 @@ export default function SgiPage() {
   }
 
   async function saveEvaluation() {
-    if (!openedRequirement || !canEvaluate || !evaluationAvailable || saving) return
+    if (!openedRequirement || !canEvaluate || !currentEvaluationAvailable || saving) return
     setSaving(true)
     setError('')
     try {
@@ -207,6 +241,7 @@ export default function SgiPage() {
               <p>{item.root.description || 'Documentación y evidencias del capítulo.'}</p>
               <div className="compliance-chapter-track"><span style={{ width: item.percent + '%' }} /></div>
               <div className="compliance-chapter-meta"><span><CheckCircle2 size={14} /> {item.covered}/{item.total} cubiertos</span><span><FileText size={14} /> {item.documents.length} documentos</span></div>
+              {item.historicApproved > 0 && <small className="sgi-legacy-count">{item.historicApproved} aprobado{item.historicApproved === 1 ? '' : 's'} del capítulo sin vincular a subrequisito</small>}
               <span className="sgi-chapter-action">Abrir capítulo <ChevronDown size={15} /></span>
             </button>)}
           </div> : <p className="sgi-empty">No hay capítulos disponibles para esta norma.</p>}
@@ -222,15 +257,16 @@ export default function SgiPage() {
         <div><strong>{chapter.total}</strong><span>Requisitos</span></div>
         <div><strong>{chapter.documents.length}</strong><span>Documentos registrados</span></div>
         <div><strong>{chapter.approved}</strong><span>Aprobados</span></div>
-        <div><strong>{chapter.pending}</strong><span>Pendientes documentales</span></div>
+        <div><strong>{actions.length}</strong><span>Acciones abiertas</span></div>
       </div>
+      {chapter.historicApproved > 0 && <div className="sgi-historical-note"><FileText size={18} /><span>Hay {chapter.historicApproved} documento{chapter.historicApproved === 1 ? '' : 's'} aprobado{chapter.historicApproved === 1 ? '' : 's'} del capítulo anterior a la división por subrequisitos. Se conserva{chapter.historicApproved === 1 ? '' : 'n'} sin reasignar. El porcentaje actual mide únicamente la cobertura documentada de cada subrequisito.</span></div>}
       <section className="sgi-detail-content">
         <header className="sgi-detail-section-heading"><div><span>REQUISITOS DEL CAPÍTULO</span><h2>Requisitos y evidencias</h2></div><small>Elegí un requisito para consultar su documentación y su evaluación.</small></header>
         <div className="sgi-clause-list">
           {chapter.requirements.map((requirement) => {
             const isOpen = openedRequirement?.id === requirement.id
             const related = chapter.documents.filter((document) => document.requirement_id === requirement.id)
-            const existingEvaluation = evaluations.find((entry) => entry.requirement_id === requirement.id)
+            const existingEvaluation = currentEvaluations.find((entry) => entry.requirement_id === requirement.id)
             return <article key={requirement.id} className={'sgi-clause' + (isOpen ? ' open' : '')}>
               <button type="button" className="sgi-clause-trigger" onClick={() => setExpandedId(requirement.id)} aria-expanded={isOpen}>
                 <span className="sgi-clause-code">{requirement.code.split('-').pop()}</span>
@@ -241,7 +277,7 @@ export default function SgiPage() {
                 <p className="sgi-clause-description">{requirement.description || 'Sin descripción adicional.'}</p>
                 <section className="sgi-evaluation-panel">
                   <div className="sgi-evaluation-heading"><div><strong>Evaluación de cumplimiento</strong><small>La evaluación manual no cambia automáticamente al aprobar un documento.</small></div><span className="sgi-evaluation-badge">{evalLabel(evaluation?.status)}</span></div>
-                  {evaluationAvailable ? <div className="sgi-evaluation-fields">
+                  {currentEvaluationAvailable ? <div className="sgi-evaluation-fields">
                     <label className="field"><span>Resultado</span><select value={draftStatus} onChange={(event) => setDraftStatus(event.target.value)} disabled={!canEvaluate || saving}>
                       {EVALUATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select></label>
@@ -263,13 +299,40 @@ export default function SgiPage() {
                   <Link className="sgi-all-documents" to={'/documents?norm=' + encodeURIComponent(selectedNorm) + '&requirement=' + encodeURIComponent(requirement.id) + '&chapter=' + encodeURIComponent(chapter.chapter)}><FolderOpen size={16} /> Abrir carpeta y subcarpetas</Link>
                 </section>}
                 {tab === 'verify' && <section className="sgi-review-panel">
-                  <div className="sgi-review-counts"><span><CheckCircle2 size={18} /> {approvedDocuments.length} aprobados</span><span>{pendingDocuments.length} pendientes</span></div>
-                  <p>La revisión y aprobación formal se realiza desde la ficha documental, según los responsables asignados.</p>
-                  {documentList(approvedDocuments)}
+                  <div className="sgi-review-counts">
+                    <span><CheckCircle2 size={18} /> {approvedDocuments.length} aprobados</span>
+                    <span><Clock3 size={18} /> {pendingDocuments.length} por verificar</span>
+                  </div>
+                  <p>La verificación se realiza desde la ficha documental. El responsable autorizado registra la revisión y el aprobador confirma el resultado. La evaluación de cumplimiento de este requisito se guarda por separado.</p>
+                  {requirementDocuments.map((document) => (
+                    <article key={document.id} className="sgi-action-row">
+                      <div>
+                        <strong>{document.title}</strong>
+                        <small>Revisor: {personName(document.reviewer)} · Aprobador: {personName(document.approver)}</small>
+                        <small>{document.status === 'approved' ? 'Aprobación registrada' : nextDocumentAction(document)?.label}</small>
+                      </div>
+                      <StatusBadge status={document.status} />
+                      <button type="button" className="secondary-button" onClick={() => setSelectedDocumentId(document.id)}>Verificar ficha</button>
+                    </article>
+                  ))}
+                  {!requirementDocuments.length && <p className="sgi-empty">Todavía no hay documentos para verificar.</p>}
                 </section>}
                 {tab === 'actions' && <section className="sgi-review-panel">
-                  <h3>Documentos que requieren seguimiento</h3><p>Desde la ficha podés ver fechas, solicitar cambios y continuar las aprobaciones según tus permisos.</p>
-                  {documentList(pendingDocuments)}
+                  <h3>Acciones documentales abiertas</h3>
+                  <p>Se muestran las tareas pendientes del flujo documental existente. No son acciones correctivas independientes y no se crean registros nuevos.</p>
+                  {pendingDocuments.map((document) => {
+                    const next = nextDocumentAction(document)
+                    return <article key={document.id} className="sgi-action-row">
+                      <div>
+                        <strong>{document.title}</strong>
+                        <small>{next.label}</small>
+                        <small>Responsable: {personName(document.responsible)} · {next.due ? 'Fecha objetivo: ' + formatDate(next.due) : 'Sin fecha objetivo'}</small>
+                        {next.overdue && <span className="sgi-overdue"><AlertTriangle size={14} /> Plazo vencido</span>}
+                      </div>
+                      <button type="button" className="secondary-button" onClick={() => setSelectedDocumentId(document.id)}>Gestionar</button>
+                    </article>
+                  })}
+                  {!pendingDocuments.length && <p className="sgi-empty">No hay acciones documentales pendientes para este requisito.</p>}
                 </section>}
               </div>}
             </article>
