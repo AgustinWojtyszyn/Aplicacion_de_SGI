@@ -62,3 +62,33 @@ export async function getSgiDashboardMetrics(companyId) {
 
   return data ?? null
 }
+
+
+// Evaluations are independent from document approval. The module remains usable
+// until its optional migration has been installed.
+const missingEvaluationTable = (error) =>
+  ['42P01', 'PGRST205'].includes(String(error?.code || '')) ||
+  /sgi_requirement_evaluations.*(not found|does not exist|schema cache)/i.test(String(error?.message || ''))
+
+export async function listSgiEvaluations(companyId) {
+  const { data, error } = await requireSupabase()
+    .from('sgi_requirement_evaluations')
+    .select('id, company_id, requirement_id, status, remarks, evaluated_by, updated_at')
+    .eq('company_id', companyId)
+  if (error && missingEvaluationTable(error)) return { available: false, rows: [] }
+  if (error) throw error
+  return { available: true, rows: data ?? [] }
+}
+
+export async function saveSgiEvaluation({ companyId, requirementId, userId, status, remarks = '' }) {
+  const allowed = ['not_evaluated', 'compliant', 'partial', 'non_compliant', 'not_applicable']
+  if (!allowed.includes(status)) throw new Error('La evaluación seleccionada no es válida.')
+  if (remarks.length > 2000) throw new Error('Las observaciones pueden tener hasta 2000 caracteres.')
+  const { error } = await requireSupabase()
+    .from('sgi_requirement_evaluations')
+    .upsert({
+      company_id: companyId, requirement_id: requirementId,
+      status, remarks, evaluated_by: userId, updated_at: new Date().toISOString(),
+    }, { onConflict: 'company_id,requirement_id' })
+  if (error) throw error
+}
