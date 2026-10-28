@@ -6,3 +6,85 @@
 .requirement-folder-card:hover { transform: translateY(-1px); border-color: var(--color-primary, #2563eb); box-shadow: 0 8px 24px rgba(15, 23, 42, .08); }
 .requirement-folder-card:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 .requirement-folder-icon { display: grid; place-items: center; }
+
+
+/* Unified chapter cards and chapter detail — Melisa's SGI navigation. */
+.sgi-page { --border:#dfe6ef; --primary:#173b6c; }
+.sgi-page .compliance-matrix { display:grid;gap:17px }
+.sgi-page .compliance-matrix-heading { display:flex;justify-content:space-between;align-items:flex-end;gap:16px }
+.sgi-page .compliance-matrix-heading p { margin:5px 0 0;color:var(--muted);font-size:.76rem }
+.sgi-page .compliance-matrix-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px }
+.sgi-page .compliance-chapter-card { display:flex;flex-direction:column;align-items:stretch;text-align:left;min-width:0;gap:12px;padding:20px;border-radius:16px;color:var(--ink);cursor:pointer;transition:transform .15s,border-color .15s }
+.sgi-page .compliance-chapter-card:hover { transform:translateY(-1px);border-color:#8daacf }
+.sgi-page .compliance-chapter-card h3 { margin:0;font-size:1.04rem;line-height:1.3 }
+.sgi-page .compliance-chapter-card p { margin:0;min-height:3.3em;color:var(--muted);font-size:.76rem;line-height:1.5 }
+.sgi-page .compliance-chapter-top span { font-size:.68rem;font-weight:850;letter-spacing:.06em }
+.sgi-page .compliance-chapter-track { margin-top:auto }
+.sgi-page .compliance-chapter-meta { flex-wrap:wrap;justify-content:flex-start;gap:12px;font-size:.68rem }
+.sgi-page .compliance-chapter-meta span { display:inline-flex;gap:5px;align-items:center }
+.sgi-chapter-action { display:inline-flex;align-items:center;gap:5px;color:var(--brand);font-size:.74rem;font-weight:800 }
+.sgi-chapter-action svg { transform:rotate(-90deg) }
+.sgi-breadcrumbs { display:flex;flex-wrap:wrap;gap:13px;align-items:center;color:var(--muted);font-size:.76rem }
+.sgi-breadcrumbs a { display:inline-flex;align-items:center;gap:7px;color:var(--brand);font-weight:800 }
+.sgi-detail-heading { display:flex;align-items:flex-start;justify-content:space-between;gap:15px }
+.sgi-detail-heading h1 { margin:0 0 7px;font-size:clamp(1.55rem,2.3vw,2rem) }
+.sgi-detail-heading p:not(.eyebrow) { margin:0;color:var(--muted) }
+.sgi-detail-metrics { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px }
+.sgi-detail-metrics > div { display:grid;gap:5px;padding:17px;background:#fff;border:1px solid var(--border);border-radius:14px }
+.sgi-detail-metrics strong { font-size:1.55rem }
+.sgi-detail-metrics span { color:var(--muted);font-size:.73rem }
+.sgi-detail-content { display:grid;gap:15px;padding:20px;background:#fff;border:1px solid var(--border);border-radius:16px }
+.sgi-detail-section-heading { display:flex;justify-content:space-between;align-items:end;gap:12px }
+.sgi-detail-section-heading h2 { margin:4px 0 0;font-size:1.1rem }
+.sgi-detail-section-heading small { max-width:38ch;color:var(--muted);font-size:.75rem;text-align:right }
+.sgi-clause-list { display:grid;gap:9px }
+.sgi-clause { border:1px solid var(--border);border-radius:12px;overflow:hidden }
+.sgi-clause.open { border-color:#abc0da;box-shadow:0 0 0 1px #abc0da }
+.sgi-clause-trigger { display:flex;width:100%;align-items:center;gap:12px;padding:14px;border:0;background:#f9fafc;color:var(--ink);text-align:left }
+.sgi-clause.open .sgi-clause-trigger { background:#f1f5fb }
+.sgi-clause-trigger > svg { flex-shrink:0 }
+.sgi-clause.open .sgi-clause-trigger > svg { transform:rotate(180deg) }
+.sgi-clause-code { flex:0 0 35px;font-weight:850;font-size:.8rem }
+.sgi-clause-copy { display:grid;flex:1;min-width:0;gap:4px }
+.sgi-clause-copy strong { font-size:.82rem }
+.sgi-clause-copy small { font-size:.69rem;color:var(--muted) }
+.sgi-clause-panel { display:grid;gap:17px;padding:17px }
+.sgi-clause-description { margin:0;color:var(--muted);font-size:.81rem;line-height:1.55 }
+.sgi-evaluation-panel { display:grid;gap:12px;padding:14px;background:#f7f9fc;border:1px solid var(--border);border-radius:12px }
+.sgi-evaluation-heading { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px }
+.sgi-evaluation-heading > div { display:grid;gap:5px }
+.sgi-evaluation-heading strong { font-size:.82rem }
+.sgi-evaluation-heading small { font-size:.72rem;color:var(--muted) }
+.sgi-evaluation-badge { padding:6px 11px;background:#fff;border:1px solid var(--border);border-radius:999px;font-size:.7rem;font-weight:800 }
+.sgi-evaluation-fields { display:grid;gap:10px }
+.sgi-evaluation-fields .field { display:grid;gap:6px }
+.sgi-evaluation-fields .primary-button { justify-self:start }
+.sgi-evaluation-unavailable { margin:0;color:#946223;font-size:.74rem;line-height:1.5 }
+.sgi-detail-tabs { display:flex;gap:5px;border-bottom:1px solid var(--border) }
+.sgi-detail-tabs button { flex:1;padding:11px;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--muted);font-size:.77rem;font-weight:800 }
+.sgi-detail-tabs button.active { border-color:var(--brand);color:var(--brand) }
+.sgi-documents-panel,.sgi-review-panel { display:grid;gap:13px }
+.sgi-documents-heading { display:flex;justify-content:space-between;align-items:center;gap:10px }
+.sgi-documents-heading h3,.sgi-review-panel h3,.sgi-legacy-documents h3 { margin:0 0 4px;font-size:.93rem }
+.sgi-documents-heading p,.sgi-review-panel p,.sgi-legacy-documents p { margin:0;color:var(--muted);font-size:.75rem;line-height:1.5 }
+.sgi-documents-heading .primary-button { display:inline-flex;align-items:center;justify-content:center;gap:6px }
+.sgi-document-search { display:flex;align-items:center;gap:9px;padding:0 12px;border:1px solid var(--border);border-radius:11px }
+.sgi-document-search input { width:100%;min-height:41px;border:0;background:transparent;outline:0 }
+.sgi-document-filters { display:flex;gap:7px;flex-wrap:wrap }
+.sgi-document-filters button { padding:7px 11px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--ink);font-size:.69rem }
+.sgi-document-filters button.active { color:#fff;border-color:var(--brand);background:var(--brand) }
+.sgi-evidence-list { display:grid;gap:8px }
+.sgi-evidence-row { display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--border);border-radius:11px }
+.sgi-evidence-icon { display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:9px;background:#f0f5fa }
+.sgi-evidence-copy { display:grid;flex:1;min-width:0;gap:4px }
+.sgi-evidence-copy strong { font-size:.77rem;overflow-wrap:anywhere }
+.sgi-evidence-copy small { color:var(--muted);font-size:.67rem;overflow-wrap:anywhere }
+.sgi-evidence-row .secondary-button { min-height:34px;padding:6px 10px;font-size:.7rem }
+.sgi-all-documents { display:inline-flex;gap:7px;align-items:center;width:max-content;max-width:100%;color:var(--brand);font-size:.75rem;font-weight:800 }
+.sgi-review-counts { display:flex;gap:14px;flex-wrap:wrap;font-size:.76rem;font-weight:800 }
+.sgi-review-counts span { display:inline-flex;gap:5px;align-items:center }
+.sgi-legacy-documents { display:grid;gap:13px;padding-top:18px;border-top:1px solid var(--border) }
+.sgi-empty { margin:0;padding:17px;border:1px dashed var(--border);border-radius:12px;color:var(--muted);font-size:.78rem }
+@media(max-width:1050px){.sgi-page .compliance-matrix-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.sgi-detail-heading{flex-direction:column}.sgi-detail-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sgi-page .compliance-matrix-heading,.sgi-detail-section-heading{align-items:flex-start;flex-direction:column}.sgi-page .compliance-matrix-heading small,.sgi-detail-section-heading small{text-align:left}.sgi-evidence-row{flex-wrap:wrap}}
+@media(max-width:540px){.sgi-page .compliance-matrix-grid{grid-template-columns:1fr}.sgi-detail-content{padding:12px}.sgi-clause-panel{padding:12px}.sgi-documents-heading{align-items:flex-start;flex-direction:column}.sgi-documents-heading .primary-button{width:100%}.sgi-evidence-copy{flex-basis:calc(100% - 46px)}.sgi-evidence-row .secondary-button{width:100%}}
