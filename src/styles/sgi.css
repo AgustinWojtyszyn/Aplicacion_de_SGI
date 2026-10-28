@@ -88,3 +88,18 @@
 @media(max-width:1050px){.sgi-page .compliance-matrix-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.sgi-detail-heading{flex-direction:column}.sgi-detail-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.sgi-page .compliance-matrix-heading,.sgi-detail-section-heading{align-items:flex-start;flex-direction:column}.sgi-page .compliance-matrix-heading small,.sgi-detail-section-heading small{text-align:left}.sgi-evidence-row{flex-wrap:wrap}}
 @media(max-width:540px){.sgi-page .compliance-matrix-grid{grid-template-columns:1fr}.sgi-detail-content{padding:12px}.sgi-clause-panel{padding:12px}.sgi-documents-heading{align-items:flex-start;flex-direction:column}.sgi-documents-heading .primary-button{width:100%}.sgi-evidence-copy{flex-basis:calc(100% - 46px)}.sgi-evidence-row .secondary-button{width:100%}}
+
+
+/* Verification and open document actions in chapter detail. */
+.sgi-action-row { display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;border:1px solid var(--border);border-radius:12px;background:#fff; }
+.sgi-action-row > div { display:grid;flex:1;min-width:190px;gap:5px; }
+.sgi-action-row strong { color:var(--ink);font-size:.8rem;overflow-wrap:anywhere; }
+.sgi-action-row small { color:var(--muted);font-size:.71rem;line-height:1.4;overflow-wrap:anywhere; }
+.sgi-action-row .secondary-button { margin-left:auto;min-height:36px;font-size:.72rem; }
+.sgi-overdue { display:inline-flex;align-items:center;gap:5px;color:#a83d47;font-size:.72rem;font-weight:800; }
+.sgi-legacy-count { display:block;color:#776641;font-size:.7rem;line-height:1.45; }
+.sgi-historical-note { display:flex;align-items:flex-start;gap:10px;padding:13px 16px;border:1px solid #e0d2ad;border-radius:12px;background:#fffaf0;color:#665531;font-size:.78rem;line-height:1.55; }
+.sgi-historical-note svg { flex-shrink:0; }
+.sgi-returned-label { border-radius:999px;padding:5px 8px;background:#fff0e1;color:#92551e;font-size:.64rem;font-weight:800;white-space:nowrap; }
+.sgi-returned-warning { color:#946223;font-size:.72rem;line-height:1.5; }
+@media(max-width:540px) { .sgi-action-row .secondary-button { width:100%; } }
