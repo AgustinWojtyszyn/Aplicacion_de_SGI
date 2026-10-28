@@ -26,7 +26,8 @@ export function getChapters(norm, requirements, documents) {
   })
   return Array.from(groups, ([chapter, entries]) => {
     const sorted = [...entries].sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }))
-    const root = sorted.find((requirement) => !requirement.code.includes('.')) || sorted[0]
+    const chapterRoot = sorted.find((requirement) => !requirement.code.includes('.')) || null
+    const root = chapterRoot || sorted[0]
     const clauses = sorted.filter((requirement) => requirement.code.includes('.'))
     // A chapter-level requirement can still own legacy documents. Once clauses
     // exist, it is excluded from the clause coverage denominator.
@@ -35,11 +36,11 @@ export function getChapters(norm, requirements, documents) {
     const related = documents.filter((document) => ids.has(document.requirement_id))
     const covered = tracked.filter((requirement) => related.some((document) => document.requirement_id === requirement.id && document.status === 'approved')).length
     const approved = related.filter((document) => document.status === 'approved').length
-    const historicApproved = clauses.length
-      ? related.filter((document) => document.requirement_id === root.id && document.status === 'approved').length
+    const historicApproved = clauses.length && chapterRoot
+      ? related.filter((document) => document.requirement_id === chapterRoot.id && document.status === 'approved').length
       : 0
     return {
-      chapter, root, requirements: tracked, legacyRoot: clauses.length ? root : null,
+      chapter, root, requirements: tracked, legacyRoot: clauses.length ? chapterRoot : null,
       documents: related, total: tracked.length, covered, approved, historicApproved,
       pending: related.length - approved,
       percent: tracked.length ? Math.round(covered * 100 / tracked.length) : 0,
@@ -161,7 +162,11 @@ export default function SgiPage() {
   const evaluation = currentEvaluations.find((item) => item.requirement_id === openedRequirement?.id)
   const requirementDocuments = chapter?.documents.filter((document) => document.requirement_id === openedRequirement?.id) || []
   const visibleDocuments = requirementDocuments.filter((document) => {
-    if (status === 'returned' ? !currentReturnedDocumentIds.includes(document.id) : status && document.status !== status) return false
+    if (status === 'returned' && !currentReturnedDocumentIds.includes(document.id)) return false
+    if (status === 'draft' && (document.status !== 'draft' || currentReturnedDocumentIds.includes(document.id))) return false
+    if (status === 'review_pending' && (document.status !== 'in_progress' || document.reviewed_at)) return false
+    if (status === 'approval_pending' && (document.status !== 'in_progress' || !document.reviewed_at)) return false
+    if (status === 'approved' && document.status !== 'approved') return false
     const needle = search.trim().toLocaleLowerCase('es-AR')
     return !needle || [document.title, document.file_name, document.description].some((text) => (text || '').toLocaleLowerCase('es-AR').includes(needle))
   })
@@ -305,7 +310,7 @@ export default function SgiPage() {
                     <button type="button" className="primary-button" onClick={() => openUpload(requirement.id)}><FilePlus2 size={16} /> Cargar</button></div>
                   <label className="sgi-document-search"><Search size={17} /><input aria-label="Buscar documentos" placeholder="Buscar por nombre o código…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
                   <div className="sgi-document-filters" role="group" aria-label="Filtrar documentos">
-                    {[['', 'Todos'], ['draft', 'Borrador'], ['in_progress', 'Pendiente de aprobación'], ['approved', 'Aprobado'], ['returned', 'Devuelto']].map(([value, label]) => <button type="button" key={value} className={status === value ? 'active' : ''} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}
+                    {[['', 'Todos'], ['draft', 'Borrador'], ['review_pending', 'Pendiente de revisión'], ['approval_pending', 'Pendiente de aprobación'], ['approved', 'Aprobado'], ['returned', 'Devuelto']].map(([value, label]) => <button type="button" key={value} className={status === value ? 'active' : ''} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}
                   </div>
                   {!returnedAvailable && <small className="sgi-returned-warning">No se pudo consultar el historial de devoluciones; el filtro «Devuelto» puede estar incompleto.</small>}
                   {documentList(visibleDocuments)}
