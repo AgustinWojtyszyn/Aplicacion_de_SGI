@@ -92,3 +92,18 @@ export async function saveSgiEvaluation({ companyId, requirementId, userId, stat
     }, { onConflict: 'company_id,requirement_id' })
   if (error) throw error
 }
+
+
+// A rejected review returns a document to 'draft' in the existing database.
+// Surface that history without changing the document_status enum or workflow.
+export async function listReturnedDocumentIds(companyId) {
+  const { data, error } = await requireSupabase()
+    .from('document_activity')
+    .select('document_id, document:documents!inner(company_id, status)')
+    .eq('action', 'rejected')
+    .eq('document.company_id', companyId)
+    .eq('document.status', 'draft')
+    .limit(2000)
+  if (error) throw error
+  return [...new Set((data || []).map((activity) => activity.document_id))]
+}
