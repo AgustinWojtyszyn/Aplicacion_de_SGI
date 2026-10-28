@@ -1,167 +1,287 @@
-import { CheckCircle2, FileText, Folder, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ChevronDown, FilePlus2, FileText, FolderOpen, RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import DocumentDetailDrawer from '../components/DocumentDetailDrawer'
+import DocumentFormModal from '../components/DocumentFormModal'
+import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
 import { listDocuments } from '../services/documentService'
-import { listSgiRequirements } from '../services/sgiService'
+import { listSgiEvaluations, listSgiRequirements, saveSgiEvaluation } from '../services/sgiService'
 
-const norms = ['ISO 9001', 'ISO 14001', 'ISO 45001', 'SGI']
+const NORMS = ['ISO 9001', 'ISO 14001', 'ISO 45001', 'SGI']
+const EVALUATION_OPTIONS = [
+  { value: 'not_evaluated', label: 'Sin evaluar' },
+  { value: 'compliant', label: 'Cumple' },
+  { value: 'partial', label: 'Cumple parcialmente' },
+  { value: 'non_compliant', label: 'No cumple' },
+  { value: 'not_applicable', label: 'No aplica' },
+]
 
-function documentsUrl({ norm, requirementId = '', chapter = '' }) {
-  const params = new URLSearchParams()
-  if (norm) params.set('norm', norm)
-  if (requirementId) params.set('requirement', requirementId)
-  if (chapter) params.set('chapter', String(chapter))
-  return `/documents?${params.toString()}`
+export function getChapters(norm, requirements, documents) {
+  const groups = new Map()
+  requirements.filter((requirement) => requirement.norm === norm).forEach((requirement) => {
+    const chapter = String(requirement.chapter)
+    if (!groups.has(chapter)) groups.set(chapter, [])
+    groups.get(chapter).push(requirement)
+  })
+  return Array.from(groups, ([chapter, entries]) => {
+    const sorted = [...entries].sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }))
+    const root = sorted.find((requirement) => !requirement.code.includes('.')) || sorted[0]
+    const clauses = sorted.filter((requirement) => requirement.code.includes('.'))
+    // A chapter-level requirement can still own legacy documents. Once clauses
+    // exist, it is excluded from the clause coverage denominator.
+    const tracked = clauses.length ? clauses : sorted
+    const ids = new Set(sorted.map((requirement) => requirement.id))
+    const related = documents.filter((document) => ids.has(document.requirement_id))
+    const covered = tracked.filter((requirement) => related.some((document) => document.requirement_id === requirement.id && document.status === 'approved')).length
+    const approved = related.filter((document) => document.status === 'approved').length
+    return {
+      chapter, root, requirements: tracked, legacyRoot: clauses.length ? root : null,
+      documents: related, total: tracked.length, covered, approved,
+      pending: related.length - approved,
+      percent: tracked.length ? Math.round(covered * 100 / tracked.length) : 0,
+    }
+  }).sort((a, b) => Number(a.chapter) - Number(b.chapter))
 }
 
+const evalLabel = (status) => EVALUATION_OPTIONS.find((option) => option.value === status)?.label || 'Sin evaluar'
+const formatDate = (date) => date ? new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(date)) : '—'
+
 export default function SgiPage() {
-  const { company } = useAuth()
+  const { company, user, role } = useAuth()
+  const [params, setParams] = useSearchParams()
+  const selectedNorm = NORMS.includes(params.get('norm')) ? params.get('norm') : 'ISO 9001'
+  const selectedChapter = params.get('chapter') || ''
   const [requirements, setRequirements] = useState([])
   const [documents, setDocuments] = useState([])
-  const [selectedNorm, setSelectedNorm] = useState('ISO 9001')
+  const [evaluations, setEvaluations] = useState([])
+  const [evaluationAvailable, setEvaluationAvailable] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [revision, setRevision] = useState(0)
+  const [expandedId, setExpandedId] = useState('')
+  const [tab, setTab] = useState('documents')
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [draftStatus, setDraftStatus] = useState('not_evaluated')
+  const [draftRemarks, setDraftRemarks] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [selectedDocumentId, setSelectedDocumentId] = useState(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createRequirementId, setCreateRequirementId] = useState('')
 
-  async function load() {
-    if (!company?.id) return
-    setLoading(true)
+  function reload() { setRevision((current) => current + 1) }
+
+  useEffect(() => {
+    let active = true
+    setLoading(Boolean(company?.id))
     setError('')
-    try {
-      const [nextRequirements, nextDocuments] = await Promise.all([
+    setRequirements([])
+    setDocuments([])
+    setEvaluations([])
+    setEvaluationAvailable(false)
+    if (company?.id) {
+      Promise.all([
         listSgiRequirements(company.id),
         listDocuments({ companyId: company.id }),
-      ])
-      setRequirements(nextRequirements)
-      setDocuments(nextDocuments)
-    } catch (loadError) {
-      setError(loadError.message || 'No se pudo cargar el SGI.')
+        listSgiEvaluations(company.id),
+      ]).then(([nextRequirements, nextDocuments, result]) => {
+        if (!active) return
+        setRequirements(nextRequirements)
+        setDocuments(nextDocuments)
+        setEvaluations(result.rows)
+        setEvaluationAvailable(result.available)
+      }).catch((loadError) => {
+        if (active) setError(loadError.message || 'No se pudo cargar el SGI.')
+      }).finally(() => { if (active) setLoading(false) })
+    }
+    return () => { active = false }
+  }, [company?.id, revision])
+
+  useEffect(() => {
+    setExpandedId('')
+    setTab('documents')
+    setSearch('')
+    setStatus('')
+  }, [selectedNorm, selectedChapter])
+
+  const groups = useMemo(
+    () => Object.fromEntries(NORMS.map((norm) => [norm, getChapters(norm, requirements, documents)])),
+    [requirements, documents],
+  )
+  const chapters = groups[selectedNorm]
+  const chapter = chapters.find((item) => item.chapter === selectedChapter)
+  const total = chapters.reduce((sum, item) => sum + item.total, 0)
+  const covered = chapters.reduce((sum, item) => sum + item.covered, 0)
+  const percent = total ? Math.round(covered * 100 / total) : 0
+  const openedRequirement = chapter?.requirements.find((requirement) => requirement.id === expandedId) || chapter?.requirements[0] || null
+  const evaluation = evaluations.find((item) => item.requirement_id === openedRequirement?.id)
+  const requirementDocuments = chapter?.documents.filter((document) => document.requirement_id === openedRequirement?.id) || []
+  const visibleDocuments = requirementDocuments.filter((document) => {
+    if (status && document.status !== status) return false
+    const needle = search.trim().toLocaleLowerCase('es-AR')
+    return !needle || [document.title, document.file_name, document.description].some((text) => (text || '').toLocaleLowerCase('es-AR').includes(needle))
+  })
+  const approvedDocuments = requirementDocuments.filter((document) => document.status === 'approved')
+  const pendingDocuments = requirementDocuments.filter((document) => document.status !== 'approved')
+  const canEvaluate = role === 'admin' || role === 'responsible'
+
+  useEffect(() => {
+    setDraftStatus(evaluation?.status || 'not_evaluated')
+    setDraftRemarks(evaluation?.remarks || '')
+    setSearch('')
+    setStatus('')
+    setTab('documents')
+  }, [openedRequirement?.id, evaluation?.status, evaluation?.remarks])
+
+  function changeNorm(norm) { setParams({ norm }) }
+  function changeChapter(number) { setParams({ norm: selectedNorm, chapter: String(number) }) }
+
+  function openUpload(requirementId) {
+    setCreateRequirementId(requirementId)
+    setCreateOpen(true)
+  }
+
+  async function saveEvaluation() {
+    if (!openedRequirement || !canEvaluate || !evaluationAvailable || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      await saveSgiEvaluation({
+        companyId: company.id, requirementId: openedRequirement.id,
+        userId: user.id, status: draftStatus, remarks: draftRemarks.trim(),
+      })
+      const result = await listSgiEvaluations(company.id)
+      setEvaluations(result.rows)
+    } catch (saveError) {
+      setError(saveError.message || 'No se pudo guardar la evaluación.')
     } finally {
-      setLoading(false)
+      setSaving(false)
     }
   }
 
-  useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [company?.id])
-
-  const visible = requirements.filter((item) => item.norm === selectedNorm)
-  const normStats = useMemo(() => Object.fromEntries(norms.map((norm) => {
-    const normRequirements = requirements.filter((requirement) => requirement.norm === norm)
-    const covered = normRequirements.filter((requirement) => (
-      documents.some((document) => document.requirement_id === requirement.id && document.status === 'approved')
-    )).length
-    return [norm, {
-      total: normRequirements.length,
-      covered,
-      percent: normRequirements.length ? Math.round((covered / normRequirements.length) * 100) : 0,
-    }]
-  })), [requirements, documents])
-
-  const chapterStats = useMemo(() => {
-    const grouped = new Map()
-    visible.forEach((requirement) => {
-      const key = String(requirement.chapter || '—')
-      if (!grouped.has(key)) grouped.set(key, { chapter: key, total: 0, covered: 0, pending: 0 })
-      const item = grouped.get(key)
-      const related = documents.filter((document) => document.requirement_id === requirement.id)
-      const covered = related.some((document) => document.status === 'approved')
-      item.total += 1
-      item.covered += covered ? 1 : 0
-      item.pending += covered ? 0 : 1
-    })
-    return Array.from(grouped.values())
-      .map((item) => ({ ...item, percent: item.total ? Math.round((item.covered / item.total) * 100) : 0 }))
-      .sort((a, b) => Number(a.chapter) - Number(b.chapter))
-  }, [visible, documents])
-
-  return (
-    <section className="page-stack sgi-page">
-      <header className="page-heading">
-        <div>
-          <p className="eyebrow">SISTEMA DE GESTIÓN INTEGRADO</p>
-          <h1>SGI e ISO</h1>
-          <p>Documentación organizada por norma, capítulo y requisito.</p>
+  function documentList(items) {
+    if (!items.length) return <p className="sgi-empty">No hay documentos en esta sección.</p>
+    return <div className="sgi-evidence-list">{items.map((document) => (
+      <article key={document.id} className="sgi-evidence-row">
+        <span className="sgi-evidence-icon"><FileText size={18} /></span>
+        <div className="sgi-evidence-copy">
+          <strong>{document.title}</strong>
+          <small>{document.file_name} · {formatDate(document.updated_at)}</small>
         </div>
-      </header>
-
-      {error && <div className="page-error">{error}</div>}
-
-      <div className="norm-tabs">
-        {norms.map((norm) => (
-          <button
-            key={norm}
-            className={selectedNorm === norm ? 'norm-tab active' : 'norm-tab'}
-            onClick={() => setSelectedNorm(norm)}
-          >
-            <ShieldCheck size={17} />
-            <span>{norm === 'SGI' ? 'SGI Integrado' : norm}</span>
-            <strong>{normStats[norm]?.percent || 0}%</strong>
-          </button>
-        ))}
-      </div>
-
-      <article className="sgi-summary-card">
-        <div className="sgi-summary-heading">
-          <div>
-            <span>CUMPLIMIENTO DOCUMENTAL</span>
-            <strong>{normStats[selectedNorm]?.percent || 0}%</strong>
-            <small>{normStats[selectedNorm]?.covered || 0} de {normStats[selectedNorm]?.total || 0} requisitos con al menos un documento aprobado</small>
-          </div>
-          <Link className="secondary-button" to={documentsUrl({ norm: selectedNorm })}>
-            <FileText size={16} /> Ver documentos de la norma
-          </Link>
-        </div>
-        <div className="sgi-progress"><span style={{ width: `${normStats[selectedNorm]?.percent || 0}%` }} /></div>
+        <StatusBadge status={document.status} />
+        <button type="button" className="secondary-button" onClick={() => setSelectedDocumentId(document.id)}>Ver ficha</button>
       </article>
+    ))}</div>
+  }
 
-      <section className="compliance-matrix" aria-label={`Matriz de cumplimiento ${selectedNorm}`}>
-        <div className="compliance-matrix-heading">
-          <div><span>MATRIZ DE CUMPLIMIENTO</span><h2>{selectedNorm === 'SGI' ? 'SGI Integrado' : selectedNorm} por capítulo</h2></div>
-          <small>El porcentaje cuenta requisitos con al menos una evidencia aprobada.</small>
-        </div>
-        <div className="compliance-matrix-grid">
-          {chapterStats.map((item) => (
-            <Link key={item.chapter} to={documentsUrl({ norm: selectedNorm, chapter: item.chapter })} className="compliance-chapter-card">
-              <div className="compliance-chapter-top"><span>Cap. {item.chapter}</span><strong>{item.percent}%</strong></div>
-              <div className="compliance-chapter-track"><span style={{ width: `${item.percent}%` }} /></div>
-              <div className="compliance-chapter-meta"><span>{item.covered}/{item.total} cubiertos</span><span>{item.pending} pendientes</span></div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <div className="requirement-list">
-        {loading ? (
-          <div className="dashboard-loading"><span className="loader-dot" /> Cargando estructura…</div>
-        ) : visible.map((requirement) => {
-          const related = documents.filter((document) => document.requirement_id === requirement.id)
-          const approved = related.filter((document) => document.status === 'approved').length
-          const pending = related.length - approved
-          return (
-            <Link
-              className="requirement-card requirement-folder-card"
-              key={requirement.id}
-              to={documentsUrl({ norm: requirement.norm, requirementId: requirement.id, chapter: requirement.chapter })}
-              title={`Abrir carpeta ${requirement.code} · ${requirement.title}`}
-              aria-label={`Abrir carpeta ${requirement.code} · ${requirement.title}`}
-            >
-              <div className="requirement-chapter requirement-folder-icon"><Folder size={22} /></div>
-              <div className="requirement-copy">
-                <span>CARPETA · {requirement.code}</span>
-                <h2>{requirement.title}</h2>
-                <p>{requirement.description}</p>
-                <div className="requirement-meta">
-                  <span><FileText size={14} /> {related.length} documento{related.length === 1 ? '' : 's'}</span>
-                  <span><CheckCircle2 size={14} /> {approved} aprobados</span>
-                  {pending > 0 && <span>{pending} pendientes</span>}
-                </div>
-              </div>
-            </Link>
-          )
+  return <section className="page-stack sgi-page">
+    {!chapter ? <>
+      <header className="page-heading">
+        <div><p className="eyebrow">SISTEMA DE GESTIÓN INTEGRADO</p><h1>SGI e ISO</h1>
+          <p>Documentación, progreso y requisitos en una sola vista por capítulo.</p></div>
+        <button type="button" className="secondary-button" onClick={reload} disabled={loading}><RefreshCw size={16} /> Actualizar</button>
+      </header>
+      <div className="norm-tabs" role="group" aria-label="Seleccionar norma">
+        {NORMS.map((norm) => {
+          const normTotal = groups[norm].reduce((sum, item) => sum + item.total, 0)
+          const normCovered = groups[norm].reduce((sum, item) => sum + item.covered, 0)
+          return <button key={norm} type="button" className={selectedNorm === norm ? 'norm-tab active' : 'norm-tab'} onClick={() => changeNorm(norm)} aria-pressed={selectedNorm === norm}>
+            <ShieldCheck size={17} /><span>{norm === 'SGI' ? 'SGI Integrado' : norm}</span>
+            <strong>{normTotal ? Math.round(normCovered * 100 / normTotal) : 0}%</strong>
+          </button>
         })}
       </div>
-    </section>
-  )
+      {error && <div className="page-error" role="alert">{error}</div>}
+      <section className="compliance-matrix" aria-label={'Capítulos de ' + selectedNorm}>
+        <header className="compliance-matrix-heading">
+          <div><span>MATRIZ DE CUMPLIMIENTO</span><h2>{selectedNorm === 'SGI' ? 'SGI Integrado' : selectedNorm} por capítulo</h2>
+            <p>{covered} de {total} requisitos con evidencia aprobada · {percent}% de cobertura</p></div>
+          <small>La cobertura documental cuenta requisitos con al menos un documento aprobado. La evaluación de cumplimiento se registra por separado.</small>
+        </header>
+        {loading ? <div className="dashboard-loading"><span className="loader-dot" /> Cargando estructura…</div>
+          : chapters.length ? <div className="compliance-matrix-grid">
+            {chapters.map((item) => <button key={item.chapter} type="button" className="compliance-chapter-card" onClick={() => changeChapter(item.chapter)}>
+              <div className="compliance-chapter-top"><span>CAPÍTULO {item.chapter}</span><strong>{item.percent}%</strong></div>
+              <h3>{item.root.title}</h3>
+              <p>{item.root.description || 'Documentación y evidencias del capítulo.'}</p>
+              <div className="compliance-chapter-track"><span style={{ width: item.percent + '%' }} /></div>
+              <div className="compliance-chapter-meta"><span><CheckCircle2 size={14} /> {item.covered}/{item.total} cubiertos</span><span><FileText size={14} /> {item.documents.length} documentos</span></div>
+              <span className="sgi-chapter-action">Abrir capítulo <ChevronDown size={15} /></span>
+            </button>)}
+          </div> : <p className="sgi-empty">No hay capítulos disponibles para esta norma.</p>}
+      </section>
+    </> : <>
+      <div className="sgi-breadcrumbs"><Link to={'/sgi?norm=' + encodeURIComponent(selectedNorm)}><ArrowLeft size={16} /> Volver a capítulos</Link><span>{selectedNorm} / Capítulo {chapter.chapter}</span></div>
+      <header className="sgi-detail-heading"><div>
+        <p className="eyebrow">{selectedNorm} · CAPÍTULO {chapter.chapter}</p><h1>{chapter.root.title}</h1>
+        <p>{chapter.root.description || 'Implementación, documentación y evaluación de requisitos.'}</p>
+      </div><button type="button" className="secondary-button" onClick={reload} disabled={loading}><RefreshCw size={16} /> Actualizar</button></header>
+      {error && <div className="page-error" role="alert">{error}</div>}
+      <div className="sgi-detail-metrics">
+        <div><strong>{chapter.total}</strong><span>Requisitos</span></div>
+        <div><strong>{chapter.documents.length}</strong><span>Documentos registrados</span></div>
+        <div><strong>{chapter.approved}</strong><span>Aprobados</span></div>
+        <div><strong>{chapter.pending}</strong><span>Pendientes documentales</span></div>
+      </div>
+      <section className="sgi-detail-content">
+        <header className="sgi-detail-section-heading"><div><span>REQUISITOS DEL CAPÍTULO</span><h2>Requisitos y evidencias</h2></div><small>Elegí un requisito para consultar su documentación y su evaluación.</small></header>
+        <div className="sgi-clause-list">
+          {chapter.requirements.map((requirement) => {
+            const isOpen = openedRequirement?.id === requirement.id
+            const related = chapter.documents.filter((document) => document.requirement_id === requirement.id)
+            const existingEvaluation = evaluations.find((entry) => entry.requirement_id === requirement.id)
+            return <article key={requirement.id} className={'sgi-clause' + (isOpen ? ' open' : '')}>
+              <button type="button" className="sgi-clause-trigger" onClick={() => setExpandedId(requirement.id)} aria-expanded={isOpen}>
+                <span className="sgi-clause-code">{requirement.code.split('-').pop()}</span>
+                <span className="sgi-clause-copy"><strong>{requirement.title}</strong><small>{related.length} documento{related.length === 1 ? '' : 's'} · {evalLabel(existingEvaluation?.status)}</small></span>
+                <ChevronDown size={18} />
+              </button>
+              {isOpen && <div className="sgi-clause-panel">
+                <p className="sgi-clause-description">{requirement.description || 'Sin descripción adicional.'}</p>
+                <section className="sgi-evaluation-panel">
+                  <div className="sgi-evaluation-heading"><div><strong>Evaluación de cumplimiento</strong><small>La evaluación manual no cambia automáticamente al aprobar un documento.</small></div><span className="sgi-evaluation-badge">{evalLabel(evaluation?.status)}</span></div>
+                  {evaluationAvailable ? <div className="sgi-evaluation-fields">
+                    <label className="field"><span>Resultado</span><select value={draftStatus} onChange={(event) => setDraftStatus(event.target.value)} disabled={!canEvaluate || saving}>
+                      {EVALUATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select></label>
+                    <label className="field"><span>Observaciones</span><textarea rows={2} maxLength={2000} value={draftRemarks} onChange={(event) => setDraftRemarks(event.target.value)} disabled={!canEvaluate || saving} placeholder="Fundamentos o hallazgos…" /></label>
+                    {canEvaluate && <button type="button" className="primary-button" onClick={saveEvaluation} disabled={saving || (draftStatus === (evaluation?.status || 'not_evaluated') && draftRemarks.trim() === (evaluation?.remarks || ''))}>{saving ? 'Guardando…' : 'Guardar evaluación'}</button>}
+                  </div> : <p className="sgi-evaluation-unavailable">La evaluación manual requiere activar la migración de base de datos. Los documentos y sus aprobaciones siguen funcionando.</p>}
+                </section>
+                <div className="sgi-detail-tabs" role="group" aria-label="Detalle del requisito">
+                  {[['documents', 'Documentos'], ['verify', 'Verificar'], ['actions', 'Acciones']].map(([value, label]) => <button type="button" key={value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)} aria-pressed={tab === value}>{label}</button>)}
+                </div>
+                {tab === 'documents' && <section className="sgi-documents-panel">
+                  <div className="sgi-documents-heading"><div><h3>Evidencias y documentos</h3><p>Documentos vinculados a este requisito.</p></div>
+                    <button type="button" className="primary-button" onClick={() => openUpload(requirement.id)}><FilePlus2 size={16} /> Cargar</button></div>
+                  <label className="sgi-document-search"><Search size={17} /><input aria-label="Buscar documentos" placeholder="Buscar por nombre o código…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+                  <div className="sgi-document-filters" role="group" aria-label="Filtrar documentos">
+                    {[['', 'Todos'], ['draft', 'Borrador'], ['in_progress', 'En proceso'], ['approved', 'Aprobado']].map(([value, label]) => <button type="button" key={value} className={status === value ? 'active' : ''} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}
+                  </div>
+                  {documentList(visibleDocuments)}
+                  <Link className="sgi-all-documents" to={'/documents?norm=' + encodeURIComponent(selectedNorm) + '&requirement=' + encodeURIComponent(requirement.id) + '&chapter=' + encodeURIComponent(chapter.chapter)}><FolderOpen size={16} /> Abrir carpeta y subcarpetas</Link>
+                </section>}
+                {tab === 'verify' && <section className="sgi-review-panel">
+                  <div className="sgi-review-counts"><span><CheckCircle2 size={18} /> {approvedDocuments.length} aprobados</span><span>{pendingDocuments.length} pendientes</span></div>
+                  <p>La revisión y aprobación formal se realiza desde la ficha documental, según los responsables asignados.</p>
+                  {documentList(approvedDocuments)}
+                </section>}
+                {tab === 'actions' && <section className="sgi-review-panel">
+                  <h3>Documentos que requieren seguimiento</h3><p>Desde la ficha podés ver fechas, solicitar cambios y continuar las aprobaciones según tus permisos.</p>
+                  {documentList(pendingDocuments)}
+                </section>}
+              </div>}
+            </article>
+          })}
+        </div>
+        {chapter.legacyRoot && chapter.documents.some((document) => document.requirement_id === chapter.legacyRoot.id) && <section className="sgi-legacy-documents">
+          <div><h3>Documentación general del capítulo</h3><p>Se conservan los archivos anteriores a la división en requisitos específicos.</p></div>
+          {documentList(chapter.documents.filter((document) => document.requirement_id === chapter.legacyRoot.id))}
+        </section>}
+      </section>
+    </>}
+    <DocumentFormModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={reload} defaultNorm={selectedNorm} defaultRequirementId={createRequirementId} />
+    <DocumentDetailDrawer documentId={selectedDocumentId} onClose={() => setSelectedDocumentId(null)} onChanged={reload} />
+  </section>
 }
