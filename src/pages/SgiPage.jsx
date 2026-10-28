@@ -6,7 +6,7 @@ import DocumentFormModal from '../components/DocumentFormModal'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
 import { listDocuments } from '../services/documentService'
-import { listSgiEvaluations, listSgiRequirements, saveSgiEvaluation } from '../services/sgiService'
+import { listReturnedDocumentIds, listSgiEvaluations, listSgiRequirements, saveSgiEvaluation } from '../services/sgiService'
 
 const NORMS = ['ISO 9001', 'ISO 14001', 'ISO 45001', 'SGI']
 const EVALUATION_OPTIONS = [
@@ -52,7 +52,7 @@ const formatDate = (date) => date ? new Intl.DateTimeFormat('es-AR', { day: '2-d
 
 // Uses the existing documentary workflow; does not fabricate a separate
 // corrective-action record or change existing document status semantics.
-export function nextDocumentAction(document, now = new Date()) {
+export function nextDocumentAction(document, now = new Date(), returned = false) {
   if (document.status === 'approved') return null
   const due = document.review_due_at ? new Date(document.review_due_at) : null
   const overdue = Boolean(due && !Number.isNaN(due.getTime()) && due < now)
@@ -63,7 +63,7 @@ export function nextDocumentAction(document, now = new Date()) {
       due: document.review_due_at,
     }
   }
-  return { label: 'Preparar y enviar a revisión', overdue, due: document.review_due_at }
+  return { label: returned ? 'Corregir observaciones y reenviar' : 'Preparar y enviar a revisión', overdue, due: document.review_due_at }
 }
 
 function personName(person) {
@@ -80,6 +80,8 @@ export default function SgiPage() {
   const [evaluations, setEvaluations] = useState([])
   const [evaluationAvailable, setEvaluationAvailable] = useState(false)
   const [loadedCompanyId, setLoadedCompanyId] = useState('')
+  const [returnedDocumentIds, setReturnedDocumentIds] = useState([])
+  const [returnedAvailable, setReturnedAvailable] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
@@ -105,12 +107,18 @@ export default function SgiPage() {
         listSgiRequirements(company.id),
         listDocuments({ companyId: company.id }),
         listSgiEvaluations(company.id),
-      ]).then(([nextRequirements, nextDocuments, result]) => {
+        listReturnedDocumentIds(company.id).then((ids) => ({ ids, available: true })).catch((error) => {
+          console.warn('No se pudo leer el historial de devoluciones', error)
+          return { ids: [], available: false }
+        }),
+      ]).then(([nextRequirements, nextDocuments, result, returned]) => {
         if (!active) return
         setRequirements(nextRequirements)
         setDocuments(nextDocuments)
         setEvaluations(result.rows)
         setEvaluationAvailable(result.available)
+        setReturnedDocumentIds(returned.ids)
+        setReturnedAvailable(returned.available)
         setLoadedCompanyId(company.id)
       }).catch((loadError) => {
         if (active) setError(loadError.message || 'No se pudo cargar el SGI.')
@@ -121,6 +129,8 @@ export default function SgiPage() {
       setDocuments([])
       setEvaluations([])
       setEvaluationAvailable(false)
+      setReturnedDocumentIds([])
+      setReturnedAvailable(false)
     }
     return () => { active = false }
   }, [company?.id, revision])
@@ -137,6 +147,7 @@ export default function SgiPage() {
   const currentDocuments = loadedCompanyId === company?.id ? documents : []
   const currentEvaluations = loadedCompanyId === company?.id ? evaluations : []
   const currentEvaluationAvailable = loadedCompanyId === company?.id && evaluationAvailable
+  const currentReturnedDocumentIds = loadedCompanyId === company?.id ? returnedDocumentIds : []
   const groups = useMemo(
     () => Object.fromEntries(NORMS.map((norm) => [norm, getChapters(norm, currentRequirements, currentDocuments)])),
     [currentRequirements, currentDocuments],
@@ -150,14 +161,14 @@ export default function SgiPage() {
   const evaluation = currentEvaluations.find((item) => item.requirement_id === openedRequirement?.id)
   const requirementDocuments = chapter?.documents.filter((document) => document.requirement_id === openedRequirement?.id) || []
   const visibleDocuments = requirementDocuments.filter((document) => {
-    if (status && document.status !== status) return false
+    if (status === 'returned' ? !currentReturnedDocumentIds.includes(document.id) : status && document.status !== status) return false
     const needle = search.trim().toLocaleLowerCase('es-AR')
     return !needle || [document.title, document.file_name, document.description].some((text) => (text || '').toLocaleLowerCase('es-AR').includes(needle))
   })
   const approvedDocuments = requirementDocuments.filter((document) => document.status === 'approved')
   const pendingDocuments = requirementDocuments.filter((document) => document.status !== 'approved')
   const canEvaluate = role === 'admin' || role === 'responsible'
-  const actions = chapter?.documents.map((document) => ({ document, next: nextDocumentAction(document) })).filter(({ next }) => Boolean(next)) || []
+  const actions = chapter?.documents.map((document) => ({ document, next: nextDocumentAction(document, new Date(), currentReturnedDocumentIds.includes(document.id)) })).filter(({ next }) => Boolean(next)) || []
 
 
   useEffect(() => {
@@ -204,6 +215,7 @@ export default function SgiPage() {
           <small>{document.file_name} · {formatDate(document.updated_at)}</small>
         </div>
         <StatusBadge status={document.status} />
+        {currentReturnedDocumentIds.includes(document.id) && <span className="sgi-returned-label">Devuelto para corrección</span>}
         <button type="button" className="secondary-button" onClick={() => setSelectedDocumentId(document.id)}>Ver ficha</button>
       </article>
     ))}</div>
@@ -293,8 +305,9 @@ export default function SgiPage() {
                     <button type="button" className="primary-button" onClick={() => openUpload(requirement.id)}><FilePlus2 size={16} /> Cargar</button></div>
                   <label className="sgi-document-search"><Search size={17} /><input aria-label="Buscar documentos" placeholder="Buscar por nombre o código…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
                   <div className="sgi-document-filters" role="group" aria-label="Filtrar documentos">
-                    {[['', 'Todos'], ['draft', 'Borrador'], ['in_progress', 'En proceso'], ['approved', 'Aprobado']].map(([value, label]) => <button type="button" key={value} className={status === value ? 'active' : ''} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}
+                    {[['', 'Todos'], ['draft', 'Borrador'], ['in_progress', 'Pendiente de aprobación'], ['approved', 'Aprobado'], ['returned', 'Devuelto']].map(([value, label]) => <button type="button" key={value} className={status === value ? 'active' : ''} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}
                   </div>
+                  {!returnedAvailable && <small className="sgi-returned-warning">No se pudo consultar el historial de devoluciones; el filtro «Devuelto» puede estar incompleto.</small>}
                   {documentList(visibleDocuments)}
                   <Link className="sgi-all-documents" to={'/documents?norm=' + encodeURIComponent(selectedNorm) + '&requirement=' + encodeURIComponent(requirement.id) + '&chapter=' + encodeURIComponent(chapter.chapter)}><FolderOpen size={16} /> Abrir carpeta y subcarpetas</Link>
                 </section>}
@@ -309,7 +322,7 @@ export default function SgiPage() {
                       <div>
                         <strong>{document.title}</strong>
                         <small>Revisor: {personName(document.reviewer)} · Aprobador: {personName(document.approver)}</small>
-                        <small>{document.status === 'approved' ? 'Aprobación registrada' : nextDocumentAction(document)?.label}</small>
+                        <small>{document.status === 'approved' ? 'Aprobación registrada' : nextDocumentAction(document, new Date(), currentReturnedDocumentIds.includes(document.id))?.label}</small>
                       </div>
                       <StatusBadge status={document.status} />
                       <button type="button" className="secondary-button" onClick={() => setSelectedDocumentId(document.id)}>Verificar ficha</button>
@@ -321,7 +334,7 @@ export default function SgiPage() {
                   <h3>Acciones documentales abiertas</h3>
                   <p>Se muestran las tareas pendientes del flujo documental existente. No son acciones correctivas independientes y no se crean registros nuevos.</p>
                   {pendingDocuments.map((document) => {
-                    const next = nextDocumentAction(document)
+                    const next = nextDocumentAction(document, new Date(), currentReturnedDocumentIds.includes(document.id))
                     return <article key={document.id} className="sgi-action-row">
                       <div>
                         <strong>{document.title}</strong>
