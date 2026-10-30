@@ -35,6 +35,27 @@ describe('SGI unified chapter view', () => {
     expect(chapters[0].requirements.map((item) => item.code)).toEqual(['9001-4.1', '9001-4.2'])
   })
 
+  it('orders ISO 14001 nested clauses and keeps legacy documents visible', () => {
+    const environmental = [
+      { id: 'environment-root', norm: 'ISO 14001', chapter: 6, code: '14001-6', title: 'Planificación' },
+      { id: 'c10', norm: 'ISO 14001', chapter: 6, code: '14001-6.1.10', title: 'Apartado adicional' },
+      { id: 'c2', norm: 'ISO 14001', chapter: 6, code: '14001-6.1.2', title: 'Aspectos ambientales' },
+      { id: 'c1', norm: 'ISO 14001', chapter: 6, code: '14001-6.1.1', title: 'Riesgos y oportunidades' },
+      { id: 'objective', norm: 'ISO 14001', chapter: 6, code: '14001-6.2.1', title: 'Objetivos ambientales' },
+    ]
+    const chapters = getChapters('ISO 14001', environmental, [
+      approved('historic', 'environment-root'), approved('environmental', 'c2'),
+    ])
+    expect(chapters).toHaveLength(1)
+    expect(chapters[0].requirements.map(({ code }) => code)).toEqual([
+      '14001-6.1.1', '14001-6.1.2', '14001-6.1.10', '14001-6.2.1',
+    ])
+    expect(chapters[0]).toMatchObject({
+      total: 4, covered: 1, percent: 25, historicApproved: 1,
+    })
+    expect(chapters[0].documents).toHaveLength(2)
+  })
+
   it('keeps norms isolated and correctly reports empty coverage', () => {
     expect(getChapters('ISO 14001', requirements, [approved('x', 'root')])[0].percent).toBe(0)
     expect(getChapters('ISO 45001', requirements, [])).toEqual([])
