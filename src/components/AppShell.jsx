@@ -169,7 +169,8 @@ export default function AppShell() {
           )}
           {switchError && <span className="company-switch-error" role="alert">{switchError}</span>}
         </header>
-        <main className="page-content"><Outlet /></main>
+        {/* Remount all tenant pages when context changes, discarding cached company data. */}
+        <main key={company?.id || 'unassigned'} className="page-content"><Outlet /></main>
       </div>
     </div>
   )

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { APP_URL } from '../lib/constants'
 import { requireSupabase, supabaseConfigured } from '../lib/supabase'
 import { readSelectedCompany, rememberSelectedCompany } from '../services/tenantService'
+import { selectWorkspaceCompany } from '../lib/workspaceSelection'
 
 const AuthContext = createContext(null)
 
@@ -58,7 +59,8 @@ async function loadWorkspace(user) {
   const preferredMatch = preferredCompany?.slug
     ? companies.find((item) => item.slug === preferredCompany.slug)
     : null
-  const selectedCompany = preferredMatch ?? companies[0] ?? null
+  // Never silently open company A when signing in through company B.
+  const selectedCompany = selectWorkspaceCompany(companies, preferredCompany, isPlatformAdmin)
   const selectedMembership = selectedCompany
     ? memberships.find((item) => item.company?.id === selectedCompany.id)
     : null
