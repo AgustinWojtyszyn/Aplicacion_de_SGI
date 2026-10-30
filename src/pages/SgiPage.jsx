@@ -226,7 +226,7 @@ export default function SgiPage() {
     ))}</div>
   }
 
-  return <section className="page-stack sgi-page">
+  return <section className="page-stack sgi-page" data-norm={selectedNorm}>
     {!chapter ? <>
       <header className="page-heading">
         <div><p className="eyebrow">SISTEMA DE GESTIÓN INTEGRADO</p><h1>SGI e ISO</h1>
@@ -237,7 +237,7 @@ export default function SgiPage() {
         {NORMS.map((norm) => {
           const normTotal = groups[norm].reduce((sum, item) => sum + item.total, 0)
           const normCovered = groups[norm].reduce((sum, item) => sum + item.covered, 0)
-          return <button key={norm} type="button" className={selectedNorm === norm ? 'norm-tab active' : 'norm-tab'} onClick={() => changeNorm(norm)} aria-pressed={selectedNorm === norm}>
+          return <button key={norm} type="button" data-norm={norm} className={selectedNorm === norm ? 'norm-tab active' : 'norm-tab'} onClick={() => changeNorm(norm)} aria-pressed={selectedNorm === norm}>
             <ShieldCheck size={17} /><span>{norm === 'SGI' ? 'SGI Integrado' : norm}</span>
             <strong>{normTotal ? Math.round(normCovered * 100 / normTotal) : 0}%</strong>
           </button>
