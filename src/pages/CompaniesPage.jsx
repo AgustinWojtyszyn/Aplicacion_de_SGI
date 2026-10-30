@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { getCompanyDeletionBlockReason } from '../lib/companyDeletion'
 import {
   createCompanyWorkspace,
+  findCompanyBySlug,
   deleteCompanyWorkspace,
   listManagedCompanies,
   rememberSelectedCompany,
@@ -65,6 +66,8 @@ export default function CompaniesPage() {
 
   const activeCount = managedCompanies.filter((item) => item.is_active).length
   const archivedCount = managedCompanies.length - activeCount
+  const newCompanySlug = modalMode === 'create' ? slugifyCompanyName(form.name) : ''
+  const existingCompany = findCompanyBySlug(managedCompanies, newCompanySlug)
 
   const visibleCompanies = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -106,13 +109,18 @@ export default function CompaniesPage() {
     const companyName = form.name.trim()
     const slug = slugifyCompanyName(companyName)
 
-    if (!companyName || !slug) return
+    if (!companyName || !slug || submitting) return
 
     setSubmitting(true)
     setError('')
     setNotice('')
 
     try {
+      // Actualizamos el listado antes del alta para detectar empresas archivadas.
+      const currentCompanies = await listManagedCompanies()
+      setManagedCompanies(currentCompanies)
+      if (findCompanyBySlug(currentCompanies, slug)) return
+
       await createCompanyWorkspace({ name: companyName, slug })
       await syncCompanies()
       setNotice(`${companyName} quedó creada. Podés abrirla y agregar usuarios cuando quieras.`)
@@ -121,7 +129,38 @@ export default function CompaniesPage() {
       setForm(EMPTY_FORM)
     } catch (createError) {
       console.error(createError)
+      if (createError.message?.includes('Ya existe una empresa con ese identificador')) {
+        try {
+          const currentCompanies = await listManagedCompanies()
+          setManagedCompanies(currentCompanies)
+          if (findCompanyBySlug(currentCompanies, slug)) return
+        } catch (refreshError) {
+          console.error(refreshError)
+        }
+      }
       setError(createError.message || 'No se pudo crear la empresa.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleRestoreCompany() {
+    if (!existingCompany || existingCompany.is_active || submitting) return
+    if (!window.confirm(`¿Restaurar "${existingCompany.name}"? Se recuperará el espacio existente, con sus usuarios y datos. No se creará una empresa vacía.`)) return
+
+    setSubmitting(true)
+    setError('')
+    setNotice('')
+    try {
+      await setCompanyActive({ companyId: existingCompany.id, isActive: true })
+      await syncCompanies()
+      setFilter('active')
+      setNotice(`${existingCompany.name} quedó restaurada y ya podés abrirla.`)
+      setModalMode(null)
+      setForm(EMPTY_FORM)
+    } catch (restoreError) {
+      console.error(restoreError)
+      setError(restoreError.message || 'No se pudo restaurar la empresa.')
     } finally {
       setSubmitting(false)
     }
@@ -373,6 +412,7 @@ export default function CompaniesPage() {
                       name,
                       slug: modalMode === 'create' ? slugifyCompanyName(name) : current.slug,
                     }))
+                    setError('')
                   }}
                   placeholder="Ej. Empresa Andina SA"
                   minLength={2}
@@ -400,6 +440,21 @@ export default function CompaniesPage() {
                 </label>
               )}
 
+              {modalMode === 'create' && existingCompany && (
+                <div className="company-slug-conflict" role="status">
+                  {existingCompany.is_active ? (
+                    <p>Este acceso ya pertenece a <strong>{existingCompany.name}</strong>. La empresa está activa; podés encontrarla en la lista de empresas.</p>
+                  ) : (
+                    <>
+                      <p><strong>{existingCompany.name}</strong> está archivada, no eliminada. Su acceso sigue reservado. Podés restaurarla con los datos que ya tenía.</p>
+                      <button className="secondary-button" type="button" onClick={handleRestoreCompany} disabled={submitting}>
+                        <RotateCcw size={16} /> Restaurar empresa archivada
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
               {error && <div className="form-error" role="alert">{error}</div>}
 
               <div className="company-modal-actions">
@@ -407,7 +462,7 @@ export default function CompaniesPage() {
                 <button
                   className="primary-button"
                   type="submit"
-                  disabled={submitting || !form.name.trim() || (modalMode === 'edit' && !form.slug.trim())}
+                  disabled={submitting || !form.name.trim() || (modalMode === 'create' && Boolean(existingCompany)) || (modalMode === 'edit' && !form.slug.trim())}
                 >
                   {submitting ? 'Guardando…' : modalMode === 'create' ? 'Crear empresa' : 'Guardar cambios'}
                 </button>

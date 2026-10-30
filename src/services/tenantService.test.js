@@ -3,6 +3,7 @@ import { requireSupabase } from '../lib/supabase'
 import {
   COMPANY_SELECTION_KEY,
   deleteCompanyWorkspace,
+  findCompanyBySlug,
   readSelectedCompany,
   rememberSelectedCompany,
   slugifyCompanyName,
@@ -19,6 +20,17 @@ describe('tenant selection helpers', () => {
   it('creates stable company slugs from display names', () => {
     expect(slugifyCompanyName('Empresa Ándina S.A.')).toBe('empresa-andina-s-a')
     expect(slugifyCompanyName('  Minera  del Sur  ')).toBe('minera-del-sur')
+  })
+
+  it('detects archived and active slugs while allowing deleted names', () => {
+    const companies = [
+      { id: 'old-1', slug: 'parque-fotovoltaico-cutral-co-mun', is_active: false },
+      { id: 'active-1', slug: 'empresa-andina', is_active: true },
+    ]
+    expect(findCompanyBySlug(companies, ' PARQUE-FOTOVOLTAICO-CUTRAL-CO-MUN ')).toEqual(companies[0])
+    expect(findCompanyBySlug(companies, 'empresa-andina')).toEqual(companies[1])
+    expect(findCompanyBySlug(companies, 'empresa-eliminada')).toBeNull()
+    expect(findCompanyBySlug(companies, '')).toBeNull()
   })
 
   it('persists the selected company without extra data', () => {

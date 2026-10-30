@@ -162,6 +162,13 @@ export async function deleteCompanyWorkspace(companyId) {
   }
 }
 
+// También contempla los identificadores de empresas archivadas.
+export function findCompanyBySlug(companies, slug) {
+  const normalized = String(slug ?? '').trim().toLowerCase()
+  if (!normalized) return null
+  return (companies ?? []).find((company) => company.slug?.toLowerCase() === normalized) ?? null
+}
+
 export function slugifyCompanyName(value = '') {
   return value
     .normalize('NFD')

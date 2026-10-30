@@ -497,6 +497,19 @@
   font-size: .72rem;
 }
 .company-generated-slug strong { color: var(--text); }
+.company-slug-conflict {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #f1d7a6;
+  border-radius: 12px;
+  background: #fff9ed;
+  color: #71501d;
+  font-size: .83rem;
+  line-height: 1.5;
+}
+.company-slug-conflict p { margin: 0; }
+.company-slug-conflict .secondary-button { justify-self: start; display: inline-flex; align-items: center; gap: 7px; }
 .company-modal-actions {
   display: flex;
   justify-content: flex-end;
