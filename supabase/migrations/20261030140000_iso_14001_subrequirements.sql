@@ -47,6 +47,8 @@ join public.sgi_requirements parent
  and parent.is_active
 on conflict (company_id, norm, code) do nothing;
 
+commit;
+
 -- Control: comprobar que cada empresa con ISO 14001 tenga el desglose por capítulo.
 select c.name as empresa, r.chapter as capitulo,
        count(*) filter (where r.code like '14001-%.%') as subrequisitos,
@@ -57,4 +59,3 @@ where r.norm = 'ISO 14001' and r.is_active
 group by c.name, r.chapter
 order by c.name, r.chapter;
 
-commit;
