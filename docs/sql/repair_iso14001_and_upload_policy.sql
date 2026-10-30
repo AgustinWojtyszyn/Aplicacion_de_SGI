@@ -3,20 +3,20 @@
 -- No modifica documentos, carpetas, versiones, aprobaciones ni membresías.
 begin;
 
--- Fijar el conjunto antes de insertar: solo empresas activas que ya usan ISO 14001.
-create temporary table repair_iso14001_targets on commit drop as
-select c.id, c.name
-from public.companies c
-where c.is_active
-  and exists (
-    select 1 from public.sgi_requirements r
-    where r.company_id = c.id and r.norm = 'ISO 14001' and r.is_active
-  );
-
 -- Completar raíces ausentes sin sobreescribir personalizaciones.
 insert into public.sgi_requirements (company_id, norm, chapter, code, title, description)
 select c.id, 'ISO 14001', s.chapter, '14001-' || s.chapter::text, s.title, s.title
-from repair_iso14001_targets c
+from (
+  select company.id
+  from public.companies company
+  where company.is_active
+    and exists (
+      select 1 from public.sgi_requirements existing
+      where existing.company_id = company.id
+        and existing.norm = 'ISO 14001'
+        and existing.is_active
+    )
+) c
 cross join (values
   (4, 'Contexto de la organización'),
   (5, 'Liderazgo y política ambiental'),
@@ -31,7 +31,17 @@ on conflict (company_id, norm, code) do nothing;
 -- Completar cláusulas sin depender de la existencia de cada raíz.
 insert into public.sgi_requirements (company_id, norm, chapter, code, title, description)
 select c.id, 'ISO 14001', detail.chapter, detail.code, detail.title, detail.description
-from repair_iso14001_targets c
+from (
+  select company.id
+  from public.companies company
+  where company.is_active
+    and exists (
+      select 1 from public.sgi_requirements existing
+      where existing.company_id = company.id
+        and existing.norm = 'ISO 14001'
+        and existing.is_active
+    )
+) c
 cross join (
   values
     (4, '14001-4.1', 'Comprensión de la organización y su contexto', 'Identificar factores internos y externos relevantes para el desempeño ambiental.'),
