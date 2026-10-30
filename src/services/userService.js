@@ -151,6 +151,9 @@ export async function assignExistingCompanyUser({ companyId, userId, role = 'adm
   if (error?.code === '23505') {
     throw new Error('Esta persona ya está vinculada a la empresa. Editá su acceso desde el listado de usuarios.')
   }
+  if (error?.message?.includes('user_already_assigned_to_another_company')) {
+    throw new Error('Esta cuenta ya está vinculada a otra empresa. Solo los administradores globales pueden acceder a todas las empresas.')
+  }
   if (error) throw error
   return data
 }

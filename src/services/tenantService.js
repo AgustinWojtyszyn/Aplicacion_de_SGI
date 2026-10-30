@@ -2,6 +2,18 @@ import { requireSupabase } from '../lib/supabase'
 
 export const COMPANY_SELECTION_KEY = 'ep-consultora.selected-company'
 
+// Short public codes do not change the company's immutable database slug.
+export const SIMPLE_COMPANY_CODES = Object.freeze({
+  'andes-calingasta-srl': 'andes',
+  'ep-consultora': 'gestiqa',
+  'ingetec': 'ingetec',
+  'parque-fotovoltaico-cutral-co': 'cutral',
+})
+
+export function getCompanyAccessCode(slug) {
+  return SIMPLE_COMPANY_CODES[slug] || slug
+}
+
 export function rememberSelectedCompany(company) {
   if (!company?.slug) return
   window.localStorage.setItem(COMPANY_SELECTION_KEY, JSON.stringify({

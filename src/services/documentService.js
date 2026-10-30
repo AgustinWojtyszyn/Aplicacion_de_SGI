@@ -381,16 +381,29 @@ export async function deleteDocument({ documentId, filePath }) {
   }
 }
 
-export async function openDocumentFile(filePath) {
+export async function openDocumentFile(filePath, { documentId, versionId = null, role = 'admin' } = {}) {
   const supabase = requireSupabase()
   const previewWindow = window.open('', '_blank')
   try {
-    const { data, error } = await supabase.storage.from(DOCUMENT_BUCKET).createSignedUrl(filePath, 60)
-    if (error) throw error
+    let url
+    if (role === 'admin') {
+      const { data, error } = await supabase.storage.from(DOCUMENT_BUCKET).createSignedUrl(filePath, 60)
+      if (error) throw error
+      url = data.signedUrl
+    } else {
+      if (!documentId) throw new Error('No se identificó el documento.')
+      const { data, error } = await supabase.functions.invoke('preview-document', {
+        body: { documentId, versionId },
+      })
+      if (error) throw new Error('No se pudo abrir la vista previa. Verificá que preview-document esté desplegada.')
+      if (!(data instanceof Blob)) throw new Error('El archivo no tiene una vista previa compatible. Consultá al administrador.')
+      url = URL.createObjectURL(data)
+      if (data.type === 'application/pdf') url += '#toolbar=0&navpanes=0'
+    }
     if (previewWindow) {
       previewWindow.opener = null
-      previewWindow.location.href = data.signedUrl
-    } else window.location.assign(data.signedUrl)
+      previewWindow.location.href = url
+    } else window.location.assign(url)
   } catch (error) {
     previewWindow?.close()
     throw error

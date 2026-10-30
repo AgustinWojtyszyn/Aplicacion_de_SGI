@@ -1,4 +1,4 @@
-import { Download, FilePlus2, FileText, Folder, FolderPlus, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react'
+import { Download, Eye, FilePlus2, FileText, Folder, FolderPlus, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import DocumentDetailDrawer from '../components/DocumentDetailDrawer'
@@ -58,7 +58,7 @@ function matchesFollowUp(document, filter) {
 }
 
 export default function DocumentsPage() {
-  const { company, modules, user } = useAuth()
+  const { company, modules, user, role } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const queryString = searchParams.toString()
   const [documents, setDocuments] = useState([])
@@ -193,7 +193,7 @@ export default function DocumentsPage() {
   async function handleOpenFile(document, event) {
     event?.stopPropagation()
     try {
-      await openDocumentFile(document.file_path)
+      await openDocumentFile(document.file_path, { documentId: document.id, role })
     } catch (openError) {
       console.error(openError)
       setError('No se pudo abrir el archivo. Intentá nuevamente.')
@@ -241,16 +241,16 @@ export default function DocumentsPage() {
           <p>{routeContext ? `Vista filtrada: ${routeContext}.` : 'Archivos controlados, responsables y estado actual en un único lugar.'}</p>
         </div>
         <div className="documents-heading-actions">
-          {filters.requirementId && (
+          {role === 'admin' && filters.requirementId && (
             <button className="secondary-button page-primary-action" onClick={() => setFolderCreateOpen(true)}>
               <FolderPlus size={18} />
               {selectedFolder ? 'Nueva subcarpeta' : 'Nueva carpeta'}
             </button>
           )}
-          <button className="primary-button page-primary-action" onClick={() => setCreateOpen(true)}>
+          {role === 'admin' && <button className="primary-button page-primary-action" onClick={() => setCreateOpen(true)}>
             <FilePlus2 size={18} />
             Nuevo documento
-          </button>
+          </button>}
         </div>
       </header>
 
@@ -393,7 +393,7 @@ export default function DocumentsPage() {
                       <td data-label="Seguimiento"><div className={`followup-badge ${followUp.tone}`}><strong>{followUp.label}</strong><span>{followUp.detail}</span></div></td>
                       <td data-label="Responsable">{document.responsible?.full_name || document.responsible?.email || 'Sin asignar'}</td>
                       <td data-label="Fecha">{formatDate(document.created_at)}</td>
-                      <td><button className="icon-button table-action" onClick={(event) => handleOpenFile(document, event)} aria-label={`Abrir ${document.title}`} title="Abrir archivo"><Download size={17} /></button></td>
+                      <td><button className="icon-button table-action" onClick={(event) => handleOpenFile(document, event)} aria-label={`Ver ${document.title}`} title={role === 'admin' ? 'Abrir archivo' : 'Vista previa'}>{role === 'admin' ? <Download size={17} /> : <Eye size={17} />}</button></td>
                     </tr>
                   )
                 })}
@@ -410,7 +410,7 @@ export default function DocumentsPage() {
       </div>
 
       <DocumentFormModal
-        open={createOpen}
+        open={role === 'admin' && createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={async () => {
           await load()
@@ -428,7 +428,7 @@ export default function DocumentsPage() {
         defaultFolderId={selectedFolderId}
       />
 
-      {folderCreateOpen && (
+      {role === 'admin' && folderCreateOpen && (
         <div className="modal-layer" role="presentation">
           <button className="modal-backdrop" onClick={() => { setFolderCreateOpen(false); setFolderName('') }} aria-label="Cerrar" />
           <section className="modal-card folder-modal-card" role="dialog" aria-modal="true" aria-labelledby="new-folder-title">

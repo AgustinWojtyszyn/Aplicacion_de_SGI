@@ -7,19 +7,38 @@ export function canManageCompanies({ role, isPlatformAdmin }) {
 }
 
 export function canManageDocument({ role, userId, document }) {
-  if (!document || !userId || document.status !== 'draft') return false
-  if (role === 'admin' || role === 'responsible') return true
-  return document.created_by === userId || document.responsible_id === userId
+  return Boolean(userId && document && document.status === 'draft' && role === 'admin')
 }
 
 export function canDeleteDocument({ role, userId, document }) {
-  if (!document || !userId) return false
-  if (role === 'admin') return true
-  return document.created_by === userId && document.status === 'draft'
+  return Boolean(userId && document && role === 'admin')
+}
+
+export function canReviewDocument({ role, userId, document }) {
+  return Boolean(document && userId && document.status === 'in_progress'
+    && (role === 'admin' || (role === 'responsible' && document.reviewer_id === userId)))
+}
+
+export function canApproveDocument({ role, userId, document }) {
+  return Boolean(document && userId && document.status === 'in_progress'
+    && document.reviewed_at
+    && (role === 'admin' || (role === 'responsible' && document.approver_id === userId)))
+}
+
+export function canRejectDocument({ role, userId, document }) {
+  return Boolean(document && userId && document.status === 'in_progress'
+    && (role === 'admin' || (role === 'responsible'
+      && (document.reviewer_id === userId || document.approver_id === userId))))
+}
+
+export function canCommentDocument({ role, userId, document }) {
+  return Boolean(document && userId && (role === 'admin'
+    || (role === 'responsible'
+      && (document.reviewer_id === userId || document.approver_id === userId))))
 }
 
 export function roleLabel(role) {
   if (role === 'admin') return 'Administrador'
   if (role === 'responsible') return 'Responsable'
-  return 'Miembro'
+  return 'Usuario'
 }

@@ -7,7 +7,7 @@ import { getLoginCompany, rememberSelectedCompany } from '../services/tenantServ
 
 export default function LoginPage() {
   const { companySlug } = useParams()
-  const { configured, user, loading, signIn, signUp, requestPasswordReset } = useAuth()
+  const { configured, user, loading, role, signIn, signUp, requestPasswordReset } = useAuth()
   const [company, setCompany] = useState(null)
   const [companyLoading, setCompanyLoading] = useState(true)
   const [companyError, setCompanyError] = useState('')
@@ -56,7 +56,7 @@ export default function LoginPage() {
     setNotice('')
   }, [email, password, fullName, mode])
 
-  if (!loading && user) return <Navigate to="/dashboard" replace />
+  if (!loading && user) return <Navigate to={role === 'admin' ? '/dashboard' : '/documents'} replace />
   if (!companySlug) return <Navigate to="/" replace />
 
   async function handleSubmit(event) {

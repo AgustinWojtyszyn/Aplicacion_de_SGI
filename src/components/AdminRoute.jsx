@@ -10,7 +10,7 @@ export default function AdminRoute({ platformOnly = false }) {
     : canManageUsers(role)
 
   if (!allowed) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/documents" replace />
   }
 
   return <Outlet />

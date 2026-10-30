@@ -91,17 +91,13 @@ Deno.serve(async (request) => {
   ])
 
   if (documentError || !document) return json({ error: 'document_not_found' }, 404)
-  if (!platformAdmin && !membership) return json({ error: 'not_authorized' }, 403)
-
-  const canSend = Boolean(
-    platformAdmin
-      || membership?.role === 'admin'
-      || membership?.role === 'responsible'
-      || document.created_by === authData.user.id
-      || document.responsible_id === authData.user.id,
-  )
-
-  if (!canSend) return json({ error: 'not_authorized' }, 403)
+  const { data: hasTenantAccess, error: accessError } = await adminClient.rpc('is_company_member', {
+    p_company_id: companyId,
+    p_user_id: authData.user.id,
+  })
+  if (accessError || !hasTenantAccess || (!platformAdmin && membership?.role !== 'admin')) {
+    return json({ error: 'not_authorized' }, 403)
+  }
 
   if (!resendApiKey) return json({ error: 'resend_not_configured' }, 500)
 

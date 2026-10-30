@@ -26,6 +26,7 @@ import {
   rememberSelectedCompany,
   setCompanyActive,
   slugifyCompanyName,
+  getCompanyAccessCode,
   updateCompanyWorkspace,
 } from '../services/tenantService'
 
@@ -383,7 +384,7 @@ export default function CompaniesPage() {
                       {isCurrent && <span className="company-current-pill">En uso</span>}
                       {!item.is_active && <span className="company-archived-pill">Archivada</span>}
                     </div>
-                    <span className="company-management-slug">/{item.slug}</span>
+                    <span className="company-management-slug">Código: <strong>{getCompanyAccessCode(item.slug)}</strong></span>
                     <div className="company-management-stats">
                       <span><UsersRound size={14} /> {users} usuario{users === 1 ? '' : 's'}</span>
                       <span><FileText size={14} /> {documents} documento{documents === 1 ? '' : 's'}</span>

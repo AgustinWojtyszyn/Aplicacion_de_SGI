@@ -71,7 +71,14 @@ export default function AppShell() {
   const { profile, company, companies, role, isPlatformAdmin, switchCompany, signOut } = useAuth()
 
   const navigationGroups = useMemo(() => {
-    const groups = [
+    const groups = role !== 'admin' ? [{
+      label: 'Documentación',
+      icon: FileText,
+      items: [
+        { to: '/documents', label: 'Documentos', icon: FileText },
+        { to: '/notifications', label: 'Alertas', icon: BellRing },
+      ],
+    }] : [
       {
         label: 'Operación',
         icon: BriefcaseBusiness,
@@ -156,7 +163,7 @@ export default function AppShell() {
             <strong>{company?.name || 'Gestión integrada'}</strong>
           </div>
 
-          {(isPlatformAdmin || companies.length > 1) && companies.length > 0 ? (
+          {isPlatformAdmin && companies.length > 0 ? (
             <label className="company-switcher">
               <Building2 size={16} />
               <span>{switchingCompany ? 'Cambiando…' : 'Empresa'}</span>

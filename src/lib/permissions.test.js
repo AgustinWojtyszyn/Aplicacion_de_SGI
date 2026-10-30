@@ -1,58 +1,48 @@
 import { describe, expect, it } from 'vitest'
 import {
-  canDeleteDocument,
-  canManageCompanies,
-  canManageDocument,
-  canManageUsers,
-  roleLabel,
+  canApproveDocument, canCommentDocument, canDeleteDocument, canManageCompanies,
+  canManageDocument, canManageUsers, canRejectDocument, canReviewDocument, roleLabel,
 } from './permissions'
 
-const otherDocument = {
-  id: 'doc-1',
-  created_by: 'creator-1',
-  responsible_id: 'responsible-1',
-  status: 'draft',
+const document = {
+  id: 'doc-1', created_by: 'member', responsible_id: 'member',
+  reviewer_id: 'reviewer', approver_id: 'approver',
+  reviewed_at: '2026-10-30T10:00:00Z', status: 'in_progress',
 }
 
-describe('role permissions', () => {
-  it('reserves user administration for admins', () => {
+describe('final document roles', () => {
+  it('reserves user and company management for administrators', () => {
     expect(canManageUsers('admin')).toBe(true)
     expect(canManageUsers('responsible')).toBe(false)
     expect(canManageUsers('member')).toBe(false)
-  })
-
-  it('reserves company workspace administration for platform admins', () => {
     expect(canManageCompanies({ role: 'admin', isPlatformAdmin: true })).toBe(true)
     expect(canManageCompanies({ role: 'admin', isPlatformAdmin: false })).toBe(false)
-    expect(canManageCompanies({ role: 'responsible', isPlatformAdmin: true })).toBe(false)
-    expect(canManageCompanies({ role: 'member', isPlatformAdmin: true })).toBe(false)
   })
-
-  it('lets admins and responsible roles manage any company document', () => {
-    expect(canManageDocument({ role: 'admin', userId: 'user-1', document: otherDocument })).toBe(true)
-    expect(canManageDocument({ role: 'responsible', userId: 'user-1', document: otherDocument })).toBe(true)
+  it('restricts changes and deletion to administrators', () => {
+    for (const role of ['member', 'responsible']) {
+      expect(canManageDocument({ role, userId: 'member', document: { ...document, status: 'draft' } })).toBe(false)
+      expect(canDeleteDocument({ role, userId: 'member', document })).toBe(false)
+    }
+    expect(canManageDocument({ role: 'admin', userId: 'admin', document: { ...document, status: 'draft' } })).toBe(true)
+    expect(canDeleteDocument({ role: 'admin', userId: 'admin', document })).toBe(true)
   })
-
-  it('limits members to documents they created or are responsible for', () => {
-    expect(canManageDocument({ role: 'member', userId: 'creator-1', document: otherDocument })).toBe(true)
-    expect(canManageDocument({ role: 'member', userId: 'responsible-1', document: otherDocument })).toBe(true)
-    expect(canManageDocument({ role: 'member', userId: 'other-1', document: otherDocument })).toBe(false)
+  it('restricts reviews, approvals, rejections and comments to assigned responsible users', () => {
+    expect(canReviewDocument({ role: 'responsible', userId: 'reviewer', document })).toBe(true)
+    expect(canReviewDocument({ role: 'responsible', userId: 'approver', document })).toBe(false)
+    expect(canReviewDocument({ role: 'member', userId: 'reviewer', document })).toBe(false)
+    expect(canApproveDocument({ role: 'responsible', userId: 'approver', document })).toBe(true)
+    expect(canApproveDocument({ role: 'responsible', userId: 'reviewer', document })).toBe(false)
+    expect(canApproveDocument({ role: 'member', userId: 'approver', document })).toBe(false)
+    expect(canApproveDocument({ role: 'responsible', userId: 'approver', document: { ...document, reviewed_at: null } })).toBe(false)
+    expect(canRejectDocument({ role: 'responsible', userId: 'reviewer', document })).toBe(true)
+    expect(canRejectDocument({ role: 'member', userId: 'reviewer', document })).toBe(false)
+    expect(canCommentDocument({ role: 'responsible', userId: 'approver', document })).toBe(true)
+    expect(canCommentDocument({ role: 'member', userId: 'member', document })).toBe(false)
+    expect(canReviewDocument({ role: 'admin', userId: 'admin', document })).toBe(true)
   })
-
-  it('matches delete visibility with the database policy', () => {
-    expect(canDeleteDocument({ role: 'admin', userId: 'other-1', document: otherDocument })).toBe(true)
-    expect(canDeleteDocument({ role: 'responsible', userId: 'other-1', document: otherDocument })).toBe(false)
-    expect(canDeleteDocument({ role: 'member', userId: 'creator-1', document: otherDocument })).toBe(true)
-    expect(canDeleteDocument({
-      role: 'member',
-      userId: 'creator-1',
-      document: { ...otherDocument, status: 'in_progress' },
-    })).toBe(false)
-  })
-
-  it('uses readable role labels', () => {
+  it('uses understandable role labels', () => {
     expect(roleLabel('admin')).toBe('Administrador')
     expect(roleLabel('responsible')).toBe('Responsable')
-    expect(roleLabel('member')).toBe('Miembro')
+    expect(roleLabel('member')).toBe('Usuario')
   })
 })

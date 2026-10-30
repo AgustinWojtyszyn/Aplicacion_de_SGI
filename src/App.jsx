@@ -23,9 +23,11 @@ export default function App() {
     <Route path="/login/:companySlug" element={<LoginPage />} />
     <Route path="/set-password" element={<SetPasswordPage />} />
     <Route element={<ProtectedRoute />}><Route element={<AppShell />}>
-      <Route path="/dashboard" element={<DashboardWorkspacePage />} />
-      <Route path="/work" element={<WorkEntriesPage />} />
-      <Route path="/sgi" element={<SgiPage />} />
+      <Route element={<AdminRoute />}>
+        <Route path="/dashboard" element={<DashboardWorkspacePage />} />
+        <Route path="/work" element={<WorkEntriesPage />} />
+        <Route path="/sgi" element={<SgiPage />} />
+      </Route>
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
       <Route path="/profile" element={<ProfilePage />} />

@@ -4,6 +4,7 @@ import {
   COMPANY_SELECTION_KEY,
   deleteCompanyWorkspace,
   findCompanyBySlug,
+  getCompanyAccessCode,
   readSelectedCompany,
   rememberSelectedCompany,
   slugifyCompanyName,
@@ -17,6 +18,14 @@ beforeEach(() => {
 })
 
 describe('tenant selection helpers', () => {
+  it('keeps old slugs while showing the four short access codes', () => {
+    expect(getCompanyAccessCode('andes-calingasta-srl')).toBe('andes')
+    expect(getCompanyAccessCode('ep-consultora')).toBe('gestiqa')
+    expect(getCompanyAccessCode('ingetec')).toBe('ingetec')
+    expect(getCompanyAccessCode('parque-fotovoltaico-cutral-co')).toBe('cutral')
+    expect(getCompanyAccessCode('future-company')).toBe('future-company')
+  })
+
   it('creates stable company slugs from display names', () => {
     expect(slugifyCompanyName('Empresa Ándina S.A.')).toBe('empresa-andina-s-a')
     expect(slugifyCompanyName('  Minera  del Sur  ')).toBe('minera-del-sur')
