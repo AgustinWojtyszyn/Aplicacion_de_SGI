@@ -103,3 +103,20 @@
 .sgi-returned-label { border-radius:999px;padding:5px 8px;background:#fff0e1;color:#92551e;font-size:.64rem;font-weight:800;white-space:nowrap; }
 .sgi-returned-warning { color:#946223;font-size:.72rem;line-height:1.5; }
 @media(max-width:540px) { .sgi-action-row .secondary-button { width:100%; } }
+
+/* Distinguish the selected norm without changing document workflow colors. */
+.sgi-page .norm-tab[data-norm="ISO 9001"] { --tab-accent:#20528a; --tab-tint:#eaf3ff; }
+.sgi-page .norm-tab[data-norm="ISO 14001"] { --tab-accent:#17643d; --tab-tint:#eaf8ef; }
+.sgi-page .norm-tab[data-norm="ISO 45001"] { --tab-accent:#925012; --tab-tint:#fff3e4; }
+.sgi-page .norm-tab[data-norm="SGI"] { --tab-accent:#663e9b; --tab-tint:#f5efff; }
+.sgi-page .norm-tab.active { color:var(--tab-accent);background:var(--tab-tint);border:2px solid var(--tab-accent);padding:13px 15px;box-shadow:0 0 0 1px var(--tab-accent);font-weight:800; }
+.sgi-page .norm-tab.active strong { color:var(--tab-accent); }
+.sgi-page .norm-tab:focus-visible { outline:3px solid var(--tab-accent,var(--primary));outline-offset:3px; }
+.sgi-page[data-norm="ISO 9001"] { --norm-accent:#20528a; }
+.sgi-page[data-norm="ISO 14001"] { --norm-accent:#17643d; }
+.sgi-page[data-norm="ISO 45001"] { --norm-accent:#925012; }
+.sgi-page[data-norm="SGI"] { --norm-accent:#663e9b; }
+.sgi-page .compliance-chapter-track span { background:var(--norm-accent,var(--primary)); }
+.sgi-page .sgi-chapter-action,.sgi-page .sgi-breadcrumbs a { color:var(--norm-accent,var(--brand)); }
+.sgi-page .compliance-chapter-card:hover { border-color:var(--norm-accent,var(--primary)); }
+.sgi-page .sgi-clause.open { border-color:var(--norm-accent,var(--primary)); }
