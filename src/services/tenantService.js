@@ -118,51 +118,62 @@ export async function setCompanyActive({ companyId, isActive }) {
   }
 }
 
-export async function deleteCompanyWorkspace(companyId) {
+const COMPANY_DELETE_FUNCTION = 'delete-company'
+
+async function invokeCompanyDeletion(body) {
   const supabase = requireSupabase()
+  const { data, error } = await supabase.functions.invoke(COMPANY_DELETE_FUNCTION, { body })
 
-  // No iniciar nunca un borrado sin verificar también el contenido oculto
-  // (carpetas, trabajos y registros de trabajos ya eliminados).
-  const tables = ['documents', 'document_folders', 'work_entries', 'work_entry_activity']
-  const results = await Promise.all(tables.map((table) => (
-    supabase.from(table).select('id', { count: 'exact', head: true }).eq('company_id', companyId)
-  )))
-
-  if (results.some((result) => result.error)) {
-    throw new Error('No se pudo comprobar si la empresa tiene información. No se eliminó nada.')
-  }
-
-  if (results[0].count > 0) {
-    throw new Error('Esta empresa tiene documentos. Eliminá primero su documentación o archivala para ocultarla del acceso.')
-  }
-  if (results[1].count > 0) {
-    throw new Error('Esta empresa todavía tiene carpetas. Eliminá primero las carpetas vacías o mantenela archivada.')
-  }
-  if (results[2].count > 0 || results[3].count > 0) {
-    throw new Error('Esta empresa tiene trabajos o historial operativo. Para conservar esos registros, solo se puede archivar.')
-  }
-
-  const { error } = await supabase.rpc('delete_company_workspace', {
-    p_company_id: companyId,
-  })
-
-  if (error) {
-    const messages = {
-      system_company_cannot_be_deleted: 'El espacio principal de gestiQa no se puede eliminar.',
-      company_must_be_archived_before_delete: 'Primero archivá la empresa y después podrás eliminarla.',
-      company_has_documents: 'La empresa tiene documentos. No se eliminó nada; primero quitá su documentación o archivala.',
-      company_has_folders: 'La empresa tiene carpetas. No se eliminó nada.',
-      company_has_work_history: 'La empresa tiene trabajos o historial operativo. No se eliminó nada; podés archivarla.',
-      not_authorized: 'Solo una persona con permisos de administración global puede eliminar empresas.',
-      company_not_found: 'La empresa ya no existe. Actualizá el listado.',
+  if (error || data?.error) {
+    let code = data?.error || ''
+    if (error?.context?.clone) {
+      try {
+        const payload = await error.context.clone().json()
+        code = payload?.error || code
+      } catch {
+        // Fallos de gateway pueden devolver texto en vez de JSON.
+      }
     }
-    const knownCode = Object.keys(messages).find((code) => error.message?.includes(code))
-    if (knownCode) throw new Error(messages[knownCode])
-    throw error
+    const messages = {
+      not_authenticated: 'La sesión venció. Volvé a ingresar.',
+      not_authorized: 'Solo un administrador global puede eliminar empresas.',
+      invalid_company: 'La empresa indicada no es válida.',
+      company_not_found: 'La empresa ya no existe. Actualizá el listado.',
+      company_name_mismatch: 'El nombre de la empresa cambió. Actualizá el listado e intentá de nuevo.',
+      system_company_cannot_be_deleted: 'El espacio principal de gestiQa está protegido.',
+      purge_job_not_found: 'No se encontró la limpieza pendiente.',
+      authorization_check_failed: 'No se pudieron comprobar tus permisos. Probá nuevamente.',
+      server_not_configured: 'Falta configurar la función de eliminación de empresas en Supabase.',
+    }
+    const message = messages[code] || (error?.context?.status === 404
+      ? 'Falta desplegar la función delete-company en Supabase.'
+      : 'No se pudo completar la operación. Revisá la conexión y volvé a intentar.')
+    throw new Error(message)
   }
+  return data
 }
 
-// También contempla los identificadores de empresas archivadas.
+export async function deleteCompanyWorkspace(companyId, companyName) {
+  const result = await invokeCompanyDeletion({ action: 'delete', companyId, companyName })
+  if (!result?.jobId || typeof result.completed !== 'boolean') {
+    throw new Error('Supabase devolvió una respuesta incompleta. Consultá las limpiezas pendientes antes de intentar de nuevo.')
+  }
+  return result
+}
+
+export async function listPendingCompanyDeletions() {
+  const result = await invokeCompanyDeletion({ action: 'list' })
+  return result?.jobs ?? []
+}
+
+export async function retryCompanyDeletion(jobId) {
+  const result = await invokeCompanyDeletion({ action: 'retry', jobId })
+  if (!result?.jobId || typeof result.completed !== 'boolean') {
+    throw new Error('No se pudo verificar el resultado de la limpieza.')
+  }
+  return result
+}
+
 export function findCompanyBySlug(companies, slug) {
   const normalized = String(slug ?? '').trim().toLowerCase()
   if (!normalized) return null

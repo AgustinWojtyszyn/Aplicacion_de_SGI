@@ -21,6 +21,8 @@ import {
   findCompanyBySlug,
   deleteCompanyWorkspace,
   listManagedCompanies,
+  listPendingCompanyDeletions,
+  retryCompanyDeletion,
   rememberSelectedCompany,
   setCompanyActive,
   slugifyCompanyName,
@@ -33,6 +35,8 @@ export default function CompaniesPage() {
   const navigate = useNavigate()
   const { company, refreshWorkspace, switchCompany } = useAuth()
   const [managedCompanies, setManagedCompanies] = useState([])
+  const [pendingCleanups, setPendingCleanups] = useState([])
+  const [cleanupRunning, setCleanupRunning] = useState('')
   const [filter, setFilter] = useState('active')
   const [search, setSearch] = useState('')
   const [modalMode, setModalMode] = useState(null)
@@ -51,7 +55,15 @@ export default function CompaniesPage() {
     setLoading(true)
     setError('')
     try {
-      setManagedCompanies(await listManagedCompanies())
+      const [companies, jobs] = await Promise.all([
+        listManagedCompanies(),
+        listPendingCompanyDeletions().catch((cleanupError) => {
+          console.warn('No se pudieron consultar las limpiezas pendientes', cleanupError)
+          return []
+        }),
+      ])
+      setManagedCompanies(companies)
+      setPendingCleanups(jobs)
     } catch (loadError) {
       console.error(loadError)
       setError(loadError.message || 'No se pudieron cargar las empresas.')
@@ -146,7 +158,6 @@ export default function CompaniesPage() {
 
   async function handleRestoreCompany() {
     if (!existingCompany || existingCompany.is_active || submitting) return
-    if (!window.confirm(`¿Restaurar "${existingCompany.name}"? Se recuperará el espacio existente, con sus usuarios y datos. No se creará una empresa vacía.`)) return
 
     setSubmitting(true)
     setError('')
@@ -204,7 +215,6 @@ export default function CompaniesPage() {
 
   async function handleToggleActive(item) {
     const archiving = item.is_active
-    if (archiving && !window.confirm(`¿Archivar "${item.name}"? Dejará de aparecer en el acceso de usuarios hasta que la restaures.`)) return
 
     setError('')
     setNotice('')
@@ -244,16 +254,37 @@ export default function CompaniesPage() {
     setNotice('')
 
     try {
-      await deleteCompanyWorkspace(item.id)
+      const result = await deleteCompanyWorkspace(item.id, item.name)
       setCompanyToDelete(null)
       setDeleteConfirmation('')
       await syncCompanies()
-      setNotice(item.name + ' fue eliminada definitivamente.')
+      setNotice(result.completed
+        ? item.name + ' fue eliminada definitivamente, incluidos sus archivos.'
+        : item.name + ' fue eliminada de la base. La limpieza de archivos quedó pendiente; podés completarla desde el aviso de abajo.')
     } catch (deleteError) {
       console.error(deleteError)
       setError(deleteError.message || 'No se pudo eliminar la empresa.')
     } finally {
       setDeletingCompanyId('')
+    }
+  }
+
+  async function handleRetryCleanup(job) {
+    if (cleanupRunning) return
+    setCleanupRunning(job.id)
+    setError('')
+    setNotice('')
+    try {
+      const result = await retryCompanyDeletion(job.id)
+      await syncCompanies()
+      setNotice(result.completed
+        ? 'Se completó la eliminación de archivos de ' + job.company_name + '.'
+        : 'La limpieza de ' + job.company_name + ' todavía tiene archivos pendientes. Podés reintentar.')
+    } catch (cleanupError) {
+      console.error(cleanupError)
+      setError(cleanupError.message || 'No se pudo reanudar la limpieza.')
+    } finally {
+      setCleanupRunning('')
     }
   }
 
@@ -291,6 +322,21 @@ export default function CompaniesPage() {
 
       {notice && <div className="auth-notice companies-notice" role="status">{notice}</div>}
       {error && !modalMode && <div className="form-error" role="alert">{error}</div>}
+
+      {pendingCleanups.length > 0 && (
+        <div className="company-cleanup-panel" role="status">
+          <strong>Eliminaciones con archivos pendientes</strong>
+          <p>Estas empresas ya se quitaron del directorio, pero falta terminar de borrar algunos archivos físicos. El proceso se puede reintentar sin eliminar datos de otras empresas.</p>
+          {pendingCleanups.map((job) => (
+            <div className="company-cleanup-row" key={job.id}>
+              <span>{job.company_name}</span>
+              <button className="secondary-button" type="button" disabled={Boolean(cleanupRunning)} onClick={() => handleRetryCleanup(job)}>
+                <RefreshCw size={15} /> {cleanupRunning === job.id ? 'Limpiando…' : 'Completar limpieza'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="companies-admin-toolbar">
         <label className="companies-search">
@@ -488,9 +534,11 @@ export default function CompaniesPage() {
                 <p className="company-delete-blocked" role="status">{getCompanyDeletionBlockReason(companyToDelete)}</p>
               ) : (
                 <>
-                  <p className="company-delete-explanation">
-                    La empresa está archivada y no tiene documentos. Antes de eliminarla también se comprobará que no tenga carpetas ni historial de trabajos.
-                  </p>
+                  <div className="company-delete-explanation">
+                    <strong>Esta eliminación es permanente.</strong>
+                    <p>Se quitarán el espacio, sus {Number(companyToDelete.document_count || 0)} documentos, carpetas, versiones, registros de trabajo y asociaciones de {Number(companyToDelete.member_count || 0)} usuarios. También se eliminarán sus archivos físicos. Las cuentas de usuario y sus accesos a otras empresas se conservan.</p>
+                    <p>No hace falta archivar primero. Una vez eliminada, podrás volver a crear una empresa con el mismo nombre.</p>
+                  </div>
                   <label>
                     Para confirmar, escribí exactamente <strong>{companyToDelete.name}</strong>
                     <input
@@ -511,7 +559,7 @@ export default function CompaniesPage() {
                   {getCompanyDeletionBlockReason(companyToDelete) ? 'Entendido' : 'Cancelar'}
                 </button>
                 {!getCompanyDeletionBlockReason(companyToDelete) && (
-                  <button className="primary-button" type="submit" disabled={Boolean(deletingCompanyId) || deleteConfirmation !== companyToDelete.name}>
+                  <button className="primary-button company-delete-danger" type="submit" disabled={Boolean(deletingCompanyId) || deleteConfirmation !== companyToDelete.name}>
                     {deletingCompanyId ? 'Eliminando…' : 'Eliminar definitivamente'}
                   </button>
                 )}

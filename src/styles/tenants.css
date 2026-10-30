@@ -530,6 +530,26 @@
   color: #71501d;
 }
 .company-delete-explanation { color: var(--muted); }
+.company-delete-explanation strong { color: #9e252c; }
+.company-delete-explanation p { margin: 9px 0 0; }
+.company-delete-danger:not(:disabled) { background: #a42b34; color: white; border-color: #a42b34; }
+.company-delete-danger:not(:disabled):hover { background: #87232a; }
+.company-cleanup-panel {
+  display: grid;
+  gap: 12px;
+  padding: 17px;
+  border: 1px solid #eed7a7;
+  border-radius: 14px;
+  background: #fff9ed;
+  color: #674916;
+}
+.company-cleanup-panel p { margin: 0; font-size: .82rem; line-height: 1.5; }
+.company-cleanup-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.company-cleanup-row .secondary-button { display: inline-flex; align-items: center; gap: 7px; }
+@media (max-width: 520px) {
+  .company-cleanup-row { flex-direction: column; align-items: stretch; }
+}
+
 
 
 @media (max-width: 760px) {

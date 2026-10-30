@@ -1,28 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { getCompanyDeletionBlockReason } from './companyDeletion'
 
-describe('company deletion guard messages', () => {
+describe('company deletion guard', () => {
   it('protects the main workspace', () => {
-    expect(getCompanyDeletionBlockReason({ slug: 'ep-consultora', is_active: false })).toContain('protegido')
+    expect(getCompanyDeletionBlockReason({ slug: 'ep-consultora', is_active: true })).toContain('protegido')
   })
 
-  it('shows the archive step even when the delete icon is visible', () => {
+  it('allows direct deletion of active companies with documents', () => {
     expect(getCompanyDeletionBlockReason({
-      slug: 'empresa-uno', is_active: true, document_count: 0,
-    })).toContain('Primero archivá')
-  })
-
-  it('explains the reason when company documents are present', () => {
-    const message = getCompanyDeletionBlockReason({
-      slug: 'parque-fotovoltaico', is_active: false, document_count: 7,
-    })
-    expect(message).toContain('7 documentos')
-    expect(message).toContain('no se permite eliminarla')
-  })
-
-  it('only allows empty, archived, non-system workspaces to advance', () => {
-    expect(getCompanyDeletionBlockReason({
-      slug: 'empresa-vacia', is_active: false, document_count: 0,
+      slug: 'empresa-activa', is_active: true, document_count: 14,
     })).toBe('')
+  })
+
+  it('allows deletion of archived companies with historical records', () => {
+    expect(getCompanyDeletionBlockReason({
+      slug: 'empresa-archivada', is_active: false, document_count: 3,
+    })).toBe('')
+  })
+
+  it('does not allow a missing company', () => {
+    expect(getCompanyDeletionBlockReason(null)).toContain('no disponible')
   })
 })

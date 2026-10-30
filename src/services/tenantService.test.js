@@ -57,55 +57,37 @@ describe('tenant selection helpers', () => {
   })
 })
 
-function createDeleteMock(counts = {}, errors = {}) {
-  const rpc = vi.fn().mockResolvedValue({ error: null })
-  const from = vi.fn((table) => ({
-    select: vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({
-        count: counts[table] ?? 0,
-        error: errors[table] ?? null,
-      }),
-    })),
-  }))
-  return { from, rpc }
-}
-
-describe('company deletion service', () => {
-  it('does not invoke deletion when the workspace has documents', async () => {
-    const supabase = createDeleteMock({ documents: 7 })
-    requireSupabase.mockReturnValue(supabase)
-    await expect(deleteCompanyWorkspace('company-1')).rejects.toThrow('tiene documentos')
-    expect(supabase.rpc).not.toHaveBeenCalled()
-  })
-
-  it('keeps empty folders and deleted work history safe', async () => {
-    const supabase = createDeleteMock({ work_entry_activity: 1 })
-    requireSupabase.mockReturnValue(supabase)
-    await expect(deleteCompanyWorkspace('company-2')).rejects.toThrow('historial operativo')
-    expect(supabase.rpc).not.toHaveBeenCalled()
-  })
-
-  it('fails closed when any preflight query fails', async () => {
-    const supabase = createDeleteMock({}, { document_folders: { message: 'permission denied' } })
-    requireSupabase.mockReturnValue(supabase)
-    await expect(deleteCompanyWorkspace('company-3')).rejects.toThrow('No se pudo comprobar')
-    expect(supabase.rpc).not.toHaveBeenCalled()
-  })
-
-  it('allows the RPC only after all four content checks pass', async () => {
-    const supabase = createDeleteMock()
-    requireSupabase.mockReturnValue(supabase)
-    await deleteCompanyWorkspace('company-4')
-    expect(supabase.from).toHaveBeenCalledTimes(4)
-    expect(supabase.rpc).toHaveBeenCalledWith('delete_company_workspace', {
-      p_company_id: 'company-4',
+describe('company deletion through the secured Edge Function', () => {
+  it('can delete an active company with documents without frontend table preflights', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { completed: true, jobId: 'job-1' }, error: null })
+    requireSupabase.mockReturnValue({ functions: { invoke } })
+    await expect(deleteCompanyWorkspace('company-1', 'Empresa Andina')).resolves.toEqual({
+      completed: true, jobId: 'job-1',
+    })
+    expect(invoke).toHaveBeenCalledWith('delete-company', {
+      body: { action: 'delete', companyId: 'company-1', companyName: 'Empresa Andina' },
     })
   })
 
-  it('handles a backend guard that detects newly added documents', async () => {
-    const supabase = createDeleteMock()
-    supabase.rpc.mockResolvedValue({ error: { message: 'company_has_documents' } })
-    requireSupabase.mockReturnValue(supabase)
-    await expect(deleteCompanyWorkspace('company-5')).rejects.toThrow('La empresa tiene documentos')
+  it('reports incomplete Storage cleanup without pretending success', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { completed: false, jobId: 'job-pending' }, error: null })
+    requireSupabase.mockReturnValue({ functions: { invoke } })
+    await expect(deleteCompanyWorkspace('company-2', 'Empresa con documentos')).resolves.toEqual({
+      completed: false, jobId: 'job-pending',
+    })
+  })
+
+  it('translates backend protection failures to friendly messages', async () => {
+    const invoke = vi.fn().mockResolvedValue({
+      data: { error: 'system_company_cannot_be_deleted' }, error: null,
+    })
+    requireSupabase.mockReturnValue({ functions: { invoke } })
+    await expect(deleteCompanyWorkspace('company-main', 'EP Consultora')).rejects.toThrow('protegido')
+  })
+
+  it('does not accept success without a cleanup job id', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { completed: true }, error: null })
+    requireSupabase.mockReturnValue({ functions: { invoke } })
+    await expect(deleteCompanyWorkspace('company-3', 'Empresa')).rejects.toThrow('respuesta incompleta')
   })
 })
