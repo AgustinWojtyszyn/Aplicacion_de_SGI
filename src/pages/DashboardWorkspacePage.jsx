@@ -2,6 +2,7 @@ import { AlertTriangle, Banknote, BriefcaseBusiness, CheckCircle2, Circle, Clock
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DashboardPage from './DashboardPage'
+import { countPendingApprovals } from '../lib/dashboardAttention'
 import { useAuth } from '../context/AuthContext'
 import { listDocuments } from '../services/documentService'
 import { listSgiRequirements } from '../services/sgiService'
@@ -63,11 +64,11 @@ export default function DashboardWorkspacePage() {
     const now = new Date()
     const sevenDays = new Date(now.getTime() + 7 * 86400000)
     const overdue = documents.filter((document) => document.status !== 'approved' && document.review_due_at && new Date(document.review_due_at) < now).length
-    const pending = documents.filter((document) => document.status !== 'approved').length
+    const pendingApproval = countPendingApprovals(documents)
     const unassigned = documents.filter((document) => !document.responsible_id).length
     const uncovered = requirements.filter((requirement) => !documents.some((document) => document.requirement_id === requirement.id && document.status === 'approved')).length
     const upcoming = documents.filter((document) => document.review_due_at && new Date(document.review_due_at) >= now && new Date(document.review_due_at) <= sevenDays).length
-    return { overdue, pending, unassigned, uncovered, upcoming }
+    return { overdue, pendingApproval, unassigned, uncovered, upcoming }
   }, [documents, requirements])
 
   const workTotals = useMemo(() => calculateWorkTotals(workEntries), [workEntries])
@@ -76,7 +77,7 @@ export default function DashboardWorkspacePage() {
 
   const attentionCards = [
     { label: 'Documentos vencidos', value: attention.overdue, to: '/documents', icon: AlertTriangle },
-    { label: 'Pendientes de aprobación', value: attention.pending, to: '/documents', icon: Clock3 },
+    { label: 'Pendientes de aprobación', value: attention.pendingApproval, to: '/documents', icon: Clock3 },
     { label: 'Sin responsable', value: attention.unassigned, to: '/documents', icon: UserMinus },
     { label: 'Requisitos sin evidencia aprobada', value: attention.uncovered, to: '/sgi', icon: ShieldAlert },
   ]
