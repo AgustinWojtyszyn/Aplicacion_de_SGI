@@ -34,7 +34,7 @@
 .document-cell-main strong { max-width: 390px; overflow: hidden; color: var(--ink); font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
 .document-cell-main span { margin-top: 4px; color: #667085; font-size: .68rem; }
 .status-badge { display: inline-flex; align-items: center; min-height: 25px; padding: 0 9px; border-radius: 999px; font-size: .68rem; font-weight: 800; white-space: nowrap; }
-.status-draft { color: #685f50; background: #f0ece4; }
+.status-draft { color: #475467; background: #edf0f4; }
 .status-in_progress { color: #8d5b12; background: #fff1d5; }
 .status-approved { color: #176347; background: #dff3e9; }
 .status-unknown { color: #596d69; background: #EEF2F6; }
@@ -125,3 +125,9 @@
 @media (max-width: 520px) {
   .document-folder-grid { grid-template-columns: 1fr; padding-left: 12px; padding-right: 12px; }
 }
+
+/* Workflow stages shown in ISO chapter details. */
+.status-review_pending { color:#92400e;background:#fff0ce;border:1px solid #f3d394 }
+.status-approval_pending { color:#1d4e8e;background:#e8f1ff;border:1px solid #a9c9f2 }
+.status-returned { color:#a11d21;background:#ffe7e7;border:1px solid #f2b7b7 }
+.status-badge { max-width:100%;text-align:center;white-space:normal;line-height:1.25;padding-top:5px;padding-bottom:5px }

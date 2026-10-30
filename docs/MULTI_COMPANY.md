@@ -12,8 +12,8 @@ Los administradores de empresa no son administradores globales.
 
 ## Flujo de acceso
 
-1. La ruta `/` muestra únicamente el directorio mínimo de empresas activas (`id`, `name`, `slug`).
-2. El usuario elige su empresa antes de autenticarse.
+1. La ruta `/` **no muestra el directorio público de otras empresas**. Solicita el código/slug de la empresa o permite volver al último espacio conocido en ese dispositivo.
+2. Cada administrador comparte con sus usuarios la dirección `/login/:companySlug` o el código de acceso de su empresa. El backend valida el slug sin enumerar todas las organizaciones.
 3. El login queda en `/login/:companySlug`.
 4. El registro público guarda `company_slug` en los metadatos de Auth.
 5. El trigger de alta crea una membresía `member` inactiva para esa empresa.
@@ -106,3 +106,9 @@ no requiere SQL nuevo ni despliegue de Edge Functions.
 - Gestor con rol admin en A y miembro en B: permisos de admin solo en A.
 - Al desactivar la membresía en B, la siguiente carga o cambio de espacio debe revocar B.
 - Administrador global: conserva acceso a todas las empresas y al menú Empresas.
+
+## Privacidad del directorio y puesta en producción
+
+La migración `20261030150000_hide_public_company_directory.sql` revoca el listado público `list_login_companies()`; se mantiene `get_login_company(text)` para resolver un único código conocido en el acceso por enlace. La visibilidad de la documentación, empresas y usuarios continúa protegida por RLS y membresías existentes.
+
+Subir el frontend a `main` no aplica automáticamente esta migración a un Supabase de producción. Ejecutarla en GESTIQA para cerrar también el directorio RPC. Comprobar que `anon` y `authenticated` no tengan ejecución sobre `list_login_companies()` y que `get_login_company(text)` siga resolviendo un slug activo. El administrador global conserva el selector y la gestión de empresas; los usuarios comunes no ven empresas sin membresía.

@@ -120,3 +120,43 @@
 .sgi-page .sgi-chapter-action,.sgi-page .sgi-breadcrumbs a { color:var(--norm-accent,var(--brand)); }
 .sgi-page .compliance-chapter-card:hover { border-color:var(--norm-accent,var(--primary)); }
 .sgi-page .sgi-clause.open { border-color:var(--norm-accent,var(--primary)); }
+
+/* Norm accents distinguish ISO families; workflow colors remain semantic. */
+.sgi-page[data-norm="ISO 9001"] { --norm-accent:#205a9d;--norm-pale:#eff6ff }
+.sgi-page[data-norm="ISO 14001"] { --norm-accent:#157347;--norm-pale:#ebf8ef }
+.sgi-page[data-norm="ISO 45001"] { --norm-accent:#a45b0c;--norm-pale:#fff5e7 }
+.sgi-page[data-norm="SGI"] { --norm-accent:#6c3da6;--norm-pale:#f5effe }
+.sgi-page .norm-tab[data-norm="ISO 9001"] { --tab-accent:#205a9d;--tab-pale:#eff6ff }
+.sgi-page .norm-tab[data-norm="ISO 14001"] { --tab-accent:#157347;--tab-pale:#ebf8ef }
+.sgi-page .norm-tab[data-norm="ISO 45001"] { --tab-accent:#a45b0c;--tab-pale:#fff5e7 }
+.sgi-page .norm-tab[data-norm="SGI"] { --tab-accent:#6c3da6;--tab-pale:#f5effe }
+.sgi-page .norm-tab { border-left:4px solid var(--tab-accent);transition:background .15s,border-color .15s }
+.sgi-page .norm-tab svg,.sgi-page .norm-tab strong { color:var(--tab-accent) }
+.sgi-page .norm-tab.active { background:var(--tab-pale);border-color:var(--tab-accent);box-shadow:0 0 0 1px var(--tab-accent) }
+.sgi-page .compliance-matrix-heading>div>span,.sgi-page .sgi-detail-heading .eyebrow { color:var(--norm-accent) }
+.sgi-page .compliance-chapter-card { border-top:4px solid var(--norm-accent) }
+.sgi-page .compliance-chapter-card:hover,.sgi-page .compliance-chapter-card:focus-visible { border-color:var(--norm-accent);outline-offset:3px }
+.sgi-page .compliance-chapter-top strong { color:var(--norm-accent) }
+.sgi-page .compliance-chapter-track span { background:var(--norm-accent) }
+.sgi-page .compliance-chapter-card[data-coverage="complete"] .compliance-chapter-track span { background:#15803d }
+.sgi-page .sgi-chapter-action,.sgi-page .sgi-breadcrumbs a { color:var(--norm-accent) }
+.sgi-page .sgi-clause.open { border-color:var(--norm-accent);box-shadow:0 0 0 1px var(--norm-accent) }
+.sgi-page .sgi-clause.open .sgi-clause-trigger { background:var(--norm-pale) }
+.sgi-page .sgi-detail-tabs button.active { color:var(--norm-accent);border-color:var(--norm-accent) }
+.sgi-evaluation-badge[data-evaluation="compliant"] { color:#166534;border-color:#a7e2b5;background:#e8f7ed }
+.sgi-evaluation-badge[data-evaluation="partial"] { color:#92400e;border-color:#f5cc8b;background:#fff4de }
+.sgi-evaluation-badge[data-evaluation="non_compliant"] { color:#991b1b;border-color:#f3b0b0;background:#feecec }
+.sgi-evaluation-badge[data-evaluation="not_applicable"],.sgi-evaluation-badge[data-evaluation="not_evaluated"] { color:#475569;border-color:#cbd5e1;background:#f1f5f9 }
+.sgi-page .sgi-document-filters button.active[data-stage="draft"] { border-color:#667085;background:#475467 }
+.sgi-page .sgi-document-filters button.active[data-stage="review_pending"] { border-color:#995a0d;background:#995a0d }
+.sgi-page .sgi-document-filters button.active[data-stage="approval_pending"] { border-color:#2459a5;background:#2459a5 }
+.sgi-page .sgi-document-filters button.active[data-stage="approved"] { border-color:#166534;background:#166534 }
+.sgi-page .sgi-document-filters button.active[data-stage="returned"] { border-color:#b42318;background:#b42318 }
+.sgi-page .sgi-evidence-row[data-stage="returned"] { border-left:3px solid #b42318 }
+.sgi-page .sgi-evidence-row[data-stage="approved"] { border-left:3px solid #15803d }
+.sgi-page .sgi-evidence-row[data-stage="approval_pending"] { border-left:3px solid #2459a5 }
+.sgi-page .sgi-evidence-row[data-stage="review_pending"] { border-left:3px solid #995a0d }
+@media(max-width:760px) {
+  .sgi-page .norm-tab { gap:7px;padding:12px 10px;flex-wrap:wrap }
+  .sgi-page .norm-tab strong { margin-left:0 }
+}

@@ -1,11 +1,11 @@
 import { ArrowRight, Building2, Moon, ShieldCheck, Sun } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo'
 import LandingPreview from '../components/LandingPreview'
 import '../styles/landing.css'
 import { useAuth } from '../context/AuthContext'
-import { listLoginCompanies, rememberSelectedCompany } from '../services/tenantService'
+import { readSelectedCompany } from '../services/tenantService'
 
 const LANDING_THEME_KEY = 'gestiqa.landing-theme'
 
@@ -33,39 +33,27 @@ export default function CompanyGatePage() {
   }
 
   const { configured, user, loading } = useAuth()
-  const [companies, setCompanies] = useState([])
-  const [loadingCompanies, setLoadingCompanies] = useState(true)
+  const navigate = useNavigate()
+  const [companyCode, setCompanyCode] = useState('')
   const [error, setError] = useState('')
+  const savedCompany = readSelectedCompany()
 
-  useEffect(() => {
-    let mounted = true
-
-    async function loadCompanies() {
-      if (!configured) {
-        setLoadingCompanies(false)
-        return
-      }
-
-      try {
-        const data = await listLoginCompanies()
-        if (mounted) setCompanies(data)
-      } catch (loadError) {
-        console.error(loadError)
-        if (mounted) setError('No pudimos cargar las empresas habilitadas.')
-      } finally {
-        if (mounted) setLoadingCompanies(false)
-      }
+  function handleCompanyAccess(event) {
+    event.preventDefault()
+    const slug = companyCode.trim().toLowerCase()
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+      setError('Ingresá el código de empresa que te proporcionó tu administrador (letras, números y guiones).')
+      return
     }
-
-    loadCompanies()
-    return () => { mounted = false }
-  }, [configured])
+    setError('')
+    navigate(`/login/${encodeURIComponent(slug)}`)
+  }
 
   if (!loading && user) return <Navigate to="/dashboard" replace />
 
   return (
     <div className="sgi-landing" data-theme={theme} id="inicio">
-      <a className="landing-skip" href="#acceso">Ir al acceso por empresa</a>
+      <a className="landing-skip" href="#acceso">Ir al acceso seguro</a>
       <header className="landing-header">
         <div className="landing-container landing-nav">
           <a href="#inicio" aria-label="gestiQa, inicio"><BrandLogo light={theme === 'dark'} /></a>
@@ -105,49 +93,47 @@ export default function CompanyGatePage() {
           <div className="landing-container landing-access-layout">
             <div className="landing-access-intro">
               <p className="landing-eyebrow">ACCESO POR EMPRESA</p>
-              <h2 id="access-title">Elegí tu espacio<br />de trabajo.</h2>
-              <p>Seleccioná la organización a la que pertenecés para iniciar sesión.</p>
+              <h2 id="access-title">Ingresá a tu espacio<br />de trabajo.</h2>
+              <p>Usá el código o el enlace de acceso que te proporcionó tu empresa. No mostramos listados de otras organizaciones.</p>
               <div className="landing-security"><ShieldCheck size={22} aria-hidden="true" /><p><strong>Un entorno independiente</strong><span>Documentación aislada por empresa y acceso protegido por permisos.</span></p></div>
             </div>
             <div className="landing-company-panel">
-              <header className="landing-company-heading"><h3>¿A qué empresa querés ingresar?</h3><span>Seleccioná para continuar</span></header>
+              <header className="landing-company-heading"><h3>Acceso privado por empresa</h3><span>Ingresá el identificador de tu organización para continuar</span></header>
               {!configured ? (
                 <div className="config-warning" role="alert">
                   <strong>El acceso todavía no está disponible</strong>
                   <p>Consultá con el administrador de EP Consultora para habilitar el sistema.</p>
                 </div>
-              ) : error ? (
-                <div className="form-error" role="alert">{error}</div>
-              ) : loadingCompanies ? (
-                <div className="landing-company-loading" role="status"><span className="loader-dot" /> Cargando empresas…</div>
-              ) : companies.length === 0 ? (
-                <div className="landing-empty-state">
-                  <Building2 size={24} />
-                  <strong>No hay empresas habilitadas</strong>
-                  <span>El administrador global debe crear el primer espacio de trabajo desde EP Consultora.</span>
-                </div>
               ) : (
-                <div className="landing-company-list">
-                  {companies.map((company) => (
-                    <Link
-                      key={company.id}
-                      to={`/login/${company.slug}`}
-                      className="landing-company-option"
-                      onClick={() => rememberSelectedCompany(company)}
-                    >
+                <>
+                  <form className="landing-code-form" onSubmit={handleCompanyAccess}>
+                    <label htmlFor="company-access-code">Código de empresa</label>
+                    <div className="landing-code-field">
+                      <Building2 size={20} aria-hidden="true" />
+                      <input
+                        id="company-access-code"
+                        spellCheck={false}
+                        value={companyCode}
+                        onChange={(event) => { setCompanyCode(event.target.value); if (error) setError('') }}
+                        placeholder="ejemplo-mi-empresa"
+                        required
+                      />
+                    </div>
+                    {error && <div className="form-error" role="alert">{error}</div>}
+                    <button className="landing-button" type="submit">Continuar <ArrowRight size={18} aria-hidden="true" /></button>
+                  </form>
+                  {savedCompany?.slug && (
+                    <Link to={`/login/${encodeURIComponent(savedCompany.slug)}`} className="landing-last-company">
                       <span className="landing-company-icon"><Building2 size={20} aria-hidden="true" /></span>
-                      <span className="landing-company-copy">
-                        <strong>{company.name}</strong>
-                        <small>Ingresar al espacio documental</small>
-                      </span>
+                      <span className="landing-company-copy"><strong>Volver a {savedCompany.name || 'mi empresa'}</strong><small>Último espacio utilizado en este dispositivo</small></span>
                       <ArrowRight size={18} aria-hidden="true" />
                     </Link>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
 
               <p className="landing-access-help">
-                Si tu empresa no aparece, consultá con el administrador de EP Consultora.
+                Si no conocés el código de tu empresa, pedíselo a su administrador.
               </p>
             </div>
           </div>

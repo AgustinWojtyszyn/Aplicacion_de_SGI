@@ -22,13 +22,6 @@ export function readSelectedCompany() {
   }
 }
 
-export async function listLoginCompanies() {
-  const supabase = requireSupabase()
-  const { data, error } = await supabase.rpc('list_login_companies')
-  if (error) throw error
-  return data ?? []
-}
-
 export async function getLoginCompany(slug) {
   const supabase = requireSupabase()
   const cleanSlug = decodeURIComponent(String(slug || '')).trim().toLowerCase()
@@ -38,17 +31,8 @@ export async function getLoginCompany(slug) {
     p_slug: cleanSlug,
   })
 
-  if (!error) {
-    return Array.isArray(data) ? data[0] ?? null : data ?? null
-  }
-
-  // Backward-compatible fallback while the new RPC reaches production.
-  if (/get_login_company|schema cache|function/i.test(error.message || '')) {
-    const companies = await listLoginCompanies()
-    return companies.find((item) => item.slug?.toLowerCase() === cleanSlug) ?? null
-  }
-
-  throw error
+  if (error) throw error
+  return Array.isArray(data) ? data[0] ?? null : data ?? null
 }
 
 export async function createCompanyWorkspace({ name, slug }) {

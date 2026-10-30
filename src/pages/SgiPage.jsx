@@ -6,6 +6,7 @@ import DocumentFormModal from '../components/DocumentFormModal'
 import StatusBadge from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
 import { listDocuments } from '../services/documentService'
+import { documentVisualState } from '../lib/documentVisualState'
 import { listReturnedDocumentIds, listSgiEvaluations, listSgiRequirements, saveSgiEvaluation } from '../services/sgiService'
 
 const NORMS = ['ISO 9001', 'ISO 14001', 'ISO 45001', 'SGI']
@@ -162,11 +163,8 @@ export default function SgiPage() {
   const evaluation = currentEvaluations.find((item) => item.requirement_id === openedRequirement?.id)
   const requirementDocuments = chapter?.documents.filter((document) => document.requirement_id === openedRequirement?.id) || []
   const visibleDocuments = requirementDocuments.filter((document) => {
-    if (status === 'returned' && !currentReturnedDocumentIds.includes(document.id)) return false
-    if (status === 'draft' && (document.status !== 'draft' || currentReturnedDocumentIds.includes(document.id))) return false
-    if (status === 'review_pending' && (document.status !== 'in_progress' || document.reviewed_at)) return false
-    if (status === 'approval_pending' && (document.status !== 'in_progress' || !document.reviewed_at)) return false
-    if (status === 'approved' && document.status !== 'approved') return false
+    const stage = documentVisualState(document, currentReturnedDocumentIds.includes(document.id))
+    if (status && status !== stage) return false
     const needle = search.trim().toLocaleLowerCase('es-AR')
     return !needle || [document.title, document.file_name, document.description].some((text) => (text || '').toLocaleLowerCase('es-AR').includes(needle))
   })
@@ -213,14 +211,13 @@ export default function SgiPage() {
   function documentList(items) {
     if (!items.length) return <p className="sgi-empty">No hay documentos en esta sección.</p>
     return <div className="sgi-evidence-list">{items.map((document) => (
-      <article key={document.id} className="sgi-evidence-row">
+      <article key={document.id} className="sgi-evidence-row" data-stage={documentVisualState(document, currentReturnedDocumentIds.includes(document.id))}>
         <span className="sgi-evidence-icon"><FileText size={18} /></span>
         <div className="sgi-evidence-copy">
           <strong>{document.title}</strong>
           <small>{document.file_name} · {formatDate(document.updated_at)}</small>
         </div>
-        <StatusBadge status={document.status} />
-        {currentReturnedDocumentIds.includes(document.id) && <span className="sgi-returned-label">Devuelto para corrección</span>}
+        <StatusBadge status={document.status} reviewedAt={document.reviewed_at} returned={currentReturnedDocumentIds.includes(document.id)} showWorkflow />
         <button type="button" className="secondary-button" onClick={() => setSelectedDocumentId(document.id)}>Ver ficha</button>
       </article>
     ))}</div>
@@ -252,7 +249,7 @@ export default function SgiPage() {
         </header>
         {loading ? <div className="dashboard-loading"><span className="loader-dot" /> Cargando estructura…</div>
           : chapters.length ? <div className="compliance-matrix-grid">
-            {chapters.map((item) => <button key={item.chapter} type="button" className="compliance-chapter-card" onClick={() => changeChapter(item.chapter)}>
+            {chapters.map((item) => <button key={item.chapter} type="button" className="compliance-chapter-card" data-coverage={item.percent === 100 ? 'complete' : item.percent > 0 ? 'progress' : 'empty'} onClick={() => changeChapter(item.chapter)} aria-label={`Capítulo ${item.chapter}: ${item.root.title}. ${item.percent}% de cobertura. Abrir detalle.`}>
               <div className="compliance-chapter-top"><span>CAPÍTULO {item.chapter}</span><strong>{item.percent}%</strong></div>
               <h3>{item.root.title}</h3>
               <p>{item.root.description || 'Documentación y evidencias del capítulo.'}</p>
@@ -293,7 +290,7 @@ export default function SgiPage() {
               {isOpen && <div className="sgi-clause-panel">
                 <p className="sgi-clause-description">{requirement.description || 'Sin descripción adicional.'}</p>
                 <section className="sgi-evaluation-panel">
-                  <div className="sgi-evaluation-heading"><div><strong>Evaluación de cumplimiento</strong><small>La evaluación manual no cambia automáticamente al aprobar un documento.</small></div><span className="sgi-evaluation-badge">{evalLabel(evaluation?.status)}</span></div>
+                  <div className="sgi-evaluation-heading"><div><strong>Evaluación de cumplimiento</strong><small>La evaluación manual no cambia automáticamente al aprobar un documento.</small></div><span className="sgi-evaluation-badge" data-evaluation={evaluation?.status || 'not_evaluated'}>{evalLabel(evaluation?.status)}</span></div>
                   {currentEvaluationAvailable ? <div className="sgi-evaluation-fields">
                     <label className="field"><span>Resultado</span><select value={draftStatus} onChange={(event) => setDraftStatus(event.target.value)} disabled={!canEvaluate || saving}>
                       {EVALUATION_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -310,7 +307,7 @@ export default function SgiPage() {
                     <button type="button" className="primary-button" onClick={() => openUpload(requirement.id)}><FilePlus2 size={16} /> Cargar</button></div>
                   <label className="sgi-document-search"><Search size={17} /><input aria-label="Buscar documentos" placeholder="Buscar por nombre o código…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
                   <div className="sgi-document-filters" role="group" aria-label="Filtrar documentos">
-                    {[['', 'Todos'], ['draft', 'Borrador'], ['review_pending', 'Pendiente de revisión'], ['approval_pending', 'Pendiente de aprobación'], ['approved', 'Aprobado'], ['returned', 'Devuelto']].map(([value, label]) => <button type="button" key={value} className={status === value ? 'active' : ''} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}
+                    {[['', 'Todos'], ['draft', 'Borrador'], ['review_pending', 'Pendiente de revisión'], ['approval_pending', 'Pendiente de aprobación'], ['approved', 'Aprobado'], ['returned', 'Devuelto']].map(([value, label]) => <button type="button" key={value} data-stage={value || 'all'} className={status === value ? 'active' : ''} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}
                   </div>
                   {!returnedAvailable && <small className="sgi-returned-warning">No se pudo consultar el historial de devoluciones; el filtro «Devuelto» puede estar incompleto.</small>}
                   {documentList(visibleDocuments)}
@@ -329,7 +326,7 @@ export default function SgiPage() {
                         <small>Revisor: {personName(document.reviewer)} · Aprobador: {personName(document.approver)}</small>
                         <small>{document.status === 'approved' ? 'Aprobación registrada' : nextDocumentAction(document, new Date(), currentReturnedDocumentIds.includes(document.id))?.label}</small>
                       </div>
-                      <StatusBadge status={document.status} />
+                      <StatusBadge status={document.status} reviewedAt={document.reviewed_at} returned={currentReturnedDocumentIds.includes(document.id)} showWorkflow />
                       <button type="button" className="secondary-button" onClick={() => setSelectedDocumentId(document.id)}>Verificar ficha</button>
                     </article>
                   ))}
