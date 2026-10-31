@@ -4,7 +4,7 @@ import { BRAND_NAME, BRAND_SUBTITLE, BRAND_LOGO_URL, displayCompanyName } from '
 describe('EP GESTIÓN visible branding', () => {
   it('has one shared name, subtitle and logo', () => {
     expect(BRAND_NAME).toBe('EP GESTIÓN')
-    expect(BRAND_SUBTITLE).toBe('Sistemas de Gestión Integrados')
+    expect(BRAND_SUBTITLE).toBe('Sistema de Gestión')
     expect(BRAND_LOGO_URL).toBe('/ep-gestion-logo.svg')
   })
   it('shows the new name for the legacy platform company without changing its slug', () => {

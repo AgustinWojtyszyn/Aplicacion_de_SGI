@@ -1,8 +1,8 @@
-# gestiQa
+# EP GESTIÓN
 
-**Sistemas de gestión · cumplimiento · mejora continua.**
+**Sistema de Gestión · cumplimiento · mejora continua.**
 
-gestiQa es una plataforma web multiempresa para centralizar documentación, responsables, versiones, revisiones, aprobaciones, requisitos ISO y alertas dentro de un Sistema de Gestión Integrado.
+EP GESTIÓN es una plataforma web multiempresa para centralizar documentación, responsables, versiones, revisiones, aprobaciones, requisitos ISO y alertas dentro de un sistema de gestión.
 
 > Estado actual: **casi listo para producción**. La base operativa y la mayor parte del flujo SGI/ISO ya están implementados.
 
@@ -13,7 +13,7 @@ gestiQa es una plataforma web multiempresa para centralizar documentación, resp
 - Alta de empresas desde administración global con invitación automática del primer administrador.
 - Autenticación y recuperación de contraseña con Supabase Auth.
 - Roles `admin`, `responsible` y `member` dentro de cada empresa.
-- Administradores globales de gestiQa separados de los administradores de clientes.
+- Administradores globales de EP GESTIÓN separados de los administradores de clientes.
 - Gestión documental con PDF, Word, Excel e imágenes.
 - Estados `Borrador → En revisión → Aprobado`.
 - Revisor y aprobador designados.
@@ -117,4 +117,4 @@ Antes del deploy final, seguir [`docs/PRODUCTION_CHECKLIST.md`](docs/PRODUCTION_
 
 ---
 
-**gestiQa** · Sistemas de gestión · 2026
+**EP GESTIÓN** · Sistema de Gestión · 2026

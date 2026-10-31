@@ -76,7 +76,7 @@ export default function CompanyGatePage() {
       <main>
         <section className="landing-container landing-hero" id="plataforma" aria-labelledby="landing-title">
           <div className="landing-hero-copy">
-            <p className="landing-eyebrow"><span /> SISTEMA DE GESTIÓN INTEGRADO</p>
+            <p className="landing-eyebrow"><span /> SISTEMA DE GESTIÓN</p>
             <h1 id="landing-title">Tu gestión documental.<br /><em>Todo en su lugar.</em></h1>
             <p className="landing-description">Documentos, revisiones y cumplimiento en un mismo espacio. Una visión clara del SGI para acompañar el trabajo de tu empresa.</p>
             <a className="landing-button" href="#acceso">Ingresar a mi empresa <ArrowRight size={18} aria-hidden="true" /></a>
@@ -140,7 +140,7 @@ export default function CompanyGatePage() {
           </div>
         </section>
       </main>
-      <footer className="landing-container landing-footer"><span>EP GESTIÓN</span><span>Sistemas de Gestión Integrados</span><a href="#inicio">Volver al inicio ↑</a></footer>
+      <footer className="landing-container landing-footer"><span>EP GESTIÓN</span><span>Sistema de Gestión</span><a href="#inicio">Volver al inicio ↑</a></footer>
     </div>
   )
 }

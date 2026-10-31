@@ -226,7 +226,7 @@ export default function SgiPage() {
   return <section className="page-stack sgi-page" data-norm={selectedNorm}>
     {!chapter ? <>
       <header className="page-heading">
-        <div><p className="eyebrow">SISTEMA DE GESTIÓN INTEGRADO</p><h1>SGI e ISO</h1>
+        <div><p className="eyebrow">SISTEMA DE GESTIÓN</p><h1>SGI e ISO</h1>
           <p>Documentación, progreso y requisitos en una sola vista por capítulo.</p></div>
         <button type="button" className="secondary-button" onClick={reload} disabled={loading}><RefreshCw size={16} /> Actualizar</button>
       </header>

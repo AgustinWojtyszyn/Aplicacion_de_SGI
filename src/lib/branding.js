@@ -1,6 +1,6 @@
 /** Visual product name only: retain immutable company slugs and server-side names for compatibility. */
 export const BRAND_NAME = 'EP GESTIÓN'
-export const BRAND_SUBTITLE = 'Sistemas de Gestión Integrados'
+export const BRAND_SUBTITLE = 'Sistema de Gestión'
 export const BRAND_LOGO_URL = '/ep-gestion-logo.svg'
 
 export function displayCompanyName(company, fallback = '') {
