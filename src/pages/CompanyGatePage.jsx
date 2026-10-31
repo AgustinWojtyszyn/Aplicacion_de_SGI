@@ -140,7 +140,7 @@ export default function CompanyGatePage() {
           </div>
         </section>
       </main>
-      <footer className="landing-container landing-footer"><span>EP GESTIÓN</span><span>Sistema de Gestión Integrado</span><a href="#inicio">Volver al inicio ↑</a></footer>
+      <footer className="landing-container landing-footer"><span>EP GESTIÓN</span><span>Sistemas de Gestión Integrados</span><a href="#inicio">Volver al inicio ↑</a></footer>
     </div>
   )
 }

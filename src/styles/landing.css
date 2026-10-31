@@ -35,7 +35,7 @@
   --landing-surface: #FFFFFF;
   --landing-hover: #FFF2E6;
   --landing-button-border: #8C4715;
-  --landing-hover-border: #6485af;
+  --landing-hover-border: #D29A68;
   --landing-shadow: #B4632014;
   --landing-preview-shadow: #5E422C26;
 }
@@ -54,7 +54,7 @@
 .landing-theme-toggle:hover { color: var(--landing-ink); background: var(--landing-hover); border-color: var(--landing-line); }
 .landing-theme-toggle:active { transform: translateY(1px); }
 .sgi-landing .landing-button { display: inline-flex; min-height: 50px; justify-content: center; align-items: center; gap: 18px; padding: 12px 22px; border-radius: var(--landing-radius-small); color: #fff; background: var(--landing-blue); font-size: .9375rem; font-weight: 650; border: 1px solid var(--landing-button-border); box-shadow: 0 4px 12px var(--landing-shadow); }
-.sgi-landing .landing-button:hover { background: #234f85; border-color: #a6c9f5; box-shadow: 0 6px 16px var(--landing-shadow); transform: translateY(-1px); }
+.sgi-landing .landing-button:hover { background: #8C4715; border-color: #F4B87C; box-shadow: 0 6px 16px var(--landing-shadow); transform: translateY(-1px); }
 .sgi-landing .landing-button:active { transform: translateY(1px); }
 .sgi-landing .landing-button-small { min-height: 44px; padding: 10px 18px; font-size: .875rem; }
 .landing-skip { position: fixed; top: -100px; left: 20px; z-index: 20; padding: 12px 20px; background: var(--landing-surface); border: 1px solid; }
@@ -69,7 +69,7 @@
 .landing-preview { min-width: 0; margin: 0; padding: 22px 0 0 18px; position: relative; }
 .landing-preview::before { content: ''; position: absolute; inset: 0 -16px 28px 0; background: var(--landing-soft); border: 1px solid var(--landing-line); border-radius: 28px 28px 28px 70px; }
 /* The preview shares the application's light workspace and navy navigation. */
-.landing-app-window { --landing-ink: #B46320; --landing-muted: #4f6076; --landing-line: #d5dfea; color-scheme: light; color: var(--landing-ink); position: relative; border: 1px solid #597594; border-radius: 12px; overflow: hidden; background: var(--surface-soft, #F8F7F5); box-shadow: 0 20px 40px -16px var(--landing-preview-shadow); }
+.landing-app-window { --landing-ink: #B46320; --landing-muted: #4f6076; --landing-line: #E5DFD8; color-scheme: light; color: var(--landing-ink); position: relative; border: 1px solid #597594; border-radius: 12px; overflow: hidden; background: var(--surface-soft, #F8F7F5); box-shadow: 0 20px 40px -16px var(--landing-preview-shadow); }
 .landing-window-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--landing-line); color: var(--landing-muted); font-size: .875rem; }
 .landing-window-dots { display: flex; gap: 4px; }
 .landing-window-dots i { width: 6px; height: 6px; background: #ccd7e2; border-radius: 50%; }
@@ -78,7 +78,7 @@
 .landing-preview-monogram { display: block; margin: 0 8px 24px; font-size: .875rem; font-weight: 800; color: #f3f6fa; }
 .landing-preview-monogram span { color: #c0cee0; font-weight: 500; font-size: .875rem; }
 .landing-preview-sidebar > div { display: flex; align-items: center; gap: 8px; padding: 9px 8px; margin-bottom: 4px; color: #d1dceb; font-size: .875rem; border-radius: 8px; }
-.landing-preview-sidebar > .is-active { background: #246844; color: #fff; font-weight: 650; }
+.landing-preview-sidebar > .is-active { background: #B46320; color: #fff; font-weight: 650; }
 .landing-preview-content { min-width: 0; padding: 22px 20px 14px; }
 .landing-preview-heading > span { display: block; color: var(--landing-muted); font-size: .75rem; letter-spacing: .06em; font-weight: 650; }
 .landing-preview-heading > strong { display: block; font-size: 1.125rem; letter-spacing: -.025em; margin-top: 3px; }

@@ -495,7 +495,7 @@ export default function CompaniesPage() {
                     <p>Este acceso ya pertenece a <strong>{displayCompanyName(existingCompany)}</strong>. La empresa está activa; podés encontrarla en la lista de empresas.</p>
                   ) : (
                     <>
-                      <p><strong>{existingCompany.name}</strong> está archivada, no eliminada. Su acceso sigue reservado. Podés restaurarla con los datos que ya tenía.</p>
+                      <p><strong>{displayCompanyName(existingCompany)}</strong> está archivada, no eliminada. Su acceso sigue reservado. Podés restaurarla con los datos que ya tenía.</p>
                       <button className="secondary-button" type="button" onClick={handleRestoreCompany} disabled={submitting}>
                         <RotateCcw size={16} /> Restaurar empresa archivada
                       </button>
