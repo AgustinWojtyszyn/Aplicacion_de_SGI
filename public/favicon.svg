@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
-  <rect width="72" height="72" rx="18" fill="#FFFFFF"/>
-  <circle cx="34" cy="31" r="20" fill="none" stroke="#173B6C" stroke-width="8" stroke-linecap="round" stroke-dasharray="102 24" transform="rotate(34 34 31)"/>
-  <path d="M20 31.5 30 41.5 53 19" fill="none" stroke="#39A96B" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter"/>
-  <path d="M36 40 48 51" fill="none" stroke="#39A96B" stroke-width="8" stroke-linecap="square"/>
+  <rect width="72" height="72" rx="15" fill="#fff"/>
+  <rect x="5" y="5" width="62" height="62" rx="12" fill="none" stroke="#E88C30" stroke-width="3"/>
+  <text x="8" y="49" font-family="Arial,sans-serif" font-size="34" font-weight="900" letter-spacing="-3" fill="#E88C30">EP</text>
+  <path d="M12 56H60" stroke="#E88C30" stroke-width="2.6"/>
 </svg>

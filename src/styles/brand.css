@@ -1,22 +1,22 @@
 :root {
-  --ink: #173B6C;
-  --text: #173B6C;
-  --muted: #667085;
+  --ink: #343638;
+  --text: #343638;
+  --muted: #6F706F;
   --surface: #FFFFFF;
-  --surface-soft: #F5F7FA;
-  --line: #E2E7ED;
-  --border: #E2E7ED;
-  --brand: #173B6C;
-  --brand-deep: #102D52;
-  --brand-soft: #EAF0F7;
-  --primary: #173B6C;
-  --primary-strong: #102D52;
-  --primary-soft: #EAF0F7;
-  --accent: #39A96B;
-  --accent-soft: #EAF7F0;
+  --surface-soft: #F8F7F5;
+  --line: #E5DFD8;
+  --border: #E5DFD8;
+  --brand: #B46320;
+  --brand-deep: #8C4715;
+  --brand-soft: #FFF2E6;
+  --primary: #B46320;
+  --primary-strong: #8C4715;
+  --primary-soft: #FFF2E6;
+  --accent: #E88C30;
+  --accent-soft: #FFF2E6;
   --warning: #A76A11;
   --danger: #A83D47;
-  --shadow: 0 20px 55px rgba(23, 59, 108, 0.11);
+  --shadow: 0 20px 55px rgba(94, 66, 44, 0.11);
 }
 
 html,
@@ -32,19 +32,19 @@ body,
   align-items: center;
   gap: 11px;
   min-width: 0;
-  color: #173B6C;
+  color: #B46320;
 }
 
 .brand-logo-symbol {
   width: 48px;
   height: 48px;
   flex: 0 0 auto;
-  color: #173B6C;
-  filter: drop-shadow(0 7px 14px rgba(23, 59, 108, 0.12));
+  color: #B46320;
+  filter: drop-shadow(0 7px 14px rgba(94, 66, 44, 0.12));
 }
 
 .brand-logo-check {
-  stroke: #39A96B;
+  stroke: #E88C30;
 }
 
 .brand-logo-copy {
@@ -59,7 +59,7 @@ body,
   display: inline-flex;
   align-items: baseline;
   min-width: 0;
-  color: #173B6C;
+  color: #B46320;
   font-size: 1.36rem;
   font-weight: 850;
   letter-spacing: -0.055em;
@@ -69,7 +69,7 @@ body,
 
 .brand-logo-wordmark strong {
   margin: 0 .01em 0 .015em;
-  color: #39A96B;
+  color: #E88C30;
   font: inherit;
   font-size: 1.18em;
   line-height: .8;
@@ -98,8 +98,8 @@ body,
 
 .brand-logo-light .brand-logo-wordmark strong,
 .brand-logo-light .brand-logo-check {
-  color: #39A96B;
-  stroke: #39A96B;
+  color: #E88C30;
+  stroke: #E88C30;
 }
 
 .brand-logo-light .brand-logo-copy small {
@@ -112,12 +112,12 @@ body,
 }
 
 .primary-button {
-  background: #173B6C;
-  box-shadow: 0 10px 24px rgba(23, 59, 108, 0.16);
+  background: #B46320;
+  box-shadow: 0 10px 24px rgba(94, 66, 44, 0.16);
 }
 
 .primary-button:hover {
-  background: #102D52;
+  background: #8C4715;
 }
 
 .secondary-button,
@@ -126,24 +126,24 @@ body,
 }
 
 .eyebrow {
-  color: #173B6C;
+  color: #B46320;
 }
 
 .login-screen {
-  background: #F5F7FA;
+  background: #F8F7F5;
 }
 
 .login-intro,
 .tenant-gate-hero {
   background:
-    radial-gradient(circle at 82% 16%, rgba(57, 169, 107, .22), transparent 34%),
+    radial-gradient(circle at 82% 16%, rgba(232, 140, 48, .22), transparent 34%),
     radial-gradient(circle at 12% 88%, rgba(255, 255, 255, .08), transparent 38%),
-    linear-gradient(145deg, #102D52 0%, #173B6C 68%, #1B467F 100%);
+    linear-gradient(145deg, #8C4715 0%, #B46320 68%, #504036 100%);
 }
 
 .login-intro .eyebrow,
 .tenant-gate-hero .eyebrow {
-  color: #A8E0C0;
+  color: #FFE1C2;
 }
 
 .login-brand-logo {
@@ -174,8 +174,8 @@ body,
 }
 
 .login-card {
-  border-color: #E2E7ED;
-  box-shadow: 0 28px 70px rgba(23, 59, 108, 0.13);
+  border-color: #E5DFD8;
+  box-shadow: 0 28px 70px rgba(94, 66, 44, 0.13);
 }
 
 .mini-icon,
@@ -184,22 +184,22 @@ body,
 .tenant-company-icon,
 .admin-company-icon,
 .company-card-icon {
-  color: #173B6C;
-  background: #EAF0F7;
+  color: #B46320;
+  background: #FFF2E6;
 }
 
 .login-form input:focus,
 .password-form input:focus,
 .company-simple-form input:focus {
-  border-color: #173B6C;
-  box-shadow: 0 0 0 3px rgba(23, 59, 108, 0.10);
+  border-color: #B46320;
+  box-shadow: 0 0 0 3px rgba(94, 66, 44, 0.10);
 }
 
 .sidebar {
   color: #F3F6FA;
   background:
-    radial-gradient(circle at 10% 0%, rgba(57, 169, 107, .18), transparent 25%),
-    linear-gradient(180deg, #102D52 0%, #0D2544 100%);
+    radial-gradient(circle at 10% 0%, rgba(232, 140, 48, .18), transparent 25%),
+    linear-gradient(180deg, #8C4715 0%, #303235 100%);
   border-right-color: rgba(255, 255, 255, 0.07);
 }
 
@@ -239,7 +239,7 @@ body,
 
 .nav-link-active {
   color: #FFFFFF;
-  background: linear-gradient(135deg, rgba(57, 169, 107, .88), rgba(45, 135, 88, .78));
+  background: linear-gradient(135deg, rgba(232, 140, 48, .88), rgba(45, 135, 88, .78));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
 }
 
@@ -248,13 +248,13 @@ body,
 }
 
 .avatar {
-  color: #173B6C;
+  color: #B46320;
   background: #FFFFFF;
 }
 
 .topbar {
   background: rgba(255, 255, 255, 0.94);
-  border-bottom-color: #E2E7ED;
+  border-bottom-color: #E5DFD8;
 }
 
 .topbar-kicker {
@@ -262,8 +262,8 @@ body,
 }
 
 .stage-pill {
-  color: #173B6C;
-  background: #EAF7F0;
+  color: #B46320;
+  background: #FFF2E6;
   border: 1px solid #CAEAD8;
 }
 
@@ -272,38 +272,38 @@ body,
 .tenant-gate-card,
 .company-directory-card,
 .company-modal {
-  border-color: #E2E7ED;
-  box-shadow: 0 24px 62px rgba(23, 59, 108, 0.11);
+  border-color: #E5DFD8;
+  box-shadow: 0 24px 62px rgba(94, 66, 44, 0.11);
 }
 
 .company-current-pill,
 .companies-filter-tabs button.active,
 .auth-notice {
-  color: #237A4A;
+  color: #9B5119;
 }
 
 .company-current-pill,
 .companies-filter-tabs button.active {
-  background: #EAF7F0;
+  background: #FFF2E6;
 }
 
 .company-open-button,
 .login-text-action {
-  color: #173B6C;
+  color: #B46320;
 }
 
 .company-open-button:hover {
-  border-color: #173B6C;
-  background: #EAF0F7;
+  border-color: #B46320;
+  background: #FFF2E6;
 }
 
 .company-icon-action.restore:hover {
-  color: #237A4A;
-  background: #EAF7F0;
+  color: #9B5119;
+  background: #FFF2E6;
 }
 
 .loader-dot {
-  background: #39A96B;
+  background: #E88C30;
 }
 
 @media (max-width: 900px) {
@@ -358,4 +358,77 @@ body,
   .brand-logo-copy small {
     font-size: .42rem;
   }
+}
+
+/* EP GESTIÓN — visual identity taken from the approved logo artwork.
+   The image uses the actual reference's outlines; text and theme share its orange/graphite palette. */
+:root {
+  --ink: #343638;
+  --text: #343638;
+  --muted: #6D6D6D;
+  --surface: #FFFFFF;
+  --surface-soft: #F8F7F5;
+  --line: #E5DFD8;
+  --border: #E5DFD8;
+  --brand: #B46320;
+  --brand-deep: #8C4715;
+  --brand-bright: #E88C30;
+  --brand-soft: #FFF2E6;
+  --primary: #B46320;
+  --primary-strong: #8C4715;
+  --primary-soft: #FFF2E6;
+  --accent: #E88C30;
+  --accent-soft: #FFF2E6;
+  --shadow: 0 18px 48px rgba(63, 48, 36, .10);
+}
+body { color: var(--ink); }
+.brand-logo { display: inline-flex; align-items: center; max-width: 100%; min-width: 0; color: var(--ink); }
+.brand-logo-image {
+  display: block;
+  width: 224px;
+  height: auto;
+  max-width: 100%;
+  padding: 7px 10px;
+  background: #fff;
+  border-radius: 9px;
+  object-fit: contain;
+}
+.brand-logo-light .brand-logo-image { background: #fff; }
+.brand-logo-compact .brand-logo-image { width: 110px; }
+.sidebar { background: radial-gradient(circle at 0% 0%, rgba(232,140,48,.15), transparent 34%), linear-gradient(180deg, #38393B, #292A2C); }
+.sidebar-brand { min-height: 72px; }
+.sidebar-logo .brand-logo-image { width: 211px; padding: 7px 9px; }
+.nav-section-label { color: #BCB6AF; }
+.nav-link, .nav-group-button { color: #E1DCD5; }
+.nav-link-active { background: linear-gradient(120deg, #C27328, #9C531C); color: #fff; }
+.sidebar-user-copy strong { color: #fff; }
+.sidebar-user-copy span { color: #C8C2BC; }
+.avatar { color: #8C4715; }
+.login-intro, .tenant-gate-hero {
+  background: radial-gradient(circle at 82% 16%, rgba(232, 140, 48, .22), transparent 35%),
+    linear-gradient(145deg, #303235 0%, #42403D 72%, #4E3E31 100%);
+}
+.login-intro .eyebrow, .tenant-gate-hero .eyebrow { color: #FFD4A6; }
+.login-intro > p:not(.eyebrow), .login-feature { color: #F5EEE8; }
+.login-brand-logo .brand-logo-image { width: min(460px, 100%); padding: 11px 15px; border-radius: 12px; }
+.login-intro h1 { max-width: 13ch; }
+.landing-nav .brand-logo-image { width: 245px; }
+.access-brand-logo .brand-logo-image, .password-brand-logo .brand-logo-image { width: 280px; }
+.brand-logo-image { box-shadow: 0 4px 16px rgba(34, 34, 34, .07); }
+.stage-pill { color: #8C4715; border-color: #F1D4B9; background: #FFF2E6; }
+.company-current-pill, .companies-filter-tabs button.active { color: #8C4715; background: #FFF2E6; }
+.company-open-button, .login-text-action { color: #9B5119; }
+.company-open-button:hover { border-color: #B46320; background: #FFF2E6; }
+.primary-button { background: #B46320; color: #fff; }
+.primary-button:hover { background: #8C4715; }
+.eyebrow { color: #A45519; }
+@media (max-width: 900px) {
+  .sidebar-logo .brand-logo-image { width: 194px; }
+  .login-brand-logo .brand-logo-image { width: min(390px, 100%); }
+}
+@media (max-width: 560px) {
+  .sidebar-logo .brand-logo-image { width: 187px; }
+  .landing-nav .brand-logo-image { width: 195px; }
+  .login-brand-logo .brand-logo-image { width: min(330px, 100%); }
+  .brand-logo-image { padding: 6px 7px; }
 }

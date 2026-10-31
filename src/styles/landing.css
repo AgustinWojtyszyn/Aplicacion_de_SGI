@@ -1,19 +1,19 @@
 .sgi-landing {
   color-scheme: dark;
-  --landing-ink: #f3f6fa;
-  --landing-muted: #d0dbea;
-  --landing-blue: var(--brand, #173b6c);
-  --landing-highlight: #a6c9f5;
-  --landing-accent: #8bd4a9;
-  --landing-line: #334e6e;
-  --landing-background: #0d2544;
-  --landing-soft: #102d52;
-  --landing-surface: #18395f;
-  --landing-hover: #21476f;
-  --landing-button-border: #668bbd;
-  --landing-hover-border: #8caed6;
-  --landing-shadow: #06172c50;
-  --landing-preview-shadow: #06172c80;
+  --landing-ink: #F9F7F5;
+  --landing-muted: #E6DCD3;
+  --landing-blue: var(--brand, #B46320);
+  --landing-highlight: #F4AD65;
+  --landing-accent: #F4AD65;
+  --landing-line: #51483F;
+  --landing-background: #292B2D;
+  --landing-soft: #393531;
+  --landing-surface: #373737;
+  --landing-hover: #48423C;
+  --landing-button-border: #E3A36A;
+  --landing-hover-border: #F4B87C;
+  --landing-shadow: #1A171550;
+  --landing-preview-shadow: #1A171580;
   --landing-radius-small: 12px;
   --landing-radius: 16px;
   --landing-width: 1184px;
@@ -25,19 +25,19 @@
 }
 .sgi-landing[data-theme="light"] {
   color-scheme: light;
-  --landing-ink: var(--ink, #173b6c);
-  --landing-muted: #4e6077;
-  --landing-highlight: var(--brand, #173b6c);
-  --landing-accent: #237a4a;
-  --landing-line: #d5dfea;
-  --landing-background: #f5f7fa;
-  --landing-soft: #eaf0f7;
-  --landing-surface: #ffffff;
-  --landing-hover: #edf3fa;
-  --landing-button-border: #173b6c;
+  --landing-ink: var(--ink, #B46320);
+  --landing-muted: #6D6D6D;
+  --landing-highlight: #A45519;
+  --landing-accent: #A45519;
+  --landing-line: #E6DFD8;
+  --landing-background: #F8F7F5;
+  --landing-soft: #FFF2E6;
+  --landing-surface: #FFFFFF;
+  --landing-hover: #FFF2E6;
+  --landing-button-border: #8C4715;
   --landing-hover-border: #6485af;
-  --landing-shadow: #173b6c14;
-  --landing-preview-shadow: #173b6c26;
+  --landing-shadow: #B4632014;
+  --landing-preview-shadow: #5E422C26;
 }
 .sgi-landing * { box-sizing: border-box; }
 .sgi-landing svg { flex-shrink: 0; }
@@ -61,7 +61,7 @@
 .landing-skip:focus { top: 12px; }
 .landing-hero { display: grid; grid-template-columns: 1fr 1.08fr; align-items: center; gap: 52px; padding-block: 54px 28px; scroll-margin-top: 100px; }
 .landing-eyebrow { display: flex; align-items: center; gap: 9px; color: var(--landing-accent); margin: 0 0 18px; font-size: .875rem; letter-spacing: .13em; font-weight: 750; }
-.landing-eyebrow > span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #39a96b); }
+.landing-eyebrow > span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent, #E88C30); }
 .landing-hero h1 { margin: 0; font-size: clamp(2.25rem, 3.6vw, 3.2rem); line-height: 1.18; letter-spacing: -.045em; font-weight: 730; }
 .landing-hero h1 em { color: var(--landing-highlight); font-style: normal; }
 .landing-description { max-width: 44ch; margin: 22px 0 28px; color: var(--landing-muted); font-size: 1.125rem; line-height: 1.75; }
@@ -69,12 +69,12 @@
 .landing-preview { min-width: 0; margin: 0; padding: 22px 0 0 18px; position: relative; }
 .landing-preview::before { content: ''; position: absolute; inset: 0 -16px 28px 0; background: var(--landing-soft); border: 1px solid var(--landing-line); border-radius: 28px 28px 28px 70px; }
 /* The preview shares the application's light workspace and navy navigation. */
-.landing-app-window { --landing-ink: #173b6c; --landing-muted: #4f6076; --landing-line: #d5dfea; color-scheme: light; color: var(--landing-ink); position: relative; border: 1px solid #597594; border-radius: 12px; overflow: hidden; background: var(--surface-soft, #f5f7fa); box-shadow: 0 20px 40px -16px var(--landing-preview-shadow); }
+.landing-app-window { --landing-ink: #B46320; --landing-muted: #4f6076; --landing-line: #d5dfea; color-scheme: light; color: var(--landing-ink); position: relative; border: 1px solid #597594; border-radius: 12px; overflow: hidden; background: var(--surface-soft, #F8F7F5); box-shadow: 0 20px 40px -16px var(--landing-preview-shadow); }
 .landing-window-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--landing-line); color: var(--landing-muted); font-size: .875rem; }
 .landing-window-dots { display: flex; gap: 4px; }
 .landing-window-dots i { width: 6px; height: 6px; background: #ccd7e2; border-radius: 50%; }
 .landing-window-body { display: grid; grid-template-columns: 140px minmax(0, 1fr); min-height: 292px; }
-.landing-preview-sidebar { padding: 20px 10px; background: #102d52; border-right: 1px solid var(--landing-line); }
+.landing-preview-sidebar { padding: 20px 10px; background: #8C4715; border-right: 1px solid var(--landing-line); }
 .landing-preview-monogram { display: block; margin: 0 8px 24px; font-size: .875rem; font-weight: 800; color: #f3f6fa; }
 .landing-preview-monogram span { color: #c0cee0; font-weight: 500; font-size: .875rem; }
 .landing-preview-sidebar > div { display: flex; align-items: center; gap: 8px; padding: 9px 8px; margin-bottom: 4px; color: #d1dceb; font-size: .875rem; border-radius: 8px; }
@@ -90,11 +90,11 @@
 .landing-preview-modules span { font-size: .75rem; color: var(--landing-muted); }
 .landing-preview-flow { border: 1px solid var(--landing-line); border-radius: 8px; padding: 12px; margin-top: 18px; }
 .landing-preview-flow > div { display: flex; align-items: center; gap: 6px; font-size: .875rem; }
-.landing-preview-flow svg { color: #237a4a; }
+.landing-preview-flow svg { color: #9B5119; }
 .landing-preview-flow ol { list-style: none; display: flex; justify-content: space-between; padding: 0; margin: 12px 0 0; position: relative; }
 .landing-preview-flow ol::before { content: ''; position: absolute; height: 1px; top: 10px; left: 15%; right: 15%; background: var(--landing-line); }
 .landing-preview-flow li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: .75rem; }
-.landing-preview-flow li > span { display: grid; place-items: center; width: 22px; height: 22px; border: 3px solid var(--surface-soft, #f5f7fa); background: #e1e8f1; border-radius: 50%; font-size: .75rem; }
+.landing-preview-flow li > span { display: grid; place-items: center; width: 22px; height: 22px; border: 3px solid var(--surface-soft, #F8F7F5); background: #e1e8f1; border-radius: 50%; font-size: .75rem; }
 .landing-preview-flow li:last-child > span { background: #e0f3ec; }
 .landing-preview-bottom { display: flex; align-items: center; gap: 6px; margin-top: 14px; color: var(--landing-muted); font-size: .75rem; }
 .landing-preview figcaption { position: relative; display: flex; align-items: center; justify-content: center; gap: 7px; color: var(--landing-muted); font-size: .875rem; margin-top: 16px; }
@@ -196,3 +196,15 @@
 .landing-code-form .landing-button { display:inline-flex;justify-content:center;gap:10px;align-items:center;border:0;cursor:pointer;font:inherit;font-weight:750 }
 .landing-last-company { display:grid;grid-template-columns:42px minmax(0,1fr) 18px;align-items:center;gap:12px;margin-top:18px;padding:13px;border:1px solid var(--landing-line);border-radius:12px }
 .landing-last-company:hover { background:var(--landing-hover);border-color:var(--landing-hover-border) }
+
+/* Reference-brand refinements, including the marketing mockup. */
+.sgi-landing { font-family: Montserrat, Inter, ui-sans-serif, system-ui, sans-serif; }
+.sgi-landing .landing-button { background: #B46320; border-color: #8C4715; color: #fff; }
+.sgi-landing .landing-button:hover { background: #8C4715; border-color: #C27328; }
+.landing-preview-sidebar { background: #353638; }
+.landing-preview-sidebar > .is-active { background: #B46320; color: #fff; }
+.landing-app-window { --landing-ink: #343638; --landing-muted: #6D6D6D; --landing-line: #E5DFD8; border-color: #B5A99D; }
+.landing-preview-monogram { color: #fff; }
+.landing-preview-monogram span { color: #E6CDB5; }
+.landing-preview-flow svg { color: #B46320; }
+.landing-nav .brand-logo-image { box-shadow: none; }
