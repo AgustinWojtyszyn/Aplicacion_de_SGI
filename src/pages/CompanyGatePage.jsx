@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import { ArrowRight, Building2, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
@@ -56,7 +57,7 @@ export default function CompanyGatePage() {
       <a className="landing-skip" href="#acceso">Ir al acceso seguro</a>
       <header className="landing-header">
         <div className="landing-container landing-nav">
-          <a href="#inicio" aria-label="gestiQa, inicio"><BrandLogo light={theme === 'dark'} /></a>
+          <a href="#inicio" aria-label="EP GESTIÓN, inicio"><BrandLogo light={theme === 'dark'} /></a>
           <nav aria-label="Navegación principal">
             <button
               type="button"
@@ -102,7 +103,7 @@ export default function CompanyGatePage() {
               {!configured ? (
                 <div className="config-warning" role="alert">
                   <strong>El acceso todavía no está disponible</strong>
-                  <p>Consultá con el administrador de EP Consultora para habilitar el sistema.</p>
+                  <p>Consultá con el administrador de EP GESTIÓN para habilitar el sistema.</p>
                 </div>
               ) : (
                 <>
@@ -125,7 +126,7 @@ export default function CompanyGatePage() {
                   {savedCompany?.slug && (
                     <Link to={`/login/${encodeURIComponent(savedCompany.slug)}`} className="landing-last-company">
                       <span className="landing-company-icon"><Building2 size={20} aria-hidden="true" /></span>
-                      <span className="landing-company-copy"><strong>Volver a {savedCompany.name || 'mi empresa'}</strong><small>Último espacio utilizado en este dispositivo</small></span>
+                      <span className="landing-company-copy"><strong>Volver a {displayCompanyName(savedCompany, 'mi empresa')}</strong><small>Último espacio utilizado en este dispositivo</small></span>
                       <ArrowRight size={18} aria-hidden="true" />
                     </Link>
                   )}
@@ -139,7 +140,7 @@ export default function CompanyGatePage() {
           </div>
         </section>
       </main>
-      <footer className="landing-container landing-footer"><span>EP Consultora</span><span>Sistema de Gestión Integrado</span><a href="#inicio">Volver al inicio ↑</a></footer>
+      <footer className="landing-container landing-footer"><span>EP GESTIÓN</span><span>Sistema de Gestión Integrado</span><a href="#inicio">Volver al inicio ↑</a></footer>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import { AlertTriangle, Banknote, BriefcaseBusiness, CheckCircle2, Circle, Clock3, FileText, ShieldAlert, ShieldCheck, TrendingUp, UserMinus, UsersRound } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -47,13 +48,13 @@ export default function DashboardWorkspacePage() {
   }, [company?.id])
 
   const steps = useMemo(() => {
-    const hasCompany = Boolean(company?.id && company?.name)
+    const hasCompany = Boolean(company?.id && displayCompanyName(company))
     const hasNorms = requirements.length > 0
     const hasOwners = documents.some((document) => document.responsible_id || document.reviewer_id || document.approver_id)
     const hasDocuments = documents.length > 0
 
     return [
-      { label: 'Empresa configurada', detail: company?.name || 'Completar datos de la empresa', done: hasCompany, to: '/dashboard', icon: CheckCircle2 },
+      { label: 'Empresa configurada', detail: displayCompanyName(company) || 'Completar datos de la empresa', done: hasCompany, to: '/dashboard', icon: CheckCircle2 },
       { label: 'Normas y requisitos disponibles', detail: hasNorms ? `${requirements.length} requisitos listos para gestionar` : 'Revisar la estructura ISO / SGI', done: hasNorms, to: '/sgi', icon: ShieldCheck },
       { label: 'Responsables definidos', detail: hasOwners ? 'Ya existen responsables en el flujo documental' : 'Asignar responsables, revisores o aprobadores', done: hasOwners, to: '/documents', icon: UsersRound },
       { label: 'Primeros documentos cargados', detail: hasDocuments ? `${documents.length} documento${documents.length === 1 ? '' : 's'} cargado${documents.length === 1 ? '' : 's'}` : 'Cargar la primera evidencia del sistema', done: hasDocuments, to: '/documents', icon: FileText },
@@ -96,7 +97,7 @@ export default function DashboardWorkspacePage() {
           <div className="onboarding-heading">
             <div>
               <span>PUESTA EN MARCHA</span>
-              <h2>Prepará el espacio de {company?.name || 'la empresa'}</h2>
+              <h2>Prepará el espacio de {displayCompanyName(company) || 'la empresa'}</h2>
               <p>La guía se completa automáticamente a medida que configurás el SGI.</p>
             </div>
             <div className="onboarding-progress-copy"><strong>{percent}%</strong><span>{completed}/{steps.length} pasos</span></div>

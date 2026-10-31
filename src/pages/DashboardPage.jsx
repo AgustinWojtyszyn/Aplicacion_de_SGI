@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import {
   Activity,
   AlertTriangle,
@@ -208,7 +209,7 @@ export default function DashboardPage() {
         <div>
           <p className="eyebrow">DASHBOARD SGI</p>
           <h1>Hola, {firstName(profile)}.</h1>
-          <p>Seguimiento documental, cumplimiento, revisiones y alertas de {company?.name || 'tu organización'}.</p>
+          <p>Seguimiento documental, cumplimiento, revisiones y alertas de {displayCompanyName(company) || 'tu organización'}.</p>
         </div>
         <button className="icon-button dashboard-refresh" onClick={load} aria-label="Actualizar dashboard" title="Actualizar">
           <RefreshCw size={18} />

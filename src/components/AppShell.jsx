@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import {
   BellRing,
   BriefcaseBusiness,
@@ -160,7 +161,7 @@ export default function AppShell() {
           <button className="icon-button mobile-menu" onClick={() => setMenuOpen(true)} aria-label="Abrir menú"><Menu size={22} /></button>
           <div className="workspace-title">
             <span className="topbar-kicker">ESPACIO DE TRABAJO</span>
-            <strong>{company?.name || 'Gestión integrada'}</strong>
+            <strong>{displayCompanyName(company, 'Gestión integrada')}</strong>
           </div>
 
           {isPlatformAdmin && companies.length > 0 ? (
@@ -168,7 +169,7 @@ export default function AppShell() {
               <Building2 size={16} />
               <span>{switchingCompany ? 'Cambiando…' : 'Empresa'}</span>
               <select value={company?.id || ''} onChange={handleCompanyChange} disabled={switchingCompany} aria-label="Cambiar empresa activa">
-                {companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                {companies.map((item) => <option key={item.id} value={item.id}>{displayCompanyName(item)}</option>)}
               </select>
             </label>
           ) : (

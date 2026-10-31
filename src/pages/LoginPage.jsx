@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import { ArrowLeft, Building2, LockKeyhole, ShieldCheck, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
@@ -77,7 +78,7 @@ export default function LoginPage() {
       } else if (registerMode) {
         const data = await signUp({ fullName, email, password, company })
         if (!data.session) {
-          setNotice(`Cuenta creada para ${company.name}. Revisá tu correo para confirmar el registro. Luego un administrador deberá habilitar tu acceso.`)
+          setNotice(`Cuenta creada para ${displayCompanyName(company)}. Revisá tu correo para confirmar el registro. Luego un administrador deberá habilitar tu acceso.`)
         }
       } else {
         await signIn({ email: email.trim(), password, company })
@@ -95,22 +96,22 @@ export default function LoginPage() {
   const heading = resetMode
     ? { kicker: 'Recuperación de acceso', title: 'Restablecer contraseña' }
     : registerMode
-      ? { kicker: `Registro · ${company?.name || 'Empresa'}`, title: 'Crear cuenta' }
-      : { kicker: `Acceso · ${company?.name || 'Empresa'}`, title: 'Iniciar sesión' }
+      ? { kicker: `Registro · ${displayCompanyName(company) || 'Empresa'}`, title: 'Crear cuenta' }
+      : { kicker: `Acceso · ${displayCompanyName(company) || 'Empresa'}`, title: 'Iniciar sesión' }
 
   return (
     <main className="login-screen tenant-login-screen">
       <section className="login-intro">
         <BrandLogo light className="login-brand-logo" />
         <p className="eyebrow">GESTIÓN DOCUMENTAL · SGI · CUMPLIMIENTO</p>
-        <h1>{company ? `${company.name}, en un solo flujo.` : 'Todo tu sistema de gestión, en un solo flujo.'}</h1>
+        <h1>{company ? `${displayCompanyName(company)}, en un solo flujo.` : 'Todo tu sistema de gestión, en un solo flujo.'}</h1>
         <p>
-          gestiQa centraliza documentos, versiones, responsables, revisiones, aprobaciones, requisitos ISO y alertas en una plataforma segura y trazable.
+          EP GESTIÓN centraliza documentos, versiones, responsables, revisiones, aprobaciones, requisitos ISO y alertas en una plataforma segura y trazable.
         </p>
         {company && (
           <div className="selected-tenant-chip">
             <Building2 size={18} />
-            <div><span>ESPACIO SELECCIONADO</span><strong>{company.name}</strong></div>
+            <div><span>ESPACIO SELECCIONADO</span><strong>{displayCompanyName(company)}</strong></div>
           </div>
         )}
         <div className="login-feature">
@@ -198,7 +199,7 @@ export default function LoginPage() {
               {mode === 'login' ? (
                 <>
                   <button type="button" className="login-text-action" onClick={() => setMode('register')}>
-                    ¿No tenés cuenta? Registrate en {company?.name}
+                    ¿No tenés cuenta? Registrate en {displayCompanyName(company)}
                   </button>
                   <button type="button" className="login-text-action" onClick={() => setMode('reset')}>
                     ¿Olvidaste tu contraseña?
@@ -213,7 +214,7 @@ export default function LoginPage() {
           )}
 
           <p className="login-help">
-            El registro queda asociado a {company?.name || 'la empresa seleccionada'} y requiere habilitación administrativa.
+            El registro queda asociado a {displayCompanyName(company) || 'la empresa seleccionada'} y requiere habilitación administrativa.
           </p>
         </div>
       </section>

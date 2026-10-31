@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import { CalendarDays, KeyRound, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -113,7 +114,7 @@ export default function ProfilePage() {
 
         <div className="profile-meta-line">
           <span>Empresa activa</span>
-          <strong>{company?.name || 'Sin empresa seleccionada'}</strong>
+          <strong>{displayCompanyName(company) || 'Sin empresa seleccionada'}</strong>
           {profile?.updated_at && <small>Perfil actualizado: {formatDate(profile.updated_at)}</small>}
         </div>
       </section>

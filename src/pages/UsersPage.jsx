@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import { AlertTriangle, RefreshCw, Search, ShieldCheck, Trash2, UserCheck, UserPlus, UsersRound, UserX } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -51,7 +52,7 @@ export default function UsersPage() {
     return members.filter((member) => [
       member.user?.full_name,
       member.user?.email,
-      member.company?.name,
+      displayCompanyName(member.company),
       ROLE_LABELS[member.role],
     ].some((value) => value?.toLowerCase().includes(term)))
   }, [members, search])
@@ -109,7 +110,7 @@ export default function UsersPage() {
       setKnownMembers((current) => [...current, assigned])
       setAssignValues({ userId: '', companyId: '', role: 'admin' })
       setAssignOpen(false)
-      setNotice(`Acceso asignado a ${assignedUser?.full_name || assignedUser?.email || 'la persona'} en ${assignedCompany?.name || 'la empresa'}.`)
+      setNotice(`Acceso asignado a ${assignedUser?.full_name || assignedUser?.email || 'la persona'} en ${displayCompanyName(assignedCompany) || 'la empresa'}.`)
       if (scope === 'all') await load()
       else setScope('all')
     } catch (assignmentError) {
@@ -156,7 +157,7 @@ export default function UsersPage() {
       await inviteCompanyUser({ companyId: company.id, ...inviteValues })
       setInviteValues({ fullName: '', email: '', role: 'member' })
       setInviteOpen(false)
-      setNotice(`Invitación enviada a ${invitedEmail} para ${company.name}.`)
+      setNotice(`Invitación enviada a ${invitedEmail} para ${displayCompanyName(company)}.`)
       await load()
     } catch (inviteError) {
       console.error(inviteError)
@@ -182,7 +183,7 @@ export default function UsersPage() {
       setMembers((current) => current.map((item) => (
         membershipKey(item) === membershipKey(updated) ? updated : item
       )))
-      setNotice(`Acceso actualizado para ${personName(updated)} en ${updated.company?.name || company.name}.`)
+      setNotice(`Acceso actualizado para ${personName(updated)} en ${displayCompanyName(updated.company) || displayCompanyName(company)}.`)
     } catch (saveError) {
       console.error(saveError)
       setError(saveError.message || 'No se pudo actualizar el acceso.')
@@ -224,7 +225,7 @@ export default function UsersPage() {
           <p>
             {scope === 'all'
               ? 'Administración global de usuarios y accesos por empresa.'
-              : `Roles y acceso al espacio de trabajo de ${company?.name || 'la empresa seleccionada'}.`}
+              : `Roles y acceso al espacio de trabajo de ${displayCompanyName(company) || 'la empresa seleccionada'}.`}
           </p>
         </div>
         <div className="users-heading-actions">
@@ -237,7 +238,7 @@ export default function UsersPage() {
             </button>
           )}
           <button className="primary-button" onClick={() => setInviteOpen((open) => !open)}>
-            <UserPlus size={17} /> Invitar a {company?.name || 'empresa'}
+            <UserPlus size={17} /> Invitar a {displayCompanyName(company) || 'empresa'}
           </button>
         </div>
       </header>
@@ -269,7 +270,7 @@ export default function UsersPage() {
       {inviteOpen && (
         <form className="invite-user-panel" onSubmit={handleInvite}>
           <div className="invite-user-copy">
-            <strong>Invitar a {company?.name || 'esta empresa'}</strong>
+            <strong>Invitar a {displayCompanyName(company) || 'esta empresa'}</strong>
             <span>La persona recibirá un correo para establecer su contraseña.</span>
           </div>
           <label className="field">
@@ -336,7 +337,7 @@ export default function UsersPage() {
               onChange={(event) => setAssignValues((current) => ({ ...current, companyId: event.target.value }))}
               disabled={assignLoading || assigning}
             >
-              {companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {companies.map((item) => <option key={item.id} value={item.id}>{displayCompanyName(item)}</option>)}
             </select>
           </label>
           <label className="field">
@@ -408,7 +409,7 @@ export default function UsersPage() {
                       <strong>{personName(member)}</strong>
                       <span>{member.user?.email}</span>
                       <small>
-                        {scope === 'all' && member.company?.name ? `${member.company.name} · ` : ''}
+                        {scope === 'all' && displayCompanyName(member.company) ? `${displayCompanyName(member.company)} · ` : ''}
                         Alta: {formatDate(member.user?.created_at)}
                         {isCurrentUser ? ' · Tu cuenta' : ''}
                       </small>
