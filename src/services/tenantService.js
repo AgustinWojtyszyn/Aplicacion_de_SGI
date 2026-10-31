@@ -91,7 +91,7 @@ export async function updateCompanyWorkspace({ companyId, name, slug }) {
       throw new Error('El identificador solo puede usar minúsculas, números y guiones.')
     }
     if (error.message?.includes('system_company_slug_locked')) {
-      throw new Error('El identificador principal de gestiQa no puede modificarse.')
+      throw new Error('El identificador principal de EP GESTIÓN no puede modificarse.')
     }
     throw error
   }
@@ -108,7 +108,7 @@ export async function setCompanyActive({ companyId, isActive }) {
 
   if (error) {
     if (error.message?.includes('system_company_cannot_be_archived')) {
-      throw new Error('El espacio principal de gestiQa no se puede archivar.')
+      throw new Error('El espacio principal de EP GESTIÓN no se puede archivar.')
     }
     throw error
   }
@@ -136,7 +136,7 @@ async function invokeCompanyDeletion(body) {
       invalid_company: 'La empresa indicada no es válida.',
       company_not_found: 'La empresa ya no existe. Actualizá el listado.',
       company_name_mismatch: 'El nombre de la empresa cambió. Actualizá el listado e intentá de nuevo.',
-      system_company_cannot_be_deleted: 'El espacio principal de gestiQa está protegido.',
+      system_company_cannot_be_deleted: 'El espacio principal de EP GESTIÓN está protegido.',
       purge_job_not_found: 'No se encontró la limpieza pendiente.',
       authorization_check_failed: 'No se pudieron comprobar tus permisos. Probá nuevamente.',
       server_not_configured: 'Falta configurar la función de eliminación de empresas en Supabase.',

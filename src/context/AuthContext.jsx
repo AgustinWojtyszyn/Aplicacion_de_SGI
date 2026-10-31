@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { APP_URL } from '../lib/constants'
 import { requireSupabase, supabaseConfigured } from '../lib/supabase'
@@ -67,7 +68,7 @@ async function loadWorkspace(user) {
 
   let workspaceError = ''
   if (!isPlatformAdmin && preferredCompany?.slug && !preferredMatch) {
-    workspaceError = `Tu cuenta no está habilitada para ${preferredCompany.name || 'la empresa seleccionada'}. Volvé al acceso inicial y elegí tu empresa.`
+    workspaceError = `Tu cuenta no está habilitada para ${displayCompanyName(preferredCompany, 'la empresa seleccionada')}. Volvé al acceso inicial y elegí tu empresa.`
   }
 
   const membership = selectedCompany
@@ -131,7 +132,7 @@ export function AuthProvider({ children }) {
       setWorkspaceError(workspace.workspaceError)
       setPreferredCompany(readSelectedCompany())
     } catch (error) {
-      console.error('Failed to load gestiQa workspace', error)
+      console.error('Failed to load EP GESTIÓN workspace', error)
       setWorkspaceError(error.message || 'No se pudo cargar el espacio de trabajo.')
       setProfile(null)
       setMembership(null)

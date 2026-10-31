@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import {
   Banknote,
   BriefcaseBusiness,
@@ -190,7 +191,7 @@ export default function WorkEntriesPage() {
   function handleExport() {
     setError('')
     try {
-      downloadWorkEntriesExcel(entries, company?.name || 'Empresa')
+      downloadWorkEntriesExcel(entries, displayCompanyName(company, 'Empresa'))
     } catch (exportError) {
       setError(exportError.message)
     }

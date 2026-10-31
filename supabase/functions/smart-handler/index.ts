@@ -167,7 +167,7 @@ Deno.serve(async (request) => {
       .eq('is_active', true)
       .maybeSingle(),
     adminClient.from('profiles').select('id, full_name, email').eq('id', recipientUserId).maybeSingle(),
-    adminClient.from('companies').select('id, name').eq('id', companyId).maybeSingle(),
+    adminClient.from('companies').select('id, name, slug').eq('id', companyId).maybeSingle(),
     adminClient.from('profiles').select('id, full_name, email').eq('id', authData.user.id).maybeSingle(),
   ])
 
@@ -176,9 +176,10 @@ Deno.serve(async (request) => {
 
   const note = payload.note?.trim() || ''
   const recipientName = recipient.full_name || recipient.email
-  const senderName = sender?.full_name || sender?.email || 'gestiQa'
+  const senderName = sender?.full_name || sender?.email || 'EP GESTIÓN'
+  const companyName = company.slug === 'ep-consultora' || company.name.toLowerCase() === 'gestiqa' ? 'EP GESTIÓN' : company.name
   const safeTitle = escapeHtml(document.title)
-  const safeCompany = escapeHtml(company.name)
+  const safeCompany = escapeHtml(companyName)
   const safeRecipient = escapeHtml(recipientName)
   const safeSender = escapeHtml(senderName)
   const safeNote = escapeHtml(note).replaceAll('\n', '<br />')
@@ -199,19 +200,19 @@ Deno.serve(async (request) => {
       text: [
         `Hola ${recipientName},`,
         '',
-        `${senderName} te envió un documento para revisión en ${company.name}.`,
+        `${senderName} te envió un documento para revisión en ${companyName}.`,
         `Documento: ${document.title}`,
         note ? `Nota: ${note}` : '',
         '',
         `Abrir documentos: ${documentsUrl}`,
       ].filter(Boolean).join('\n'),
-      html: `<div style="font-family:Arial,sans-serif;line-height:1.55;color:#173B6C">
+      html: `<div style="font-family:Arial,sans-serif;line-height:1.55;color:#B46320">
         <p>Hola ${safeRecipient},</p>
         <p><strong>${safeSender}</strong> te envió un documento para revisión en <strong>${safeCompany}</strong>.</p>
         <p><strong>Documento:</strong> ${safeTitle}</p>
         ${safeNote ? `<p><strong>Nota:</strong><br />${safeNote}</p>` : ''}
-        <p><a href="${documentsUrl}" style="display:inline-block;padding:11px 16px;border-radius:8px;background:#173B6C;color:#fff;text-decoration:none;font-weight:700">Abrir documentos</a></p>
-        <p style="color:#667085;font-size:12px">gestiQa · notificación del flujo documental</p>
+        <p><a href="${documentsUrl}" style="display:inline-block;padding:11px 16px;border-radius:8px;background:#B46320;color:#fff;text-decoration:none;font-weight:700">Abrir documentos</a></p>
+        <p style="color:#667085;font-size:12px">EP GESTIÓN · notificación del flujo documental</p>
       </div>`,
       }),
     })

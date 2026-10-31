@@ -1,3 +1,4 @@
+import { displayCompanyName } from '../lib/branding'
 import {
   Archive,
   ArrowRight,
@@ -88,7 +89,7 @@ export default function CompaniesPage() {
       const matchesStatus = filter === 'archived' ? !item.is_active : item.is_active
       if (!matchesStatus) return false
       if (!term) return true
-      return [item.name, item.slug].some((value) => value?.toLowerCase().includes(term))
+      return [item.name, displayCompanyName(item), item.slug].some((value) => value?.toLowerCase().includes(term))
     })
   }, [managedCompanies, filter, search])
 
@@ -167,7 +168,7 @@ export default function CompaniesPage() {
       await setCompanyActive({ companyId: existingCompany.id, isActive: true })
       await syncCompanies()
       setFilter('active')
-      setNotice(`${existingCompany.name} quedó restaurada y ya podés abrirla.`)
+      setNotice(`${displayCompanyName(existingCompany)} quedó restaurada y ya podés abrirla.`)
       setModalMode(null)
       setForm(EMPTY_FORM)
     } catch (restoreError) {
@@ -223,7 +224,7 @@ export default function CompaniesPage() {
     try {
       await setCompanyActive({ companyId: item.id, isActive: !item.is_active })
       await syncCompanies()
-      setNotice(archiving ? `${item.name} quedó archivada.` : `${item.name} volvió a estar activa.`)
+      setNotice(archiving ? `${displayCompanyName(item)} quedó archivada.` : `${displayCompanyName(item)} volvió a estar activa.`)
     } catch (actionError) {
       console.error(actionError)
       setError(actionError.message || 'No se pudo cambiar el estado de la empresa.')
@@ -260,8 +261,8 @@ export default function CompaniesPage() {
       setDeleteConfirmation('')
       await syncCompanies()
       setNotice(result.completed
-        ? item.name + ' fue eliminada definitivamente, incluidos sus archivos.'
-        : item.name + ' fue eliminada de la base. La limpieza de archivos quedó pendiente; podés completarla desde el aviso de abajo.')
+        ? displayCompanyName(item) + ' fue eliminada definitivamente, incluidos sus archivos.'
+        : displayCompanyName(item) + ' fue eliminada de la base. La limpieza de archivos quedó pendiente; podés completarla desde el aviso de abajo.')
     } catch (deleteError) {
       console.error(deleteError)
       setError(deleteError.message || 'No se pudo eliminar la empresa.')
@@ -279,8 +280,8 @@ export default function CompaniesPage() {
       const result = await retryCompanyDeletion(job.id)
       await syncCompanies()
       setNotice(result.completed
-        ? 'Se completó la eliminación de archivos de ' + job.company_name + '.'
-        : 'La limpieza de ' + job.company_name + ' todavía tiene archivos pendientes. Podés reintentar.')
+        ? 'Se completó la eliminación de archivos de ' + displayCompanyName({ name: job.company_name }) + '.'
+        : 'La limpieza de ' + displayCompanyName({ name: job.company_name }) + ' todavía tiene archivos pendientes. Podés reintentar.')
     } catch (cleanupError) {
       console.error(cleanupError)
       setError(cleanupError.message || 'No se pudo reanudar la limpieza.')
@@ -330,7 +331,7 @@ export default function CompaniesPage() {
           <p>Estas empresas ya se quitaron del directorio, pero falta terminar de borrar algunos archivos físicos. El proceso se puede reintentar sin eliminar datos de otras empresas.</p>
           {pendingCleanups.map((job) => (
             <div className="company-cleanup-row" key={job.id}>
-              <span>{job.company_name}</span>
+              <span>{displayCompanyName({ name: job.company_name })}</span>
               <button className="secondary-button" type="button" disabled={Boolean(cleanupRunning)} onClick={() => handleRetryCleanup(job)}>
                 <RefreshCw size={15} /> {cleanupRunning === job.id ? 'Limpiando…' : 'Completar limpieza'}
               </button>
@@ -380,7 +381,7 @@ export default function CompaniesPage() {
 
                   <div className="company-management-main">
                     <div className="company-management-title">
-                      <strong>{item.name}</strong>
+                      <strong>{displayCompanyName(item)}</strong>
                       {isCurrent && <span className="company-current-pill">En uso</span>}
                       {!item.is_active && <span className="company-archived-pill">Archivada</span>}
                     </div>
@@ -420,7 +421,7 @@ export default function CompaniesPage() {
                         type="button"
                         onClick={() => openDelete(item)}
                         title="Revisar eliminación de empresa"
-                        aria-label={item.name + " - revisar eliminación"}
+                        aria-label={displayCompanyName(item) + " - revisar eliminación"}
                         disabled={deletingCompanyId === item.id}
                       >
                         <Trash2 size={16} />
@@ -441,7 +442,7 @@ export default function CompaniesPage() {
             <header>
               <div>
                 <span>{modalMode === 'create' ? 'NUEVO ESPACIO' : 'EDITAR EMPRESA'}</span>
-                <h2 id="company-modal-title">{modalMode === 'create' ? 'Nueva empresa' : editingCompany?.name}</h2>
+                <h2 id="company-modal-title">{modalMode === 'create' ? 'Nueva empresa' : displayCompanyName(editingCompany)}</h2>
               </div>
               <button className="icon-button" type="button" onClick={closeModal}><X size={19} /></button>
             </header>
@@ -451,7 +452,8 @@ export default function CompaniesPage() {
                 Nombre
                 <input
                   autoFocus
-                  value={form.name}
+                  value={isSystemCompany ? displayCompanyName(editingCompany) : form.name}
+                  disabled={isSystemCompany}
                   onChange={(event) => {
                     const name = event.target.value
                     setForm((current) => ({
@@ -490,7 +492,7 @@ export default function CompaniesPage() {
               {modalMode === 'create' && existingCompany && (
                 <div className="company-slug-conflict" role="status">
                   {existingCompany.is_active ? (
-                    <p>Este acceso ya pertenece a <strong>{existingCompany.name}</strong>. La empresa está activa; podés encontrarla en la lista de empresas.</p>
+                    <p>Este acceso ya pertenece a <strong>{displayCompanyName(existingCompany)}</strong>. La empresa está activa; podés encontrarla en la lista de empresas.</p>
                   ) : (
                     <>
                       <p><strong>{existingCompany.name}</strong> está archivada, no eliminada. Su acceso sigue reservado. Podés restaurarla con los datos que ya tenía.</p>
