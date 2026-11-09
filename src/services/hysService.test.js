@@ -102,7 +102,7 @@ describe('Higiene y Seguridad', () => {
       ['Verificar matafuegos', 'Edificio Central', 'Melisa', 'Alta', 'En curso', '20/11/2026', 'Control'],
     ]), 'Plan de acción')
     const bytes = write(workbook, { type: 'array', bookType: 'xlsx' })
-    const file = { name: 'plan.xlsx', size: bytes.length, arrayBuffer: async () => bytes.buffer }
+    const file = { name: 'plan.xlsx', size: bytes.byteLength || bytes.length, arrayBuffer: async () => bytes.buffer || bytes }
     const options = { units: [{ id: 'central', name: 'Edificio Central' }], canEdit: id => id === 'central' }
     await expect(parseHysActionsWorkbook(file, options)).resolves.toEqual([{
       rowNumber: 2, unitId: 'central', values: {
@@ -122,7 +122,7 @@ describe('Higiene y Seguridad', () => {
     ]), 'Plan de acción')
     const bytes = write(book, { type: 'array', bookType: 'xlsx' })
     await expect(parseHysActionsWorkbook({
-      name: 'plan.xlsx', size: bytes.length, arrayBuffer: async () => bytes.buffer,
+      name: 'plan.xlsx', size: bytes.byteLength || bytes.length, arrayBuffer: async () => bytes.buffer || bytes,
     }, { units: [{ id: 'central', name: 'Edificio Central' }], canEdit: () => true }))
       .rejects.toThrow(/no existe o es ambiguo/)
   })
