@@ -66,3 +66,7 @@ Ejecutar manualmente una sola vez `supabase/migrations/20261109170000_hys_unit_s
 El botón **Administrar apartados** aparece en cada sede para los administradores. Permite crear apartados nuevos, renombrar los existentes, ocultar los que no aplican y restaurarlos. También hay **Deshacer último cambio**. Una sede no modifica la configuración de las demás; la lista original de 13 apartados se mantiene por defecto. Ocultar nunca borra documentos, subcarpetas ni permisos.
 
 RLS y validaciones en base de datos protegen la empresa y el establecimiento y restringen los cambios del catálogo a administradores. Los permisos de lectura/escritura para apartados personalizados se pueden asignar desde la pantalla de permisos. La aplicación conserva el catálogo original y advierte si falta el SQL.
+
+## CRUD simplificado de apartados
+La administración de apartados ya no requiere recorrer un listado largo dentro de una ventana.
+En cada establecimiento, **Agregar apartado** está en el encabezado, y **Editar** y **Eliminar** aparecen directamente debajo de cada tarjeta. Eliminar exige confirmar y solo oculta el apartado de esa sede, conservando sus documentos; **Recuperar eliminados** y **Deshacer último cambio** permiten revertirlo. Se mantiene el SQL anterior; no se necesita otra migración.

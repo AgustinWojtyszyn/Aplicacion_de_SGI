@@ -160,26 +160,26 @@ it('creates and hides an independent legajo section, then restores the original'
   })
   render(<HysPage />)
   fireEvent.click(await screen.findByRole('button', { name: 'Planta Norte' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Administrar apartados' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Crear apartado' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Agregar apartado' }))
   fireEvent.change(screen.getByLabelText('Nombre del apartado'), { target: { value: 'Control de máquinas' } })
   fireEvent.submit(screen.getByRole('dialog', { name: 'Crear apartado' }))
   await waitFor(() => expect(saveHysUnitSection).toHaveBeenCalledWith(expect.objectContaining({
     companyId: 'qa', unitId: 'north', label: 'Control de máquinas', enabled: true,
   })))
-  fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
   fireEvent.click(screen.getByRole('button', { name: 'Sede Sur' }))
   expect(screen.queryByRole('button', { name: /Control de máquinas/ })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Planta Norte' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Administrar apartados' }))
-  const legalRow = within(screen.getByRole('dialog', { name: 'Administrar apartados' }))
-    .getByText('01 · Legajo legal').closest('.hys-section-manage-row')
-  fireEvent.click(legalRow.querySelector('button:last-child'))
+  fireEvent.click(screen.getByRole('button', { name: 'Eliminar apartado Legajo legal' }))
+  expect(screen.getByRole('dialog', { name: 'Eliminar apartado' })).toHaveTextContent(/conservarán/)
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Eliminar apartado' }))
+    .getByRole('button', { name: 'Eliminar apartado' }))
   await waitFor(() => expect(saveHysUnitSection).toHaveBeenLastCalledWith(expect.objectContaining({
     unitId: 'north', code: 'legal', enabled: false,
   })))
-  expect(legalRow).toHaveTextContent('No aplica / oculto')
-  fireEvent.click(legalRow.querySelector('button:last-child'))
+  expect(screen.queryByRole('button', { name: 'Eliminar apartado Legajo legal' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Recuperar eliminados' }))
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Recuperar apartados' }))
+    .getByRole('button', { name: 'Recuperar' }))
   await waitFor(() => expect(saveHysUnitSection).toHaveBeenLastCalledWith(expect.objectContaining({
     unitId: 'north', code: 'legal', enabled: true,
   })))

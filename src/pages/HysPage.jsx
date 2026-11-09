@@ -1,7 +1,7 @@
 import {
   Building2, CalendarDays, CheckCircle2, ChevronLeft, ClipboardList, Download, FilePlus2, FolderOpen,
   FileText, FolderPlus, History, LayoutDashboard, LockKeyhole, MapPin, Pencil, Plus, RefreshCw, Trash2,
-  ShieldCheck, UploadCloud, Users, X,
+  ShieldCheck, UploadCloud, Users, X, RotateCcw,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import HysFilePreview from '../components/HysFilePreview'
@@ -46,6 +46,7 @@ function HysWorkspace({ company, user, isAdmin }) {
   const [generalGroup, setGeneralGroup] = useState(null)
   const [folderDraft, setFolderDraft] = useState(null)
   const [sectionsOpen, setSectionsOpen] = useState(false)
+  const [sectionToDelete, setSectionToDelete] = useState(null)
   const [sectionDraft, setSectionDraft] = useState(null)
   const [lastSectionChange, setLastSectionChange] = useState(null)
   const [folderTrail, setFolderTrail] = useState([])
@@ -117,6 +118,7 @@ function HysWorkspace({ company, user, isAdmin }) {
     setFolderDraft(null)
     setFolderTrail([])
     setSectionsOpen(false)
+    setSectionToDelete(null)
     setSectionDraft(null)
     setLastSectionChange(null)
     setView(nextView)
@@ -165,7 +167,7 @@ function HysWorkspace({ company, user, isAdmin }) {
       setLastSectionChange({ unitId, code, previous: previous
         ? { label: previous.label, enabled: previous.enabled } : null, label: name })
       setSectionDraft(null)
-      setSectionsOpen(true)
+      setSectionsOpen(false)
       if (isNew) { setSection(code); setSelectedCategory(''); setFolderTrail([]) }
     }
   }
@@ -176,6 +178,7 @@ function HysWorkspace({ company, user, isAdmin }) {
       companyId: company.id, unitId, code: item.code, label: item.label, enabled,
     }), enabled ? 'Apartado restaurado con sus documentos.' : 'Apartado ocultado. No se borró ningún archivo.')
     if (ok) {
+      setSectionToDelete(null)
       setLastSectionChange({ unitId, code: item.code,
         previous: { label: item.label, enabled: item.enabled }, label: item.label })
       if (!enabled && section === item.code) {
@@ -619,18 +622,36 @@ function HysWorkspace({ company, user, isAdmin }) {
               <div className="hys-panel">
                 <div className="hys-panel-head"><div><p className="eyebrow">ESTABLECIMIENTO</p><h2>{unitName(unitId)}</h2>
                   <p>Legajo de Higiene y Seguridad · {unitSections.length} apartados disponibles</p></div>
-                  {isAdmin && <button className="secondary-button" type="button"
-                    onClick={() => setSectionsOpen(true)}><Pencil size={16}/> Administrar apartados</button>}</div>
+                  {isAdmin && <div className="hys-section-top-actions">
+                    <button className="primary-button" type="button"
+                      disabled={saving || data.sectionSettingsAvailable === false}
+                      onClick={() => { setError(''); setSectionDraft({ code: '', label: '', enabled: true }) }}>
+                      <Plus size={16}/> Agregar apartado
+                    </button>
+                    {sectionsForUnit(unitId).some(item => !item.enabled) && <button
+                      className="hys-simple-action" type="button" disabled={saving}
+                      onClick={() => setSectionsOpen(true)}><RotateCcw size={16}/> Recuperar eliminados</button>}
+                  </div>}</div>
                 {data.sectionSettingsAvailable === false && isAdmin && <p className="hys-config-warning">
                   Falta ejecutar el SQL de apartados por establecimiento. Los apartados originales siguen disponibles.
                 </p>}
                 {unitSections.length ? <div className="hys-section-grid">{unitSections.map((s) =>
-                  <button key={s.code} className={section === s.code ? 'active' : ''} onClick={() => {
-                    setSection(s.code); setSelectedCategory(''); setFolderTrail([])
-                  }}>
-                    <b>{s.number}</b><span>{s.label}</span>
-                  </button>)}</div> : <p className="hys-empty">No hay apartados habilitados para este establecimiento.
-                  {isAdmin ? ' Podés restaurarlos desde «Administrar apartados».' : ' Consultá con la administradora.'}</p>}
+                  <div key={s.code} className={'hys-section-card' + (section === s.code ? ' active' : '')}>
+                    <button type="button" className="hys-section-open" onClick={() => {
+                      setSection(s.code); setSelectedCategory(''); setFolderTrail([])
+                    }}><b>{s.number}</b><span>{s.label}</span></button>
+                    {isAdmin && data.sectionSettingsAvailable !== false && <div className="hys-section-card-actions">
+                      <button className="hys-simple-action" type="button" disabled={saving}
+                        aria-label={'Editar apartado ' + s.label}
+                        onClick={() => { setError(''); setSectionDraft({ code: s.code, label: s.label, enabled: true }) }}>
+                        <Pencil size={14}/> Editar</button>
+                      <button className="hys-simple-action danger" type="button" disabled={saving}
+                        aria-label={'Eliminar apartado ' + s.label}
+                        onClick={() => { setError(''); setSectionToDelete(s) }}>
+                        <Trash2 size={14}/> Eliminar</button>
+                    </div>}
+                  </div>)}</div> : <p className="hys-empty">No hay apartados habilitados para este establecimiento.
+                  {isAdmin ? ' Podés recuperarlos desde «Recuperar eliminados» o agregar uno nuevo.' : ' Consultá con la administradora.'}</p>}
               </div>
               {section === 'actions' && unitSections.some(s => s.code === 'actions') && <button className="secondary-button" onClick={() => go('actions', unitId)}>Abrir plan de acción de esta sede</button>}
               {unitSections.length > 0 && renderRecords()}
@@ -720,32 +741,31 @@ function HysWorkspace({ company, user, isAdmin }) {
 
 
       {sectionsOpen && isAdmin && view === 'unit' && <div className="hys-overlay" role="presentation">
-        <div className="hys-dialog hys-section-dialog" role="dialog" aria-modal="true" aria-label="Administrar apartados">
-          <div className="hys-modal-title"><h2>Apartados de {unitName(unitId)}</h2>
+        <div className="hys-dialog hys-restore-dialog" role="dialog" aria-modal="true" aria-label="Recuperar apartados">
+          <div className="hys-modal-title"><h2>Recuperar apartados</h2>
             <button type="button" aria-label="Cerrar" onClick={() => setSectionsOpen(false)}><X size={20}/></button></div>
-          <p className="hys-note">Elegí qué aplica en esta sede. Ocultar no borra documentos ni carpetas; podés restaurarlos cuando quieras.</p>
-          {data.sectionSettingsAvailable === false ? <p role="alert" className="hys-inline-error">
-            Primero aplicá el SQL de apartados personalizados.</p> : <>
-            <div className="hys-section-manager">{sectionsForUnit(unitId).map(item => (
-              <div className="hys-section-manage-row" key={item.code}>
-                <div><strong>{item.number} · {item.label}</strong>
-                  <small>{item.enabled ? 'Visible en esta sede' : 'No aplica / oculto'}{item.custom ? ' · Personalizado' : ''}</small></div>
-                <div className="hys-item-actions">
-                  <button className="secondary-button" disabled={saving} type="button" onClick={() => {
-                    setSectionDraft({ code: item.code, label: item.label, enabled: item.enabled }); setSectionsOpen(false)
-                  }}>Editar</button>
-                  <button className="secondary-button" disabled={saving} type="button" onClick={() => toggleSection(item)}>
-                    {item.enabled ? 'Ocultar' : 'Restaurar'}
-                  </button>
-                </div>
-              </div>
-            ))}</div>
-            <button className="primary-button" disabled={saving} type="button" onClick={() => {
-              setSectionDraft({ code: '', label: '', enabled: true }); setSectionsOpen(false)
-            }}><Plus size={16}/> Crear apartado</button>
-            {lastSectionChange?.unitId === unitId && <button type="button" className="hys-text-button"
-              disabled={saving} onClick={undoSectionChange}>Deshacer último cambio</button>}
-          </>}
+          <p className="hys-note">Apartados eliminados de {unitName(unitId)}. Sus carpetas y documentos se conservaron.</p>
+          <div className="hys-restore-list">{sectionsForUnit(unitId).filter(item => !item.enabled).map(item =>
+            <div className="hys-restore-row" key={item.code}>
+              <span>{item.label}</span>
+              <button className="hys-simple-action" type="button" disabled={saving}
+                onClick={() => toggleSection(item)}><RotateCcw size={15}/> Recuperar</button>
+            </div>)}</div>
+          {!sectionsForUnit(unitId).some(item => !item.enabled) && <p>No hay apartados para recuperar.</p>}
+          {error && <p role="alert" className="hys-inline-error">{error}</p>}
+        </div>
+      </div>}
+      {sectionToDelete && isAdmin && view === 'unit' && <div className="hys-overlay" role="presentation">
+        <div className="hys-dialog hys-confirm-dialog" role="dialog" aria-modal="true" aria-label="Eliminar apartado">
+          <div className="hys-modal-title"><h2>Eliminar apartado</h2>
+            <button type="button" disabled={saving} aria-label="Cerrar" onClick={() => setSectionToDelete(null)}><X size={20}/></button></div>
+          <p>¿Eliminar <strong>{sectionToDelete.label}</strong> de {unitName(unitId)}?</p>
+          <p className="hys-note">Dejará de aparecer en esta sede, pero sus carpetas, documentos y registros se conservarán. Podés recuperarlo después.</p>
+          <div className="hys-confirm-actions">
+            <button type="button" className="secondary-button" disabled={saving} onClick={() => setSectionToDelete(null)}>Cancelar</button>
+            <button type="button" className="hys-delete-confirm" disabled={saving}
+              onClick={() => toggleSection(sectionToDelete)}><Trash2 size={15}/> {saving ? 'Eliminando…' : 'Eliminar apartado'}</button>
+          </div>
           {error && <p role="alert" className="hys-inline-error">{error}</p>}
         </div>
       </div>}
@@ -753,7 +773,7 @@ function HysWorkspace({ company, user, isAdmin }) {
         <form className="hys-dialog" role="dialog" aria-modal="true"
           aria-label={sectionDraft.code ? 'Editar apartado' : 'Crear apartado'} onSubmit={submitSection}>
           <div className="hys-modal-title"><h2>{sectionDraft.code ? 'Editar apartado' : 'Nuevo apartado'}</h2>
-            <button type="button" aria-label="Cerrar" onClick={() => { setSectionDraft(null); setSectionsOpen(true) }}><X size={20}/></button></div>
+            <button type="button" aria-label="Cerrar" onClick={() => { setSectionDraft(null); setSectionsOpen(false) }}><X size={20}/></button></div>
           <label>Nombre del apartado<input autoFocus required minLength={2} maxLength={100}
             value={sectionDraft.label} onChange={event => setSectionDraft({ ...sectionDraft, label: event.target.value })}/></label>
           <p className="hys-note">El cambio solo afecta a {unitName(unitId)}. Los archivos existentes se conservan.</p>
