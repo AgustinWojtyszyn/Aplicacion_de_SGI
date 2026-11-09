@@ -1,18 +1,18 @@
 import {
   Building2, CalendarDays, CheckCircle2, ChevronLeft, ClipboardList, Download, FilePlus2, FolderOpen,
-  FileText, History, LayoutDashboard, LockKeyhole, MapPin, Plus, RefreshCw,
+  FileText, FolderPlus, History, LayoutDashboard, LockKeyhole, MapPin, Pencil, Plus, RefreshCw, Trash2,
   ShieldCheck, UploadCloud, Users, X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import HysFilePreview from '../components/HysFilePreview'
 import { useAuth } from '../context/AuthContext'
-import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysSectionFolders, sectionLabel } from '../lib/hysCatalog'
+import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, sectionLabel } from '../lib/hysCatalog'
 import {
   addHysUnit, canUseHys, createHysRecord, downloadActionsExcel, listHysHistory,
-  loadHys, isPreviewableHysFile, downloadHysFile, parseHysActionsWorkbook, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, setHysRecordObsolete, setHysOnly,
+  loadHys, isPreviewableHysFile, downloadHysFile, parseHysActionsWorkbook, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, saveHysFolder, deleteHysFolder, setHysRecordObsolete, setHysOnly,
 } from '../services/hysService'
 
-const initial = { units: [], actions: [], records: [], grants: [], members: [], companyDetails: null, companyDetailsAvailable: true }
+const initial = { units: [], actions: [], records: [], folders: [], foldersAvailable: true, grants: [], members: [], companyDetails: null, companyDetailsAvailable: true }
 const emptyCompany = { legal_name: '', cuit: '', activity: '', art_provider: '' }
 const emptyAction = { title: '', description: '', responsible: '', priority: 'media', status: 'pendiente', due_date: '', unitId: '' }
 const emptyRecord = { title: '', notes: '', category: '', recorded_at: '', expires_at: '', supersedesId: '', versionNo: 1, actionId: '' }
@@ -44,7 +44,8 @@ function HysWorkspace({ company, user, isAdmin }) {
   const [section, setSection] = useState('legal')
   const [selectedCategory, setSelectedCategory] = useState('')
   const [generalGroup, setGeneralGroup] = useState(null)
-  const [customFolder, setCustomFolder] = useState(null)
+  const [folderDraft, setFolderDraft] = useState(null)
+  const [folderTrail, setFolderTrail] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -107,7 +108,8 @@ function HysWorkspace({ company, user, isAdmin }) {
 
   const go = (nextView, nextUnitId = '') => {
     setGeneralGroup(null)
-    setCustomFolder(null)
+    setFolderDraft(null)
+    setFolderTrail([])
     setView(nextView)
     setUnitId(nextUnitId)
     setSelectedCategory('')
@@ -137,6 +139,66 @@ function HysWorkspace({ company, user, isAdmin }) {
     e.preventDefault()
     const ok = await run(() => addHysUnit({ companyId: company.id, ...unitDraft }), 'Establecimiento creado.')
     if (ok) { setShowUnit(false); setUnitDraft({ name: '', kind: 'sede', address: '' }) }
+  }
+
+
+  function openFolder(folder) {
+    setSelectedCategory(folder.category)
+    setFolderTrail(previous => [...previous, { category: folder.category, name: folder.name }])
+  }
+
+  function backFolder() {
+    const previous = folderTrail.slice(0, -1)
+    setFolderTrail(previous)
+    setSelectedCategory(previous.at(-1)?.category || '')
+  }
+
+  function editFolder(folder = null, parentCategory = null, targetSection = null, targetUnit = null) {
+    setFolderDraft({
+      mode: folder ? 'edit' : 'create', id: folder?.id || null,
+      category: folder?.category || '',
+      name: folder?.name || '',
+      parentCategory: folder ? (folder.parent_category || '') : (parentCategory || ''),
+      section: targetSection || folder?.section || (view === 'general' ? 'general' : section),
+      unitId: targetUnit ?? folder?.unit_id ?? (view === 'general' ? '' : unitId),
+    })
+  }
+
+  function folderParentOptions(draft) {
+    if (!draft) return []
+    const scope = (data.folders || []).filter(f => f.section === draft.section && (f.unit_id || '') === (draft.unitId || ''))
+    const fixed = draft.section === 'general'
+      ? GENERAL_MATRIX.flatMap(group => [
+        { value: group.prefix, label: group.number + ' · ' + group.label },
+        ...group.categories.map(name => ({ value: group.prefix + name, label: '↳ ' + name })),
+      ])
+      : (HYS_ALL_SECTIONS.find(item => item.code === draft.section)?.categories || [])
+          .map(name => ({ value: name, label: name }))
+    const values = [{ value: '', label: 'Raíz del apartado' }, ...fixed,
+      ...scope.map(f => ({ value: f.category, label: '📁 ' + f.category }))]
+    return values.filter((item, i) => values.findIndex(other => other.value === item.value) === i)
+      .filter(item => !draft.id || (item.value !== draft.category && !item.value.startsWith(draft.category + ' / ')))
+  }
+
+  async function submitFolder(event) {
+    event.preventDefault()
+    if (!folderDraft) return
+    const current = folderDraft
+    const ok = await run(() => saveHysFolder({
+      companyId: company.id, unitId: current.unitId, section: current.section,
+      parentCategory: current.parentCategory || null, name: current.name, id: current.id,
+    }), current.id ? 'Carpeta actualizada. Sus documentos permanecen vinculados.' : 'Carpeta creada. Ya podés guardar documentos.')
+    if (ok) {
+      setFolderDraft(null)
+      if (current.id) { setSelectedCategory(''); setFolderTrail([]) }
+    }
+  }
+
+  async function confirmDeleteFolder() {
+    if (!folderDraft?.id) return
+    const current = folderDraft
+    const ok = await run(() => deleteHysFolder(current.id), 'Carpeta vacía eliminada.')
+    if (ok) { setFolderDraft(null); setSelectedCategory(''); setFolderTrail([]) }
   }
 
   function newAction(action = null) {
@@ -282,91 +344,134 @@ function HysWorkspace({ company, user, isAdmin }) {
     const currentUnit = view === 'general' ? null : unitId
     const allowed = access(code, currentUnit)
     const canWrite = access(code, currentUnit, true)
-    const sectionRecords = data.records.filter((r) =>
+    const sectionRecords = data.records.filter(r =>
       r.section === code && (r.unit_id || '') === (view === 'general' ? '' : unitId))
+    const scopeFolders = (data.folders || []).filter(f =>
+      f.section === code && (f.unit_id || '') === (currentUnit || ''))
     const general = view === 'general'
-    const legacyRecords = general ? sectionRecords.filter(r => !GENERAL_MATRIX.some(group => r.category.startsWith(group.prefix))) : []
-    const inGroup = general && generalGroup
-    const folders = inGroup
-      ? hysSectionFolders(generalGroup, sectionRecords.filter(r => r.category.startsWith(generalGroup.prefix))
-        .map(r => ({ category: r.category.slice(generalGroup.prefix.length) })))
-      : hysSectionFolders(activeSection, sectionRecords)
-    const folderName = inGroup ? selectedCategory.slice(generalGroup.prefix.length) : selectedCategory
-    const openedRecords = sectionRecords.filter((r) => r.category === selectedCategory)
-    return (
-      <div className="hys-panel">
-        <div className="hys-panel-head">
-          <div><h2>{inGroup ? generalGroup.number + ' · ' + generalGroup.label : activeSection.number + ' · ' + activeSection.label}</h2>
-            <p>{view === 'general' ? 'Documentación común a toda la empresa.' : 'Legajo específico de ' + unitName(unitId) + '.'}</p>
-          </div>
-          {canWrite && (!general || selectedCategory) && <button className="primary-button" onClick={() => newRecord()}><FilePlus2 size={16}/> Nuevo registro</button>}
+    const inGroup = Boolean(general && generalGroup)
+    const parent = inGroup ? generalGroup.prefix : null
+    const activeNames = inGroup ? generalGroup.categories : general ? [] : activeSection.categories
+    const defaults = activeNames.map(name => ({ name, category: inGroup ? parent + name : name }))
+    const custom = scopeFolders.filter(f => f.parent_category === parent)
+      .map(f => ({ ...f, category: f.category }))
+    const isDescendant = (child, root) => child.startsWith(root + ' / ')
+    const legacy = [...new Set(sectionRecords.map(r => r.category)
+      .filter(category => inGroup ? category.startsWith(parent) : general
+        ? !GENERAL_MATRIX.some(group => category.startsWith(group.prefix))
+        : true)
+      .filter(category => ![...defaults, ...scopeFolders].some(f =>
+        category === f.category || isDescendant(category, f.category))))]
+      .map(category => ({ name: inGroup ? category.slice(parent.length) : category, category }))
+    const rootEntries = [...defaults, ...custom, ...legacy]
+      .filter((item, index, list) => list.findIndex(other => other.category === item.category) === index)
+    const openedRecords = sectionRecords.filter(r => r.category === selectedCategory)
+    const children = scopeFolders.filter(f => f.parent_category === selectedCategory)
+    const openedFolder = scopeFolders.find(f => f.category === selectedCategory)
+    const folderName = folderTrail.at(-1)?.name ||
+      (inGroup ? selectedCategory.slice(generalGroup.prefix.length) : selectedCategory)
+
+    function folderCard(folder) {
+      const managed = scopeFolders.find(f => f.category === folder.category)
+      const count = sectionRecords.filter(r => r.category === folder.category ||
+        isDescendant(r.category, folder.category)).length
+      return <div className="hys-folder-card" key={folder.category}>
+        <button type="button" className="hys-folder-open" onClick={() => openFolder(folder)}>
+          <FolderOpen size={20}/><span>{folder.name}</span>
+          <small>{count} {count === 1 ? 'registro' : 'registros'}</small>
+        </button>
+        {canWrite && managed && <div className="hys-folder-card-actions">
+          <button type="button" disabled={saving} aria-label={'Editar carpeta ' + folder.name}
+            onClick={() => editFolder(managed)}><Pencil size={14}/> Editar / mover</button>
+          <button type="button" disabled={saving} aria-label={'Eliminar carpeta ' + folder.name}
+            onClick={() => setFolderDraft({
+              id: managed.id, category: managed.category, name: managed.name, mode: 'delete',
+              section: code, unitId: currentUnit || '', parentCategory: managed.parent_category || '',
+            })}><Trash2 size={14}/> Eliminar</button>
+        </div>}
+      </div>
+    }
+
+    return <div className="hys-panel">
+      <div className="hys-panel-head">
+        <div><h2>{inGroup ? generalGroup.number + ' · ' + generalGroup.label : activeSection.number + ' · ' + activeSection.label}</h2>
+          <p>{general ? 'Documentación común a toda la empresa.' : 'Legajo específico de ' + unitName(unitId) + '.'}</p>
         </div>
-        {!allowed ? <p className="hys-empty"><LockKeyhole size={18}/> No tenés acceso a este apartado.</p> : <>
-          {selectedCategory ? <>
-            <button className="hys-back-button" type="button" onClick={() => setSelectedCategory('')}>
-              <ChevronLeft size={16}/> {general && !inGroup ? 'Volver a la matriz' : 'Volver a los subapartados'}
-            </button>
-            <div className="hys-folder-heading">
-              <div><FolderOpen size={23}/><div><strong>{folderName}</strong><small>{openedRecords.length} documento(s) y registro(s)</small></div></div>
+        {canWrite && (!general || selectedCategory) && <button className="primary-button" onClick={() => newRecord()}><FilePlus2 size={16}/> Nuevo registro</button>}
+      </div>
+      {!allowed ? <p className="hys-empty"><LockKeyhole size={18}/> No tenés acceso a este apartado.</p> : <>
+        {data.foldersAvailable === false && canWrite && <p className="hys-config-warning">
+          Para gestionar carpetas vacías, nombres y movimientos falta aplicar el complemento SQL de carpetas HyS.
+          Los documentos existentes siguen accesibles.
+        </p>}
+        {selectedCategory ? <>
+          <button className="hys-back-button" type="button" onClick={backFolder}>
+            <ChevronLeft size={16}/> {folderTrail.length > 1 ? 'Volver a la carpeta anterior' : general && !inGroup ? 'Volver a la matriz' : 'Volver a los subapartados'}
+          </button>
+          <div className="hys-folder-heading">
+            <div><FolderOpen size={23}/><div><strong>{folderName}</strong>
+              <small>{openedRecords.length} documento(s) y registro(s) en esta carpeta</small></div></div>
+            <div className="hys-item-actions">
+              {canWrite && openedFolder && <button className="secondary-button" type="button" onClick={() => editFolder(openedFolder)}>
+                <Pencil size={15}/> Editar / mover
+              </button>}
+              {canWrite && data.foldersAvailable !== false && <button className="secondary-button" type="button"
+                onClick={() => editFolder(null, selectedCategory, code, currentUnit)}>
+                <FolderPlus size={15}/> Nueva subcarpeta
+              </button>}
               {canWrite && <button className="primary-button" onClick={() => newRecord(null, null, selectedCategory, true)}>
                 <UploadCloud size={16}/> Subir documento
               </button>}
             </div>
-            {openedRecords.length ? <div className="hys-doc-list">{openedRecords.map((r) => (
-              <article className={'hys-doc ' + (r.is_obsolete ? 'hys-obsolete' : '')} key={r.id}>
-                <div className="hys-doc-icon"><FileText size={20}/></div>
-                <div className="hys-grow">
-                  <strong>{r.title}</strong><p>Versión {r.version_no}{r.is_obsolete ? ' · Obsoleto' : replaced.has(r.id) ? ' · Versión anterior' : ''}</p>
-                  {r.notes && <small>{r.notes}</small>}
-                  <small>{r.recorded_at ? 'Fecha: ' + formatDate(r.recorded_at) + ' · ' : ''}{r.expires_at ? 'Vence: ' + formatDate(r.expires_at) : 'Sin vencimiento'}</small>
-                </div>
-                <div className="hys-item-actions">
-                  {fileButtons(r)}
-                  {canWrite && !r.is_obsolete && !replaced.has(r.id) && <>
-                    <button className="hys-text-button" onClick={() => newRecord(r)}>Nueva versión</button>
-                    <button className="hys-text-button" onClick={() => run(() => setHysRecordObsolete(r.id), 'Documento marcado como obsoleto.')}>Obsoletar</button>
-                  </>}
-                </div>
-              </article>
-            ))}</div> : <p className="hys-empty">Este subapartado está vacío. {canWrite ? 'Usá «Subir documento» para agregar el primer archivo.' : 'Todavía no hay documentos cargados.'}</p>}
-          </> : general && !inGroup ? <>
-            <p className="hys-folder-intro">Elegí un apartado de la matriz para ver sus subcarpetas.</p>
-            <div className="hys-folder-grid">{GENERAL_MATRIX.map(group => <button type="button" key={group.code} onClick={() => setGeneralGroup(group)}>
-              <FolderOpen size={20}/><span>{group.number} · {group.label}</span>
-            </button>)}</div>
-            {legacyRecords.length > 0 && <>
-              <h3>Carpetas anteriores</h3>
-              <div className="hys-folder-grid">{hysSectionFolders(null, legacyRecords).map(folder => <button type="button" key={folder.name} onClick={() => setSelectedCategory(folder.name)}>
-                <FolderOpen size={20}/><span>{folder.name}</span><small>{folder.count} registros</small>
-              </button>)}</div>
-            </>}
-          </> : <>
-            {inGroup && <button className="hys-back-button" onClick={() => { setGeneralGroup(null); setCustomFolder(null) }}><ChevronLeft size={16}/> Volver a la matriz</button>}
-            {inGroup && canWrite && (customFolder === null
-              ? <button className="secondary-button" onClick={() => setCustomFolder('')}><Plus size={16}/> Crear subcarpeta</button>
-              : <form onSubmit={e => {
-                e.preventDefault()
-                const folder = customFolder.trim()
-                if (!folder) return
-                const category = generalGroup.prefix + folder
-                newRecord(null, null, category, true)
-                setCustomFolder(null)
-              }}>
-                <label>Nombre de la subcarpeta <input autoFocus required pattern=".*\S.*" maxLength={160 - generalGroup.prefix.length} value={customFolder} onChange={e => setCustomFolder(e.target.value)}/></label>
-                <button className="primary-button">Agregar primer archivo</button>
-                <button type="button" className="secondary-button" onClick={() => setCustomFolder(null)}>Cancelar</button>
-                <p>La subcarpeta se guarda al cargar su primer archivo.</p>
-              </form>)}
-            <p className="hys-folder-intro">Elegí un subapartado para consultar o cargar sus archivos. La estructura está disponible aunque todavía no haya documentos.</p>
-            <div className="hys-folder-grid">
-              {folders.map((folder) => <button key={folder.name} type="button" onClick={() => { setCustomFolder(null); setSelectedCategory(inGroup ? generalGroup.prefix + folder.name : folder.name) }}>
-                <FolderOpen size={20}/><span>{folder.name}</span><small>{folder.count} {folder.count === 1 ? 'registro' : 'registros'}</small>
-              </button>)}
-            </div>
+          </div>
+          {children.length > 0 && <>
+            <h3>Subcarpetas</h3>
+            <div className="hys-folder-grid">{children.map(folderCard)}</div>
           </>}
+          {openedRecords.length ? <div className="hys-doc-list">{openedRecords.map(r => (
+            <article className={'hys-doc ' + (r.is_obsolete ? 'hys-obsolete' : '')} key={r.id}>
+              <div className="hys-doc-icon"><FileText size={20}/></div>
+              <div className="hys-grow">
+                <strong>{r.title}</strong><p>Versión {r.version_no}{r.is_obsolete ? ' · Obsoleto' : replaced.has(r.id) ? ' · Versión anterior' : ''}</p>
+                {r.notes && <small>{r.notes}</small>}
+                <small>{r.recorded_at ? 'Fecha: ' + formatDate(r.recorded_at) + ' · ' : ''}{r.expires_at ? 'Vence: ' + formatDate(r.expires_at) : 'Sin vencimiento'}</small>
+              </div>
+              <div className="hys-item-actions">
+                {fileButtons(r)}
+                {canWrite && !r.is_obsolete && !replaced.has(r.id) && <>
+                  <button className="hys-text-button" onClick={() => newRecord(r)}>Nueva versión</button>
+                  <button className="hys-text-button" onClick={() => run(() => setHysRecordObsolete(r.id), 'Documento marcado como obsoleto.')}>Obsoletar</button>
+                </>}
+              </div>
+            </article>
+          ))}</div> : <p className="hys-empty">Esta carpeta no tiene documentos. {canWrite ? 'Podés subir el primero o crear subcarpetas.' : 'Todavía no hay documentos cargados.'}</p>}
+        </> : general && !inGroup ? <>
+          <div className="hys-folder-toolbar">
+            <p className="hys-folder-intro">Elegí un apartado de la matriz para ver sus subcarpetas.</p>
+            {canWrite && data.foldersAvailable !== false && <button className="secondary-button" type="button"
+              onClick={() => editFolder(null, null, code, currentUnit)}><FolderPlus size={16}/> Crear carpeta</button>}
+          </div>
+          <div className="hys-folder-grid">{GENERAL_MATRIX.map(group => <button type="button" key={group.code} onClick={() => {
+            setGeneralGroup(group); setSelectedCategory(''); setFolderTrail([])
+          }}><FolderOpen size={20}/><span>{group.number} · {group.label}</span></button>)}</div>
+          {rootEntries.length > 0 && <>
+            <h3>Otras carpetas</h3>
+            <div className="hys-folder-grid">{rootEntries.map(folderCard)}</div>
+          </>}
+        </> : <>
+          {inGroup && <button className="hys-back-button" onClick={() => {
+            setGeneralGroup(null); setSelectedCategory(''); setFolderTrail([])
+          }}><ChevronLeft size={16}/> Volver a la matriz</button>}
+          <div className="hys-folder-toolbar">
+            <p className="hys-folder-intro">Elegí un subapartado para consultar o cargar archivos. Las carpetas creadas se conservan aunque estén vacías.</p>
+            {canWrite && data.foldersAvailable !== false && <button className="secondary-button" type="button"
+              onClick={() => editFolder(null, parent, code, currentUnit)}><FolderPlus size={16}/>
+              {inGroup ? 'Crear subcarpeta' : 'Crear carpeta'}</button>}
+          </div>
+          <div className="hys-folder-grid">{rootEntries.map(folderCard)}</div>
         </>}
-      </div>
-    )
+      </>}
+    </div>
   }
 
   return (
@@ -527,6 +632,58 @@ function HysWorkspace({ company, user, isAdmin }) {
           </>}
         </div>
       </div>
+
+
+      {folderDraft && <div className="hys-overlay" role="presentation">
+        <form className="hys-dialog" role="dialog" aria-modal="true"
+          aria-label={folderDraft.mode === 'delete' ? 'Eliminar carpeta' : folderDraft.mode === 'edit' ? 'Editar carpeta' : 'Crear carpeta'}
+          onSubmit={folderDraft.mode === 'delete' ? (event) => { event.preventDefault(); confirmDeleteFolder() } : submitFolder}>
+          <div className="hys-modal-title">
+            <h2>{folderDraft.mode === 'delete' ? 'Eliminar carpeta' : folderDraft.mode === 'edit' ? 'Editar carpeta' : 'Nueva carpeta'}</h2>
+            <button type="button" disabled={saving} aria-label="Cerrar" onClick={() => setFolderDraft(null)}><X size={20}/></button>
+          </div>
+          {folderDraft.mode === 'delete' ? <>
+            <p>¿Querés eliminar <strong>{folderDraft.name}</strong>? No se borrarán documentos: únicamente se permite eliminar carpetas vacías.</p>
+            {(() => {
+              const docs = data.records.filter(r => r.section === folderDraft.section &&
+                (r.unit_id || '') === (folderDraft.unitId || '') &&
+                (r.category === folderDraft.category || r.category.startsWith(folderDraft.category + ' / '))).length
+              const children = (data.folders || []).filter(f => f.section === folderDraft.section &&
+                (f.unit_id || '') === (folderDraft.unitId || '') &&
+                f.category !== folderDraft.category && f.category.startsWith(folderDraft.category + ' / ')).length
+              return docs || children
+                ? <p className="hys-inline-error" role="alert">Esta carpeta tiene {docs} documentos o registros y {children} subcarpetas. Movelos primero.</p>
+                : <p className="hys-note">La carpeta está vacía y puede eliminarse.</p>
+            })()}
+            <button className="primary-button" disabled={saving || data.records.some(r =>
+              r.section === folderDraft.section && (r.unit_id || '') === (folderDraft.unitId || '') &&
+              (r.category === folderDraft.category || r.category.startsWith(folderDraft.category + ' / '))) ||
+              (data.folders || []).some(f => f.section === folderDraft.section &&
+                (f.unit_id || '') === (folderDraft.unitId || '') &&
+                f.category !== folderDraft.category && f.category.startsWith(folderDraft.category + ' / '))}>
+              Confirmar eliminación
+            </button>
+          </> : <>
+            <label>Nombre de la {folderDraft.parentCategory ? 'subcarpeta' : 'carpeta'}
+              <input autoFocus required maxLength={90} value={folderDraft.name}
+                onChange={event => setFolderDraft({ ...folderDraft, name: event.target.value })}
+                placeholder="Ej.: Certificados 2026"/>
+            </label>
+            <label>Ubicación
+              <select value={folderDraft.parentCategory || ''} onChange={event =>
+                setFolderDraft({ ...folderDraft, parentCategory: event.target.value })}>
+                {folderParentOptions(folderDraft).map(option =>
+                  <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <p className="hys-note">{folderDraft.id
+              ? 'Podés renombrarla o moverla. Las referencias de los documentos se actualizan automáticamente.'
+              : 'La carpeta se guarda inmediatamente, incluso sin documentos.'}</p>
+            <button className="primary-button" disabled={saving}>{saving ? 'Guardando…' : folderDraft.id ? 'Guardar cambios' : 'Crear carpeta'}</button>
+          </>}
+          {error && <p role="alert" className="hys-inline-error">{error}</p>}
+        </form>
+      </div>}
 
       {preview && <HysFilePreview record={preview} onClose={() => setPreview(null)}/>}
       {showUnit && <div className="hys-overlay" role="presentation"><form className="hys-dialog" onSubmit={createUnit}>

@@ -131,3 +131,17 @@
 .hys-import-preview { display:grid; gap:7px; max-height:230px; overflow:auto; }
 .hys-import-preview > div { padding:9px 11px; border:1px solid #e7e2dd; border-radius:9px; display:grid; gap:4px; }
 .hys-import-preview small { color:#69717b; }
+
+/* CRUD de carpetas HyS: tarjeta de navegación y acciones independientes. */
+.hys-folder-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+.hys-folder-toolbar .hys-folder-intro { margin:0; flex:1; }
+.hys-folder-toolbar .secondary-button,.hys-folder-heading .secondary-button { display:inline-flex; align-items:center; gap:7px; }
+.hys-folder-card { display:flex; flex-direction:column; overflow:hidden; background:#fcfbfa; border:1px solid #e7dfd6; border-radius:12px; min-width:0; }
+.hys-folder-grid .hys-folder-card > .hys-folder-open { width:100%; min-height:66px; border:0; border-radius:0; background:transparent; }
+.hys-folder-card:hover { border-color:#c78e5e; }
+.hys-folder-card-actions { display:flex; align-items:center; flex-wrap:wrap; border-top:1px solid #ede7e1; padding:5px 8px; gap:4px; background:#fff; }
+.hys-folder-grid .hys-folder-card-actions button { width:auto; flex:1; min-height:30px; justify-content:center; padding:5px 7px; font-size:.71rem; font-weight:650; border:0; border-radius:7px; background:transparent; color:#766452; }
+.hys-folder-grid .hys-folder-card-actions button:last-child { color:#a04435; }
+.hys-folder-grid .hys-folder-card-actions button:hover { background:#f7f1ed; }
+.hys-folder-grid .hys-folder-card-actions svg { color:inherit; }
+.hys-folder-grid .hys-folder-card-actions button:disabled { opacity:.5; cursor:not-allowed; }

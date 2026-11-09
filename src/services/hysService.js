@@ -1,5 +1,5 @@
 import { requireSupabase } from '../lib/supabase'
-import { HYS_STATES, HYS_PRIORITIES } from '../lib/hysCatalog'
+import { HYS_STATES, HYS_PRIORITIES, HYS_ALL_SECTIONS, GENERAL_MATRIX } from '../lib/hysCatalog'
 
 const BUCKET = 'hys-files'
 const MAX_SIZE = 25 * 1024 * 1024
@@ -57,23 +57,73 @@ export function isPreviewableHysFile(name = '') {
   return /\.(?:pdf|png|jpe?g|webp)$/i.test(String(name))
 }
 
+export function isMissingHysFolders(error) {
+  const message = String(error?.message || '')
+  return (error?.code === '42P01' || error?.code === 'PGRST205')
+    && /hys_folders/i.test(message)
+}
+
 export async function loadHys({ companyId, isAdmin }) {
   const db = requireSupabase()
-  const [units, actions, records, grants, members, companyDetailsResult] = await Promise.all([
+  const [units, actions, records, grants, members, companyDetailsResult, folderResult] = await Promise.all([
     allPages(db.from('hys_units').select('*').eq('company_id', companyId).order('name').order('id')),
     allPages(db.from('hys_actions').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).order('id')),
     allPages(db.from('hys_records').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).order('id')),
     allPages(db.from('hys_grants').select('*').eq('company_id', companyId).order('id')),
     isAdmin ? allPages(db.from('company_members').select('user_id, role, hys_only, user:profiles(id,full_name,email)').eq('company_id', companyId).eq('is_active', true).order('user_id')) : Promise.resolve([]),
     db.from('hys_company_details').select('*').eq('company_id', companyId).maybeSingle(),
+    allPages(db.from('hys_folders').select('*').eq('company_id', companyId).order('created_at').order('id'))
+      .then(folders => ({ folders, available: true }))
+      .catch(error => {
+        if (isMissingHysFolders(error)) return { folders: [], available: false }
+        throw error
+      }),
   ])
   const companyDetailsAvailable = !isMissingHysCompanyDetails(companyDetailsResult.error)
   if (companyDetailsResult.error && companyDetailsAvailable) throw companyDetailsResult.error
   return {
-    units, actions, records, grants, members,
+    units, actions, records, grants, members, folders: folderResult.folders, foldersAvailable: folderResult.available,
     companyDetails: companyDetailsAvailable ? companyDetailsResult.data : null,
     companyDetailsAvailable,
   }
+}
+
+export function normalizeHysFolder({ name, parentCategory = null }) {
+  const clean = trim(name)
+  if (!clean || clean.length > 90) throw new Error('El nombre debe tener entre 1 y 90 caracteres.')
+  if (clean.includes('/') || clean.includes(String.fromCharCode(92))) throw new Error('El nombre no puede contener barras.')
+  const parent = parentCategory || null
+  const category = parent ? parent + (/^\d{2} \/ $/.test(parent) ? '' : ' / ') + clean : clean
+  if (category.length > 160) throw new Error('La ruta de la carpeta no puede superar 160 caracteres.')
+  return { name: clean, parentCategory: parent, category }
+}
+
+export async function saveHysFolder({ companyId, unitId, section, name, parentCategory, id }) {
+  const values = normalizeHysFolder({ name, parentCategory })
+  // Los apartados fijos de la matriz no se pueden reemplazar por carpetas editables.
+  const reserved = section === 'general'
+    ? GENERAL_MATRIX.flatMap(group => group.categories.map(category => group.prefix + category))
+    : HYS_ALL_SECTIONS.find(item => item.code === section)?.categories || []
+  if (reserved.some(category => category.toLocaleLowerCase('es') === values.category.toLocaleLowerCase('es'))) {
+    throw new Error('Este subapartado pertenece a la matriz fija. Elegí otro nombre.')
+  }
+  const db = requireSupabase()
+  const { data, error } = id
+    ? await db.rpc('hys_update_folder', {
+      p_id: id, p_parent_category: values.parentCategory, p_name: values.name,
+    })
+    : await db.rpc('hys_create_folder', {
+      p_company: companyId, p_unit: unitId || null, p_section: section,
+      p_parent_category: values.parentCategory, p_name: values.name,
+    })
+  if (error?.code === '23505') throw new Error('Ya existe una carpeta con ese nombre en esta ubicación.')
+  if (error) throw error
+  return data
+}
+
+export async function deleteHysFolder(id) {
+  const { error } = await requireSupabase().rpc('hys_delete_folder', { p_id: id })
+  if (error) throw error
 }
 
 export async function addHysUnit({ companyId, name, kind, address }) {

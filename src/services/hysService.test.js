@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HYS_SECTIONS, hysSectionFolders } from '../lib/hysCatalog'
-import { buildActionsExcel, canUseHys, isMissingHysCompanyDetails, isPreviewableHysFile, parseHysActionsWorkbook, normalizeHysAction, normalizeHysCompanyDetails } from './hysService'
+import { buildActionsExcel, canUseHys, isMissingHysCompanyDetails, isPreviewableHysFile, parseHysActionsWorkbook, normalizeHysAction, normalizeHysCompanyDetails, normalizeHysFolder, isMissingHysFolders } from './hysService'
 
 describe('Higiene y Seguridad', () => {
   it('preserves the thirteen sections requested by the client', () => {
@@ -85,6 +85,21 @@ describe('Higiene y Seguridad', () => {
     })).toBe(true)
     expect(isMissingHysCompanyDetails({ code: '42501', message: 'permission denied' })).toBe(false)
     expect(isMissingHysCompanyDetails({ code: 'PGRST205', message: 'another table missing' })).toBe(false)
+  })
+
+  it('creates independent empty folder paths, including the company matrix prefixes', () => {
+    expect(normalizeHysFolder({ name: '  Renovaciones ', parentCategory: '03 / ' })).toEqual({
+      name: 'Renovaciones', parentCategory: '03 / ', category: '03 / Renovaciones',
+    })
+    expect(normalizeHysFolder({ name: '2026', parentCategory: '03 / Renovaciones' }).category)
+      .toBe('03 / Renovaciones / 2026')
+    expect(normalizeHysFolder({ name: 'Legajo personalizado' }).category).toBe('Legajo personalizado')
+    expect(() => normalizeHysFolder({ name: '   ' })).toThrow(/nombre/)
+    expect(() => normalizeHysFolder({ name: 'x'.repeat(91) })).toThrow(/90 caracteres/)
+    expect(() => normalizeHysFolder({ name: 'x'.repeat(60), parentCategory: 'a'.repeat(120) }))
+      .toThrow(/160 caracteres/)
+    expect(isMissingHysFolders({ code: 'PGRST205', message: 'hys_folders missing' })).toBe(true)
+    expect(isMissingHysFolders({ code: '42501', message: 'permission denied hys_folders' })).toBe(false)
   })
 
   it('distinguishes previewable PDFs and photos from Office file downloads', () => {
