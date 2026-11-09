@@ -143,3 +143,19 @@ describe('Higiene y Seguridad', () => {
   })
 
 })
+
+describe('Apartados configurables por establecimiento', () => {
+  it('keeps the 13 default sections in other sites and supports reversible overrides', async () => {
+    const { hysConfiguredSections } = await import('../lib/hysCatalog')
+    const settings = [
+      { unit_id: 'north', code: 'legal', label: 'Legajo normativo', is_active: false },
+      { unit_id: 'north', code: 'custom_123', label: 'Medicina laboral', is_active: true },
+    ]
+    const north = hysConfiguredSections(settings, 'north')
+    const south = hysConfiguredSections(settings, 'south')
+    expect(north.find(s => s.code === 'legal')).toMatchObject({ label: 'Legajo normativo', enabled: false })
+    expect(north.find(s => s.code === 'custom_123')).toMatchObject({ enabled: true, categories: ['Otros'] })
+    expect(south).toHaveLength(13)
+    expect(south.find(s => s.code === 'legal')).toMatchObject({ label: 'Legajo legal', enabled: true })
+  })
+})

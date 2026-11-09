@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import HysPage from './HysPage'
-import { createHysRecord, loadHys, saveHysFolder, deleteHysFolder } from '../services/hysService'
+import { createHysRecord, loadHys, saveHysFolder, deleteHysFolder, saveHysUnitSection } from '../services/hysService'
 
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ company: { id: 'qa', name: 'Empresa QA' }, user: { id: 'admin' }, role: 'admin' }),
 }))
 vi.mock('../services/hysService', async (original) => ({
-  ...await original(), loadHys: vi.fn(), createHysRecord: vi.fn(), saveHysFolder: vi.fn(), deleteHysFolder: vi.fn(),
+  ...await original(), loadHys: vi.fn(), createHysRecord: vi.fn(), saveHysFolder: vi.fn(), deleteHysFolder: vi.fn(), saveHysUnitSection: vi.fn(),
 }))
 
 it('opens the action folders and the editable plan for the selected establishment', async () => {
@@ -140,4 +140,46 @@ it('offers a blank template and import to begin the action plan', async () => {
   expect(screen.getByText(/Todavía no hay acciones cargadas/)).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Importar Excel' }))
   expect(screen.getByRole('dialog', { name: 'Importar acciones desde Excel' })).toBeVisible()
+})
+
+it('creates and hides an independent legajo section, then restores the original', async () => {
+  const sections = []
+  loadHys.mockImplementation(async () => ({
+    units: [{ id: 'north', name: 'Planta Norte' }, { id: 'south', name: 'Sede Sur' }],
+    actions: [], records: [], folders: [], foldersAvailable: true,
+    sectionSettings: [...sections], sectionSettingsAvailable: true,
+    grants: [], members: [], companyDetailsAvailable: true,
+  }))
+  saveHysUnitSection.mockImplementation(async value => {
+    const index = sections.findIndex(s => s.unit_id === value.unitId && s.code === value.code)
+    const updated = { code: value.code, label: value.label, unit_id: value.unitId,
+      company_id: value.companyId, is_active: value.enabled }
+    if (index === -1) sections.push(updated)
+    else sections[index] = updated
+    return updated
+  })
+  render(<HysPage />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Planta Norte' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Administrar apartados' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Crear apartado' }))
+  fireEvent.change(screen.getByLabelText('Nombre del apartado'), { target: { value: 'Control de máquinas' } })
+  fireEvent.submit(screen.getByRole('dialog', { name: 'Crear apartado' }))
+  await waitFor(() => expect(saveHysUnitSection).toHaveBeenCalledWith(expect.objectContaining({
+    companyId: 'qa', unitId: 'north', label: 'Control de máquinas', enabled: true,
+  })))
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Sede Sur' }))
+  expect(screen.queryByRole('button', { name: /Control de máquinas/ })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Planta Norte' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Administrar apartados' }))
+  const legalRow = screen.getByText('01 · Legajo legal').closest('.hys-section-manage-row')
+  fireEvent.click(legalRow.querySelector('button:last-child'))
+  await waitFor(() => expect(saveHysUnitSection).toHaveBeenLastCalledWith(expect.objectContaining({
+    unitId: 'north', code: 'legal', enabled: false,
+  })))
+  expect(legalRow).toHaveTextContent('No aplica / oculto')
+  fireEvent.click(legalRow.querySelector('button:last-child'))
+  await waitFor(() => expect(saveHysUnitSection).toHaveBeenLastCalledWith(expect.objectContaining({
+    unitId: 'north', code: 'legal', enabled: true,
+  })))
 })
