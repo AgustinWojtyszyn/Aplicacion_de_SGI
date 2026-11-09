@@ -53,7 +53,7 @@ with check (public.has_company_role(company_id,array['admin'::public.company_rol
 drop policy if exists hys_unit_sections_update on public.hys_unit_sections;
 create policy hys_unit_sections_update on public.hys_unit_sections for update to authenticated
 using (public.has_company_role(company_id,array['admin'::public.company_role]))
-with check (public.has_company_role(company_id,array['admin'::public.company_role']));
+with check (public.has_company_role(company_id,array['admin'::public.company_role]));
 -- Ausencia de permiso DELETE: ocultar conserva los documentos y permite deshacer.
 grant select,insert,update on public.hys_unit_sections to authenticated;
 
