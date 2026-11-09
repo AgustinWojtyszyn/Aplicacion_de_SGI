@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { HYS_SECTIONS } from '../lib/hysCatalog'
-import { buildActionsExcel, canUseHys, normalizeHysAction, normalizeHysCompanyDetails } from './hysService'
+import { HYS_SECTIONS, hysSectionFolders } from '../lib/hysCatalog'
+import { buildActionsExcel, canUseHys, isMissingHysCompanyDetails, isPreviewableHysFile, normalizeHysAction, normalizeHysCompanyDetails } from './hysService'
 
 describe('Higiene y Seguridad', () => {
   it('preserves the thirteen sections requested by the client', () => {
@@ -56,4 +56,41 @@ describe('Higiene y Seguridad', () => {
     expect(xml).toContain('Sede A')
     expect(xml).not.toContain('A&B <C>')
   })
+
+  it('shows every subapartado even when there are no documents', () => {
+    const art = HYS_SECTIONS.find((s) => s.code === 'art')
+    const folders = hysSectionFolders(art, [])
+    expect(folders.length).toBe(art.categories.length)
+    expect(folders.every((f) => f.count === 0)).toBe(true)
+    expect(folders.some((f) => f.name.includes('03.06 Accidentes de trabajo'))).toBe(true)
+  })
+
+  it('keeps documents from old or custom subapartados accessible', () => {
+    const visits = HYS_SECTIONS.find((s) => s.code === 'visits')
+    const folders = hysSectionFolders(visits, [
+      { category: 'Registros de visitas' },
+      { category: 'Legajo histórico' },
+    ])
+    expect(folders).toEqual([
+      { name: 'Registros de visitas', count: 1 },
+      { name: 'Legajo histórico', count: 1 },
+    ])
+  })
+
+  it('only ignores missing optional company details, never permission problems', () => {
+    expect(isMissingHysCompanyDetails({
+      code: 'PGRST205',
+      message: "Could not find the table 'public.hys_company_details' in the schema cache",
+    })).toBe(true)
+    expect(isMissingHysCompanyDetails({ code: '42501', message: 'permission denied' })).toBe(false)
+    expect(isMissingHysCompanyDetails({ code: 'PGRST205', message: 'another table missing' })).toBe(false)
+  })
+
+  it('distinguishes previewable PDFs and photos from Office file downloads', () => {
+    expect(isPreviewableHysFile('informe.pdf')).toBe(true)
+    expect(isPreviewableHysFile('imagen.JPG')).toBe(true)
+    expect(isPreviewableHysFile('plan-de-accion.xlsx')).toBe(false)
+    expect(isPreviewableHysFile('procedimiento.docx')).toBe(false)
+  })
+
 })

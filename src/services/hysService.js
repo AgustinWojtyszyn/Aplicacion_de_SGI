@@ -46,6 +46,17 @@ async function allPages(query) {
   return all
 }
 
+export function isMissingHysCompanyDetails(error) {
+  const message = String(error?.message || '')
+  return ((error?.code === '42P01' || error?.code === 'PGRST205')
+    && /hys_company_details/i.test(message))
+    || /(?:could not find the table|relation .* does not exist).*hys_company_details/i.test(message)
+}
+
+export function isPreviewableHysFile(name = '') {
+  return /\.(?:pdf|png|jpe?g|webp)$/i.test(String(name))
+}
+
 export async function loadHys({ companyId, isAdmin }) {
   const db = requireSupabase()
   const [units, actions, records, grants, members, companyDetailsResult] = await Promise.all([
@@ -56,8 +67,13 @@ export async function loadHys({ companyId, isAdmin }) {
     isAdmin ? rows(db.from('company_members').select('user_id, role, hys_only, user:profiles(id,full_name,email)').eq('company_id', companyId).eq('is_active', true)) : Promise.resolve([]),
     db.from('hys_company_details').select('*').eq('company_id', companyId).maybeSingle(),
   ])
-  if (companyDetailsResult.error) throw companyDetailsResult.error
-  return { units, actions, records, grants, members, companyDetails: companyDetailsResult.data }
+  const companyDetailsAvailable = !isMissingHysCompanyDetails(companyDetailsResult.error)
+  if (companyDetailsResult.error && companyDetailsAvailable) throw companyDetailsResult.error
+  return {
+    units, actions, records, grants, members,
+    companyDetails: companyDetailsAvailable ? companyDetailsResult.data : null,
+    companyDetailsAvailable,
+  }
 }
 
 export async function addHysUnit({ companyId, name, kind, address }) {
@@ -177,20 +193,25 @@ export async function createHysRecord({ companyId, unitId, userId, values, file 
     upsert: false, contentType: FILE_TYPES[extension],
   })
   if (uploadError) {
-    await db.from('hys_records').delete().eq('id', id)
+    const { error: cleanupError } = await db.from('hys_records').delete().eq('id', id)
+    if (cleanupError) {
+      throw new Error('No se pudo subir el archivo y tampoco revertir el registro incompleto. Avisá al administrador. ' + uploadError.message)
+    }
     throw uploadError
   }
   return data
 }
 
-export async function openHysFile(path) {
-  if (!path) return
-  // Open the tab synchronously to avoid mobile popup blockers after await.
+export async function openHysFile(path, { downloadName = '' } = {}) {
+  if (!path) throw new Error('El registro no tiene un archivo adjunto.')
+  // Open a new tab during the tap, before requesting a signed private URL.
   const tab = window.open('', '_blank')
   try {
-    const { data, error } = await requireSupabase().storage.from(BUCKET).createSignedUrl(path, 60)
+    const options = downloadName ? { download: downloadName } : undefined
+    const { data, error } = await requireSupabase().storage.from(BUCKET).createSignedUrl(path, 120, options)
     if (error) throw error
-    if (tab) tab.location.href = data.signedUrl
+    if (!data?.signedUrl) throw new Error('No se pudo generar el enlace del archivo.')
+    if (tab) tab.location.replace(data.signedUrl)
     else window.location.assign(data.signedUrl)
   } catch (error) {
     tab?.close()

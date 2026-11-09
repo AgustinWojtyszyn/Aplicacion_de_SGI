@@ -19,3 +19,14 @@ export const HYS_ALL_SECTIONS = [{ code: 'general', number: '00', label: 'Docume
 export const HYS_STATES = { pendiente: 'Pendiente', en_curso: 'En curso', resuelta: 'Resuelta', verificada: 'Verificada' }
 export const HYS_PRIORITIES = { baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Crítica' }
 export const sectionLabel = (code) => HYS_ALL_SECTIONS.find((item) => item.code === code)?.label || code
+
+/** All subapartados stay visible when empty, including legacy categories from saved documents. */
+export function hysSectionFolders(section, records = []) {
+  const known = section?.categories || []
+  const extra = [...new Set(records.map((record) => record.category)
+    .filter((category) => category && !known.includes(category)))]
+  return [...known, ...extra].map((name) => ({
+    name,
+    count: records.filter((record) => record.category === name).length,
+  }))
+}
