@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import HysPage from './HysPage'
 import { createHysRecord, loadHys, saveHysFolder, deleteHysFolder, saveHysUnitSection } from '../services/hysService'
@@ -172,7 +172,8 @@ it('creates and hides an independent legajo section, then restores the original'
   expect(screen.queryByRole('button', { name: /Control de máquinas/ })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Planta Norte' }))
   fireEvent.click(screen.getByRole('button', { name: 'Administrar apartados' }))
-  const legalRow = screen.getByText('01 · Legajo legal').closest('.hys-section-manage-row')
+  const legalRow = within(screen.getByRole('dialog', { name: 'Administrar apartados' }))
+    .getByText('01 · Legajo legal').closest('.hys-section-manage-row')
   fireEvent.click(legalRow.querySelector('button:last-child'))
   await waitFor(() => expect(saveHysUnitSection).toHaveBeenLastCalledWith(expect.objectContaining({
     unitId: 'north', code: 'legal', enabled: false,

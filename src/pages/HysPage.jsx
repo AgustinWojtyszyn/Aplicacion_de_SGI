@@ -166,7 +166,7 @@ function HysWorkspace({ company, user, isAdmin }) {
         ? { label: previous.label, enabled: previous.enabled } : null, label: name })
       setSectionDraft(null)
       setSectionsOpen(true)
-      if (isNew) setSection(code)
+      if (isNew) { setSection(code); setSelectedCategory(''); setFolderTrail([]) }
     }
   }
 
