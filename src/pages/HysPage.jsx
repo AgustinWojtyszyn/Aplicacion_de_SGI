@@ -6,7 +6,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import HysFilePreview from '../components/HysFilePreview'
 import { useAuth } from '../context/AuthContext'
-import { GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysSectionFolders, sectionLabel } from '../lib/hysCatalog'
+import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysSectionFolders, sectionLabel } from '../lib/hysCatalog'
 import {
   addHysUnit, canUseHys, createHysRecord, downloadActionsExcel, listHysHistory,
   loadHys, isPreviewableHysFile, downloadHysFile, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, setHysRecordObsolete, setHysOnly,
@@ -43,6 +43,8 @@ function HysWorkspace({ company, user, isAdmin }) {
   const [unitId, setUnitId] = useState('')
   const [section, setSection] = useState('legal')
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [generalGroup, setGeneralGroup] = useState(null)
+  const [customFolder, setCustomFolder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -100,6 +102,8 @@ function HysWorkspace({ company, user, isAdmin }) {
   const canAddAction = unitId ? access('actions', unitId, true) : access('actions', null, true) || data.units.some((u) => access('actions', u.id, true))
 
   const go = (nextView, nextUnitId = '') => {
+    setGeneralGroup(null)
+    setCustomFolder(null)
     setView(nextView)
     setUnitId(nextUnitId)
     setSelectedCategory('')
@@ -188,6 +192,7 @@ function HysWorkspace({ company, user, isAdmin }) {
         companyId: company.id, unitId: recordDraft.unitId, userId: user.id,
         values: recordDraft, file: recordFile,
       })
+      if (view === 'general') setSelectedCategory(recordDraft.category)
       setRecordDraft(null)
       setRecordFile(null)
       await refresh()
@@ -232,23 +237,30 @@ function HysWorkspace({ company, user, isAdmin }) {
     const canWrite = access(code, currentUnit, true)
     const sectionRecords = data.records.filter((r) =>
       r.section === code && (r.unit_id || '') === (view === 'general' ? '' : unitId))
-    const folders = hysSectionFolders(activeSection, sectionRecords)
+    const general = view === 'general'
+    const legacyRecords = general ? sectionRecords.filter(r => !GENERAL_MATRIX.some(group => r.category.startsWith(group.prefix))) : []
+    const inGroup = general && generalGroup
+    const folders = inGroup
+      ? hysSectionFolders(generalGroup, sectionRecords.filter(r => r.category.startsWith(generalGroup.prefix))
+        .map(r => ({ category: r.category.slice(generalGroup.prefix.length) })))
+      : hysSectionFolders(activeSection, sectionRecords)
+    const folderName = inGroup ? selectedCategory.slice(generalGroup.prefix.length) : selectedCategory
     const openedRecords = sectionRecords.filter((r) => r.category === selectedCategory)
     return (
       <div className="hys-panel">
         <div className="hys-panel-head">
-          <div><h2>{activeSection.number} · {activeSection.label}</h2>
+          <div><h2>{inGroup ? generalGroup.number + ' · ' + generalGroup.label : activeSection.number + ' · ' + activeSection.label}</h2>
             <p>{view === 'general' ? 'Documentación común a toda la empresa.' : 'Legajo específico de ' + unitName(unitId) + '.'}</p>
           </div>
-          {canWrite && <button className="primary-button" onClick={() => newRecord()}><FilePlus2 size={16}/> Nuevo registro</button>}
+          {canWrite && (!general || selectedCategory) && <button className="primary-button" onClick={() => newRecord()}><FilePlus2 size={16}/> Nuevo registro</button>}
         </div>
         {!allowed ? <p className="hys-empty"><LockKeyhole size={18}/> No tenés acceso a este apartado.</p> : <>
           {selectedCategory ? <>
             <button className="hys-back-button" type="button" onClick={() => setSelectedCategory('')}>
-              <ChevronLeft size={16}/> Volver a los subapartados
+              <ChevronLeft size={16}/> {general && !inGroup ? 'Volver a la matriz' : 'Volver a los subapartados'}
             </button>
             <div className="hys-folder-heading">
-              <div><FolderOpen size={23}/><div><strong>{selectedCategory}</strong><small>{openedRecords.length} documento(s) y registro(s)</small></div></div>
+              <div><FolderOpen size={23}/><div><strong>{folderName}</strong><small>{openedRecords.length} documento(s) y registro(s)</small></div></div>
               {canWrite && <button className="primary-button" onClick={() => newRecord(null, null, selectedCategory, true)}>
                 <UploadCloud size={16}/> Subir documento
               </button>}
@@ -270,10 +282,37 @@ function HysWorkspace({ company, user, isAdmin }) {
                 </div>
               </article>
             ))}</div> : <p className="hys-empty">Este subapartado está vacío. {canWrite ? 'Usá «Subir documento» para agregar el primer archivo.' : 'Todavía no hay documentos cargados.'}</p>}
+          </> : general && !inGroup ? <>
+            <p className="hys-folder-intro">Elegí un apartado de la matriz para ver sus subcarpetas.</p>
+            <div className="hys-folder-grid">{GENERAL_MATRIX.map(group => <button type="button" key={group.code} onClick={() => setGeneralGroup(group)}>
+              <FolderOpen size={20}/><span>{group.number} · {group.label}</span>
+            </button>)}</div>
+            {legacyRecords.length > 0 && <>
+              <h3>Carpetas anteriores</h3>
+              <div className="hys-folder-grid">{hysSectionFolders(null, legacyRecords).map(folder => <button type="button" key={folder.name} onClick={() => setSelectedCategory(folder.name)}>
+                <FolderOpen size={20}/><span>{folder.name}</span><small>{folder.count} registros</small>
+              </button>)}</div>
+            </>}
           </> : <>
+            {inGroup && <button className="hys-back-button" onClick={() => { setGeneralGroup(null); setCustomFolder(null) }}><ChevronLeft size={16}/> Volver a la matriz</button>}
+            {inGroup && canWrite && (customFolder === null
+              ? <button className="secondary-button" onClick={() => setCustomFolder('')}><Plus size={16}/> Crear subcarpeta</button>
+              : <form onSubmit={e => {
+                e.preventDefault()
+                const folder = customFolder.trim()
+                if (!folder) return
+                const category = generalGroup.prefix + folder
+                newRecord(null, null, category, true)
+                setCustomFolder(null)
+              }}>
+                <label>Nombre de la subcarpeta <input autoFocus required pattern=".*\S.*" maxLength={160 - generalGroup.prefix.length} value={customFolder} onChange={e => setCustomFolder(e.target.value)}/></label>
+                <button className="primary-button">Agregar primer archivo</button>
+                <button type="button" className="secondary-button" onClick={() => setCustomFolder(null)}>Cancelar</button>
+                <p>La subcarpeta se guarda al cargar su primer archivo.</p>
+              </form>)}
             <p className="hys-folder-intro">Elegí un subapartado para consultar o cargar sus archivos. La estructura está disponible aunque todavía no haya documentos.</p>
             <div className="hys-folder-grid">
-              {folders.map((folder) => <button key={folder.name} type="button" onClick={() => setSelectedCategory(folder.name)}>
+              {folders.map((folder) => <button key={folder.name} type="button" onClick={() => { setCustomFolder(null); setSelectedCategory(inGroup ? generalGroup.prefix + folder.name : folder.name) }}>
                 <FolderOpen size={20}/><span>{folder.name}</span><small>{folder.count} {folder.count === 1 ? 'registro' : 'registros'}</small>
               </button>)}
             </div>
@@ -472,8 +511,8 @@ function HysWorkspace({ company, user, isAdmin }) {
       {recordDraft && <div className="hys-overlay" role="presentation"><form className="hys-dialog" onSubmit={submitRecord}>
         <div className="hys-modal-title"><h2>{recordDraft.supersedesId ? 'Nueva versión' : 'Nuevo registro documental'}</h2><button type="button" onClick={() => setRecordDraft(null)} aria-label="Cerrar"><X size={20}/></button></div>
         <p className="hys-note">{sectionLabel(recordDraft.section)}{recordDraft.versionNo > 1 ? ' · Versión ' + recordDraft.versionNo : ''}</p>
-        <label>Subapartado<select value={recordDraft.category} disabled={Boolean(recordDraft.supersedesId)} onChange={(e) => setRecordDraft({ ...recordDraft, category: e.target.value })}>
-          {[...new Set([...(HYS_ALL_SECTIONS.find((s) => s.code === recordDraft.section)?.categories || []), recordDraft.category])].map((s) => <option key={s} value={s}>{s}</option>)}
+        <label>Subapartado<select value={recordDraft.category} disabled={Boolean(recordDraft.supersedesId) || recordDraft.section === 'general'} onChange={(e) => setRecordDraft({ ...recordDraft, category: e.target.value })}>
+          {[...new Set([...(recordDraft.section === 'general' ? [] : HYS_ALL_SECTIONS.find((s) => s.code === recordDraft.section)?.categories || []), recordDraft.category])].map((s) => <option key={s} value={s}>{s}</option>)}
         </select></label>
         <label>Título<input required maxLength={180} minLength={2} value={recordDraft.title} onChange={(e) => setRecordDraft({ ...recordDraft, title: e.target.value })}/></label>
         <label>Observaciones<textarea rows={3} value={recordDraft.notes} onChange={(e) => setRecordDraft({ ...recordDraft, notes: e.target.value })}/></label>
