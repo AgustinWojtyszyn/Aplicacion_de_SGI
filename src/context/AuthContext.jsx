@@ -21,6 +21,19 @@ async function loadModules(companyId) {
   return data ?? []
 }
 
+async function loadActiveMemberships(supabase, userId) {
+  let result = await supabase.from('company_members')
+    .select('role, is_active, hys_only, company:companies(id, name, slug, is_active)')
+    .eq('user_id', userId).eq('is_active', true)
+  // Safe rollout: a frontend deploy must not break login before SQL is applied.
+  if (result.error && /hys_only|42703|PGRST204/i.test(result.error.message + ' ' + result.error.code)) {
+    result = await supabase.from('company_members')
+      .select('role, is_active, company:companies(id, name, slug, is_active)')
+      .eq('user_id', userId).eq('is_active', true)
+  }
+  return result
+}
+
 async function loadWorkspace(user) {
   const supabase = requireSupabase()
   const preferredCompany = readSelectedCompany()
@@ -31,11 +44,7 @@ async function loadWorkspace(user) {
       .select('id, full_name, email, created_at, updated_at')
       .eq('id', user.id)
       .maybeSingle(),
-    supabase
-      .from('company_members')
-      .select('role, is_active, company:companies(id, name, slug, is_active)')
-      .eq('user_id', user.id)
-      .eq('is_active', true),
+    loadActiveMemberships(supabase, user.id),
     supabase.rpc('is_platform_admin'),
   ])
 
@@ -73,9 +82,9 @@ async function loadWorkspace(user) {
 
   const membership = selectedCompany
     ? isPlatformAdmin
-      ? { role: 'admin', isActive: true, company: selectedCompany }
+      ? { role: 'admin', isActive: true, hysOnly: false, company: selectedCompany }
       : selectedMembership
-        ? { role: selectedMembership.role, isActive: selectedMembership.is_active, company: selectedCompany }
+        ? { role: selectedMembership.role, isActive: selectedMembership.is_active, hysOnly: selectedMembership.hys_only, company: selectedCompany }
         : null
     : null
 
@@ -256,25 +265,25 @@ export function AuthProvider({ children }) {
     setWorkspaceError('')
     try {
       let nextRole = 'admin'
+      let nextHysOnly = false
       if (!isPlatformAdmin) {
         // Never trust the cached list: access could have been revoked since login.
-        const { data, error } = await requireSupabase()
-          .from('company_members')
-          .select('role')
-          .eq('company_id', nextCompany.id)
-          .eq('user_id', session.user.id)
-          .eq('is_active', true)
-          .maybeSingle()
+        const result = await loadActiveMemberships(requireSupabase(), session.user.id)
+        const { data, error } = {
+          data: result.data?.find((m) => m.company?.id === nextCompany.id) || null,
+          error: result.error,
+        }
         if (error) throw error
         if (!data) throw new Error('Ya no tenés acceso a esta empresa. Actualizá la sesión.')
         nextRole = data.role
+        nextHysOnly = data.hys_only
       }
 
       const nextModules = await loadModules(nextCompany.id)
       rememberSelectedCompany(nextCompany)
       setPreferredCompany(nextCompany)
       setCompany(nextCompany)
-      setMembership({ role: nextRole, isActive: true, company: nextCompany })
+      setMembership({ role: nextRole, isActive: true, hysOnly: nextHysOnly, company: nextCompany })
       setModules(nextModules)
     } finally {
       setLoading(false)
@@ -297,6 +306,7 @@ export function AuthProvider({ children }) {
       companies,
       modules,
       role: membership?.role ?? null,
+      isHysOnly: Boolean(membership?.hysOnly),
       isPlatformAdmin,
       preferredCompany,
       configured: supabaseConfigured,

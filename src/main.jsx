@@ -19,6 +19,7 @@ import './styles/work-dashboard.css'
 import './styles/document-followup.css'
 import './styles/profile.css'
 import './styles/history.css'
+import './styles/hys.css'
 import './styles/brand.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(

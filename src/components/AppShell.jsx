@@ -6,6 +6,7 @@ import {
   ChevronDown,
   FileText,
   History,
+  HardHat,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -69,10 +70,10 @@ export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [switchingCompany, setSwitchingCompany] = useState(false)
   const [switchError, setSwitchError] = useState('')
-  const { profile, company, companies, role, isPlatformAdmin, switchCompany, signOut } = useAuth()
+  const { profile, company, companies, role, isPlatformAdmin, isHysOnly, switchCompany, signOut } = useAuth()
 
   const navigationGroups = useMemo(() => {
-    const groups = role !== 'admin' ? [{
+    const groups = isHysOnly ? [] : role !== 'admin' ? [{
       label: 'Documentación',
       icon: FileText,
       items: [
@@ -99,6 +100,12 @@ export default function AppShell() {
       },
     ]
 
+    groups.push({
+      label: 'Higiene y Seguridad',
+      icon: HardHat,
+      items: [{ to: '/hys', label: 'Legajos y plan de acción', icon: HardHat }],
+    })
+
     const adminItems = []
     if (canManageUsers(role)) {
       adminItems.push({ to: '/users', label: 'Usuarios', icon: UsersRound })
@@ -108,7 +115,7 @@ export default function AppShell() {
     if (adminItems.length) groups.push({ label: 'Administración', icon: Settings2, items: adminItems })
 
     return groups
-  }, [role, isPlatformAdmin])
+  }, [role, isPlatformAdmin, isHysOnly])
 
   const closeMenu = () => setMenuOpen(false)
 

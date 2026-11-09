@@ -1,9 +1,10 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AccessPendingPage from '../pages/AccessPendingPage'
 
 export default function ProtectedRoute() {
-  const { configured, user, membership, loading, workspaceError, preferredCompany } = useAuth()
+  const { configured, user, membership, loading, workspaceError, preferredCompany, isHysOnly } = useAuth()
+  const location = useLocation()
 
   if (!configured) {
     return <Navigate to="/" replace />
@@ -27,6 +28,10 @@ export default function ProtectedRoute() {
 
   if (workspaceError || !membership) {
     return <AccessPendingPage error={workspaceError} />
+  }
+
+  if (isHysOnly && location.pathname !== '/hys' && location.pathname !== '/profile') {
+    return <Navigate to="/hys" replace />
   }
 
   return <Outlet />

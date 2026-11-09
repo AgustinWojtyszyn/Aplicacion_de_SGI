@@ -30,6 +30,7 @@ EP GESTIÓN es una plataforma web multiempresa para centralizar documentación, 
 - Storage privado con URLs firmadas.
 - RLS en PostgreSQL para proteger información por empresa, membresía y rol.
 - Panel administrativo de usuarios.
+- Nuevo módulo de **Higiene y Seguridad**: sedes, legajos de 13 apartados, plan de acción web y permisos específicos (ver [guía](docs/HYS_MODULE.md)).
 
 ## Flujo documental
 
@@ -92,7 +93,9 @@ VITE_SUPABASE_ANON_KEY=
 
 ## Base de datos
 
-Las migraciones viven en `supabase/migrations/` y deben aplicarse en orden. La guía actualizada está en [`docs/SETUP.md`](docs/SETUP.md).
+Las migraciones viven en `supabase/migrations/` y deben aplicarse en orden.
+
+**Nuevo HyS:** aplicar manualmente `20261109100000_hys_module.sql` en el Supabase del SGI para habilitar los nuevos datos y permisos; subir frontend no aplica SQL. La guía actualizada está en [`docs/SETUP.md`](docs/SETUP.md).
 
 Migración de **Trabajos diarios, permisos por empresa y auditoría**: [20260916161000_daily_work_management.sql](supabase/migrations/20260916161000_daily_work_management.sql).
 

@@ -8,6 +8,7 @@ import ChangeHistoryPage from './pages/ChangeHistoryPage'
 import CompanyGatePage from './pages/CompanyGatePage'
 import DashboardWorkspacePage from './pages/DashboardWorkspacePage'
 import DocumentsPage from './pages/DocumentsPage'
+import HysPage from './pages/HysPage'
 import LoginPage from './pages/LoginPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ProfilePage from './pages/ProfilePage'
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/sgi" element={<SgiPage />} />
       </Route>
       <Route path="/documents" element={<DocumentsPage />} />
+      <Route path="/hys" element={<HysPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route element={<AdminRoute />}>
