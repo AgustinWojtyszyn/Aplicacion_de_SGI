@@ -6,13 +6,13 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import HysFilePreview from '../components/HysFilePreview'
 import { useAuth } from '../context/AuthContext'
-import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, sectionLabel } from '../lib/hysCatalog'
+import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysConfiguredSections, sectionLabel } from '../lib/hysCatalog'
 import {
   addHysUnit, canUseHys, createHysRecord, downloadActionsExcel, listHysHistory,
-  loadHys, isPreviewableHysFile, downloadHysFile, parseHysActionsWorkbook, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, saveHysFolder, deleteHysFolder, setHysRecordObsolete, setHysOnly,
+  loadHys, isPreviewableHysFile, downloadHysFile, parseHysActionsWorkbook, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, saveHysFolder, deleteHysFolder, saveHysUnitSection, setHysRecordObsolete, setHysOnly,
 } from '../services/hysService'
 
-const initial = { units: [], actions: [], records: [], folders: [], foldersAvailable: true, grants: [], members: [], companyDetails: null, companyDetailsAvailable: true }
+const initial = { units: [], actions: [], records: [], folders: [], foldersAvailable: true, sectionSettings: [], sectionSettingsAvailable: true, grants: [], members: [], companyDetails: null, companyDetailsAvailable: true }
 const emptyCompany = { legal_name: '', cuit: '', activity: '', art_provider: '' }
 const emptyAction = { title: '', description: '', responsible: '', priority: 'media', status: 'pendiente', due_date: '', unitId: '' }
 const emptyRecord = { title: '', notes: '', category: '', recorded_at: '', expires_at: '', supersedesId: '', versionNo: 1, actionId: '' }
@@ -45,6 +45,9 @@ function HysWorkspace({ company, user, isAdmin }) {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [generalGroup, setGeneralGroup] = useState(null)
   const [folderDraft, setFolderDraft] = useState(null)
+  const [sectionsOpen, setSectionsOpen] = useState(false)
+  const [sectionDraft, setSectionDraft] = useState(null)
+  const [lastSectionChange, setLastSectionChange] = useState(null)
   const [folderTrail, setFolderTrail] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -92,9 +95,12 @@ function HysWorkspace({ company, user, isAdmin }) {
   [isAdmin, data.grants])
 
   const actions = useMemo(() => data.actions.filter((a) => !unitId || a.unit_id === unitId), [data.actions, unitId])
+  const sectionsForUnit = (id) => hysConfiguredSections(data.sectionSettings, id)
+  const visibleSectionsForUnit = (id) => sectionsForUnit(id).filter(s => s.enabled && access(s.code, id))
+  const unitSections = visibleSectionsForUnit(unitId)
   const activeSection = view === 'general'
     ? HYS_ALL_SECTIONS[0]
-    : HYS_SECTIONS.find((s) => s.code === section) || HYS_SECTIONS[0]
+    : unitSections.find(s => s.code === section) || unitSections[0] || HYS_SECTIONS[0]
   const today = new Intl.DateTimeFormat('sv-SE', {timeZone:'America/Argentina/Buenos_Aires'}).format(new Date())
 
   const replaced = new Set(data.records.map(r => r.supersedes_id).filter(Boolean))
@@ -110,12 +116,15 @@ function HysWorkspace({ company, user, isAdmin }) {
     setGeneralGroup(null)
     setFolderDraft(null)
     setFolderTrail([])
+    setSectionsOpen(false)
+    setSectionDraft(null)
+    setLastSectionChange(null)
     setView(nextView)
     setUnitId(nextUnitId)
     setSelectedCategory('')
     setError('')
     setNotice('')
-    if (nextView === 'unit') setSection(HYS_SECTIONS.find(s => access(s.code, nextUnitId))?.code || 'legal')
+    if (nextView === 'unit') setSection(visibleSectionsForUnit(nextUnitId)[0]?.code || '')
   }
 
   async function run(operation, success) {
@@ -132,6 +141,63 @@ function HysWorkspace({ company, user, isAdmin }) {
       return false
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function submitSection(event) {
+    event.preventDefault()
+    if (!sectionDraft || !unitId || data.sectionSettingsAvailable === false) return
+    const name = sectionDraft.label.trim()
+    const options = sectionsForUnit(unitId)
+    if (options.some(s => s.code !== sectionDraft.code && s.enabled &&
+      s.label.toLocaleLowerCase('es') === name.toLocaleLowerCase('es'))) {
+      setError('Ya existe un apartado con ese nombre en este establecimiento.')
+      return
+    }
+    const isNew = !sectionDraft.code
+    const code = sectionDraft.code || 'custom_' + crypto.randomUUID()
+    const previous = options.find(s => s.code === code) || null
+    const ok = await run(() => saveHysUnitSection({
+      companyId: company.id, unitId, code, label: name,
+      enabled: sectionDraft.enabled !== false,
+    }), isNew ? 'Apartado creado para este establecimiento.' : 'Nombre del apartado actualizado.')
+    if (ok) {
+      setLastSectionChange({ unitId, code, previous: previous
+        ? { label: previous.label, enabled: previous.enabled } : null, label: name })
+      setSectionDraft(null)
+      setSectionsOpen(true)
+      if (isNew) setSection(code)
+    }
+  }
+
+  async function toggleSection(item) {
+    const enabled = !item.enabled
+    const ok = await run(() => saveHysUnitSection({
+      companyId: company.id, unitId, code: item.code, label: item.label, enabled,
+    }), enabled ? 'Apartado restaurado con sus documentos.' : 'Apartado ocultado. No se borró ningún archivo.')
+    if (ok) {
+      setLastSectionChange({ unitId, code: item.code,
+        previous: { label: item.label, enabled: item.enabled }, label: item.label })
+      if (!enabled && section === item.code) {
+        setSection(visibleSectionsForUnit(unitId).find(s => s.code !== item.code)?.code || '')
+        setSelectedCategory('')
+        setFolderTrail([])
+      }
+    }
+  }
+
+  async function undoSectionChange() {
+    const last = lastSectionChange
+    if (!last) return
+    const previous = last.previous || { label: last.label, enabled: false }
+    const ok = await run(() => saveHysUnitSection({
+      companyId: company.id, unitId: last.unitId, code: last.code,
+      label: previous.label, enabled: previous.enabled,
+    }), 'Último cambio deshecho.')
+    if (ok) {
+      setLastSectionChange(null)
+      if (previous.enabled) setSection(last.code)
+      else if (section === last.code) setSection(visibleSectionsForUnit(last.unitId).find(s => s.code !== last.code)?.code || '')
     }
   }
 
@@ -172,7 +238,7 @@ function HysWorkspace({ company, user, isAdmin }) {
         { value: group.prefix, label: group.number + ' · ' + group.label },
         ...group.categories.map(name => ({ value: group.prefix + name, label: '↳ ' + name })),
       ])
-      : (HYS_ALL_SECTIONS.find(item => item.code === draft.section)?.categories || [])
+      : (sectionsForUnit(draft.unitId).find(item => item.code === draft.section)?.categories || [])
           .map(name => ({ value: name, label: name }))
     const values = [{ value: '', label: 'Raíz del apartado' }, ...fixed,
       ...scope.map(f => ({ value: f.category, label: '📁 ' + f.category }))]
@@ -230,7 +296,9 @@ function HysWorkspace({ company, user, isAdmin }) {
 
   function newRecord(existing = null, action = null, category = '', requireFile = false) {
     const currentSection = existing?.section || (action ? 'actions' : view === 'general' ? 'general' : section)
-    const categories = HYS_ALL_SECTIONS.find((s) => s.code === currentSection)?.categories || GENERAL_CATEGORIES
+    const categories = (currentSection === 'general' ? GENERAL_CATEGORIES
+      : sectionsForUnit(existing?.unit_id || action?.unit_id || unitId)
+        .find(s => s.code === currentSection)?.categories) || ['Otros']
     setRecordDraft({
       ...emptyRecord, section: currentSection, unitId: existing ? existing.unit_id : action ? action.unit_id : (view === 'general' ? '' : unitId),
       category: existing?.category || (action ? 'Evidencias' : (category || selectedCategory || categories[0])),
@@ -482,7 +550,10 @@ function HysWorkspace({ company, user, isAdmin }) {
         <button className="secondary-button" disabled={loading} onClick={refresh}><RefreshCw size={16}/> Actualizar</button>
       </header>
       {error && <div className="page-error" role="alert">{error}</div>}
-      {notice && <div className="page-success" role="status">{notice}</div>}
+      {notice && <div className="page-success" role="status">{notice}
+        {lastSectionChange?.unitId === unitId && <button className="hys-text-button"
+          type="button" disabled={saving} onClick={undoSectionChange}>Deshacer último cambio</button>}
+      </div>}
       <div className="hys-layout">
         <aside className="hys-nav" aria-label="Navegación de Higiene y Seguridad">
           <button className={view === 'overview' ? 'active' : ''} onClick={() => go('overview')}><LayoutDashboard size={18}/> Panel general</button>
@@ -529,12 +600,12 @@ function HysWorkspace({ company, user, isAdmin }) {
                   </button>)}</div>}
               </div>
               <div className="hys-panel">
-                <div className="hys-panel-head"><div><h2>Estructura del legajo · 13 apartados</h2><p>Todos los subapartados del esquema recibido, incluso antes de cargar documentos.</p></div></div>
+                <div className="hys-panel-head"><div><h2>Estructura del legajo</h2><p>Los apartados aplicables dependen de cada establecimiento.</p></div></div>
                 {!data.units.length && <p className="hys-note">Para cargar documentos en el legajo, primero creá un establecimiento desde «Añadir establecimiento». La documentación general se carga por separado.</p>}
                 {data.units.length > 0 && <label className="hys-filter">Abrir legajo del establecimiento
                   <select value={overviewUnitId} onChange={e => setOverviewUnit(e.target.value)}>{data.units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
                 </label>}
-                <div className="hys-overview-sections">{HYS_SECTIONS.map((s) => <button key={s.code} disabled={!overviewUnitId || !access(s.code, overviewUnitId)} onClick={() => {
+                <div className="hys-overview-sections">{visibleSectionsForUnit(overviewUnitId).map((s) => <button key={s.code} disabled={!overviewUnitId || !access(s.code, overviewUnitId)} onClick={() => {
                   go('unit', overviewUnitId)
                   setSection(s.code)
                 }}>
@@ -546,14 +617,23 @@ function HysWorkspace({ company, user, isAdmin }) {
             {view === 'general' && renderRecords()}
             {view === 'unit' && <>
               <div className="hys-panel">
-                <div className="hys-panel-head"><div><p className="eyebrow">ESTABLECIMIENTO</p><h2>{unitName(unitId)}</h2><p>Legajo de Higiene y Seguridad · 13 apartados</p></div></div>
-                <div className="hys-section-grid">{HYS_SECTIONS.map((s) =>
-                  <button key={s.code} className={section === s.code ? 'active' : ''} onClick={() => { setSection(s.code); setSelectedCategory('') }}>
-                    <b>{s.number}</b><span>{s.label}</span>{!access(s.code, unitId) && <LockKeyhole size={13}/>}
-                  </button>)}</div>
+                <div className="hys-panel-head"><div><p className="eyebrow">ESTABLECIMIENTO</p><h2>{unitName(unitId)}</h2>
+                  <p>Legajo de Higiene y Seguridad · {unitSections.length} apartados disponibles</p></div>
+                  {isAdmin && <button className="secondary-button" type="button"
+                    onClick={() => setSectionsOpen(true)}><Pencil size={16}/> Administrar apartados</button>}</div>
+                {data.sectionSettingsAvailable === false && isAdmin && <p className="hys-config-warning">
+                  Falta ejecutar el SQL de apartados por establecimiento. Los apartados originales siguen disponibles.
+                </p>}
+                {unitSections.length ? <div className="hys-section-grid">{unitSections.map((s) =>
+                  <button key={s.code} className={section === s.code ? 'active' : ''} onClick={() => {
+                    setSection(s.code); setSelectedCategory(''); setFolderTrail([])
+                  }}>
+                    <b>{s.number}</b><span>{s.label}</span>
+                  </button>)}</div> : <p className="hys-empty">No hay apartados habilitados para este establecimiento.
+                  {isAdmin ? ' Podés restaurarlos desde «Administrar apartados».' : ' Consultá con la administradora.'}</p>}
               </div>
-              {section === 'actions' && access('actions', unitId) && <button className="secondary-button" onClick={() => go('actions', unitId)}>Abrir plan de acción de esta sede</button>}
-              {renderRecords()}
+              {section === 'actions' && unitSections.some(s => s.code === 'actions') && <button className="secondary-button" onClick={() => go('actions', unitId)}>Abrir plan de acción de esta sede</button>}
+              {unitSections.length > 0 && renderRecords()}
             </>}
             {view === 'actions' && <>
               <div className="hys-panel">
@@ -596,10 +676,15 @@ function HysWorkspace({ company, user, isAdmin }) {
                 <label>Persona<select required value={grantDraft.userId} onChange={(e) => setGrantDraft({ ...grantDraft, userId: e.target.value })}>
                   <option value="">Elegir usuario activo</option>{data.members.map((m) => <option value={m.user_id} key={m.user_id}>{m.user?.full_name || m.user?.email || m.user_id} ({m.role})</option>)}
                 </select></label>
-                <label>Apartado<select value={grantDraft.section} onChange={(e) => setGrantDraft({ ...grantDraft, section: e.target.value, unitId: '' })}>
+                <label>Apartado<select value={grantDraft.section} onChange={(e) => {
+                  const custom = (data.sectionSettings || []).find(s => s.code === e.target.value && s.code.startsWith('custom_'))
+                  setGrantDraft({ ...grantDraft, section: e.target.value, unitId: custom?.unit_id || '' })
+                }}>
                   {HYS_ALL_SECTIONS.map((s) => <option value={s.code} key={s.code}>{s.number} · {s.label}</option>)}
+                  {(data.sectionSettings || []).filter(s => s.is_active && s.code.startsWith('custom_'))
+                    .map(s => <option key={s.code} value={s.code}>{unitName(s.unit_id)} · {s.label}</option>)}
                 </select></label>
-                <label>Alcance<select disabled={grantDraft.section === 'general'} value={grantDraft.unitId} onChange={(e) => setGrantDraft({ ...grantDraft, unitId: e.target.value })}>
+                <label>Alcance<select disabled={grantDraft.section === 'general' || grantDraft.section.startsWith('custom_')} value={grantDraft.unitId} onChange={(e) => setGrantDraft({ ...grantDraft, unitId: e.target.value })}>
                   <option value="">Toda la empresa</option>{data.units.map((u) => <option value={u.id} key={u.id}>{u.name}</option>)}
                 </select></label>
                 <label>Permiso<select value={grantDraft.permission} onChange={(e) => setGrantDraft({ ...grantDraft, permission: e.target.value })}>
@@ -624,7 +709,7 @@ function HysWorkspace({ company, user, isAdmin }) {
               {!data.grants.length ? <p className="hys-empty">Todavía no se asignaron permisos específicos.</p> :
                 <div className="hys-grants-list">{data.grants.map((g) => <div className="hys-grant-row" key={g.id}>
                   <span><strong>{data.members.find((m) => m.user_id === g.user_id)?.user?.full_name || data.members.find((m) => m.user_id === g.user_id)?.user?.email || g.user_id}</strong>
-                    <small>{sectionLabel(g.section)} · {g.unit_id ? unitName(g.unit_id) : 'Toda la empresa'} · {g.permission === 'edit' ? 'Edición' : 'Lectura'}</small></span>
+                    <small>{(data.sectionSettings || []).find(s => s.code === g.section && s.unit_id === g.unit_id)?.label || sectionLabel(g.section)} · {g.unit_id ? unitName(g.unit_id) : 'Toda la empresa'} · {g.permission === 'edit' ? 'Edición' : 'Lectura'}</small></span>
                   <button className="hys-text-button" disabled={saving} onClick={() => run(() => removeHysGrant(g.id), 'Acceso revocado.')}>Revocar</button>
                 </div>)}</div>}
               <p className="hys-note">Un permiso de HyS no concede acceso al SGI, a otras carpetas ni a otras empresas.</p>
@@ -633,6 +718,49 @@ function HysWorkspace({ company, user, isAdmin }) {
         </div>
       </div>
 
+
+      {sectionsOpen && isAdmin && view === 'unit' && <div className="hys-overlay" role="presentation">
+        <div className="hys-dialog hys-section-dialog" role="dialog" aria-modal="true" aria-label="Administrar apartados">
+          <div className="hys-modal-title"><h2>Apartados de {unitName(unitId)}</h2>
+            <button type="button" aria-label="Cerrar" onClick={() => setSectionsOpen(false)}><X size={20}/></button></div>
+          <p className="hys-note">Elegí qué aplica en esta sede. Ocultar no borra documentos ni carpetas; podés restaurarlos cuando quieras.</p>
+          {data.sectionSettingsAvailable === false ? <p role="alert" className="hys-inline-error">
+            Primero aplicá el SQL de apartados personalizados.</p> : <>
+            <div className="hys-section-manager">{sectionsForUnit(unitId).map(item => (
+              <div className="hys-section-manage-row" key={item.code}>
+                <div><strong>{item.number} · {item.label}</strong>
+                  <small>{item.enabled ? 'Visible en esta sede' : 'No aplica / oculto'}{item.custom ? ' · Personalizado' : ''}</small></div>
+                <div className="hys-item-actions">
+                  <button className="secondary-button" disabled={saving} type="button" onClick={() => {
+                    setSectionDraft({ code: item.code, label: item.label, enabled: item.enabled }); setSectionsOpen(false)
+                  }}>Editar</button>
+                  <button className="secondary-button" disabled={saving} type="button" onClick={() => toggleSection(item)}>
+                    {item.enabled ? 'Ocultar' : 'Restaurar'}
+                  </button>
+                </div>
+              </div>
+            ))}</div>
+            <button className="primary-button" disabled={saving} type="button" onClick={() => {
+              setSectionDraft({ code: '', label: '', enabled: true }); setSectionsOpen(false)
+            }}><Plus size={16}/> Crear apartado</button>
+            {lastSectionChange?.unitId === unitId && <button type="button" className="hys-text-button"
+              disabled={saving} onClick={undoSectionChange}>Deshacer último cambio</button>}
+          </>}
+          {error && <p role="alert" className="hys-inline-error">{error}</p>}
+        </div>
+      </div>}
+      {sectionDraft && <div className="hys-overlay" role="presentation">
+        <form className="hys-dialog" role="dialog" aria-modal="true"
+          aria-label={sectionDraft.code ? 'Editar apartado' : 'Crear apartado'} onSubmit={submitSection}>
+          <div className="hys-modal-title"><h2>{sectionDraft.code ? 'Editar apartado' : 'Nuevo apartado'}</h2>
+            <button type="button" aria-label="Cerrar" onClick={() => { setSectionDraft(null); setSectionsOpen(true) }}><X size={20}/></button></div>
+          <label>Nombre del apartado<input autoFocus required minLength={2} maxLength={100}
+            value={sectionDraft.label} onChange={event => setSectionDraft({ ...sectionDraft, label: event.target.value })}/></label>
+          <p className="hys-note">El cambio solo afecta a {unitName(unitId)}. Los archivos existentes se conservan.</p>
+          {error && <p role="alert" className="hys-inline-error">{error}</p>}
+          <button className="primary-button" disabled={saving}>{saving ? 'Guardando…' : 'Guardar apartado'}</button>
+        </form>
+      </div>}
 
       {folderDraft && <div className="hys-overlay" role="presentation">
         <form className="hys-dialog" role="dialog" aria-modal="true"
@@ -728,9 +856,9 @@ function HysWorkspace({ company, user, isAdmin }) {
 
       {recordDraft && <div className="hys-overlay" role="presentation"><form className="hys-dialog" onSubmit={submitRecord}>
         <div className="hys-modal-title"><h2>{recordDraft.supersedesId ? 'Nueva versión' : 'Nuevo registro documental'}</h2><button type="button" onClick={() => setRecordDraft(null)} aria-label="Cerrar"><X size={20}/></button></div>
-        <p className="hys-note">{sectionLabel(recordDraft.section)}{recordDraft.versionNo > 1 ? ' · Versión ' + recordDraft.versionNo : ''}</p>
+        <p className="hys-note">{sectionsForUnit(recordDraft.unitId).find(s => s.code === recordDraft.section)?.label || sectionLabel(recordDraft.section)}{recordDraft.versionNo > 1 ? ' · Versión ' + recordDraft.versionNo : ''}</p>
         <label>Subapartado<select value={recordDraft.category} disabled={Boolean(recordDraft.supersedesId) || recordDraft.section === 'general'} onChange={(e) => setRecordDraft({ ...recordDraft, category: e.target.value })}>
-          {[...new Set([...(recordDraft.section === 'general' ? [] : HYS_ALL_SECTIONS.find((s) => s.code === recordDraft.section)?.categories || []), recordDraft.category])].map((s) => <option key={s} value={s}>{s}</option>)}
+          {[...new Set([...(recordDraft.section === 'general' ? [] : sectionsForUnit(recordDraft.unitId).find(s => s.code === recordDraft.section)?.categories || []), recordDraft.category])].map((s) => <option key={s} value={s}>{s}</option>)}
         </select></label>
         <label>Título<input required maxLength={180} minLength={2} value={recordDraft.title} onChange={(e) => setRecordDraft({ ...recordDraft, title: e.target.value })}/></label>
         <label>Observaciones<textarea rows={3} value={recordDraft.notes} onChange={(e) => setRecordDraft({ ...recordDraft, notes: e.target.value })}/></label>

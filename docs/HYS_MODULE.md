@@ -58,3 +58,11 @@ No asumir que el código en main aplica migraciones ni que Render o Supabase des
 - Word y Excel se descargan para abrirse en la aplicación correspondiente. No hay editor Office embebido.
 - Los archivos SGI/ISO preexistentes no se mueven ni se duplican a hys-files automáticamente; las políticas y permisos anteriores se preservan.
 - Verificar en una sesión real de administradora que suban un PDF y un Word y que se puedan consultar. No asumir que el commit en main activó automáticamente la migración SQL o el deploy de Render.
+
+## Apartados editables por establecimiento (09/11)
+
+Ejecutar manualmente una sola vez `supabase/migrations/20261109170000_hys_unit_sections_crud.sql` después del SQL de carpetas. **Ningún SQL se ejecutó automáticamente.**
+
+El botón **Administrar apartados** aparece en cada sede para los administradores. Permite crear apartados nuevos, renombrar los existentes, ocultar los que no aplican y restaurarlos. También hay **Deshacer último cambio**. Una sede no modifica la configuración de las demás; la lista original de 13 apartados se mantiene por defecto. Ocultar nunca borra documentos, subcarpetas ni permisos.
+
+RLS y validaciones en base de datos protegen la empresa y el establecimiento y restringen los cambios del catálogo a administradores. Los permisos de lectura/escritura para apartados personalizados se pueden asignar desde la pantalla de permisos. La aplicación conserva el catálogo original y advierte si falta el SQL.

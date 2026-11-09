@@ -145,3 +145,11 @@
 .hys-folder-grid .hys-folder-card-actions button:hover { background:#f7f1ed; }
 .hys-folder-grid .hys-folder-card-actions svg { color:inherit; }
 .hys-folder-grid .hys-folder-card-actions button:disabled { opacity:.5; cursor:not-allowed; }
+
+/* Administrador de apartados por establecimiento. */
+.hys-section-dialog { max-width:680px; width:min(94vw,680px); max-height:85vh; overflow-y:auto; }
+.hys-section-manager { display:grid; gap:8px; margin:16px 0; }
+.hys-section-manage-row { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid #e8e4df; border-radius:11px; padding:12px; }
+.hys-section-manage-row > div:first-child { min-width:0; overflow-wrap:anywhere; }
+.hys-section-manage-row small { display:block; color:#797f85; margin-top:4px; }
+@media (max-width:540px) { .hys-section-manage-row { flex-direction:column; align-items:stretch; } }
