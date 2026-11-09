@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HYS_SECTIONS, hysSectionFolders } from '../lib/hysCatalog'
-import { buildActionsExcel, canUseHys, isMissingHysCompanyDetails, isPreviewableHysFile, normalizeHysAction, normalizeHysCompanyDetails } from './hysService'
+import { buildActionsExcel, canUseHys, isMissingHysCompanyDetails, isPreviewableHysFile, parseHysActionsWorkbook, normalizeHysAction, normalizeHysCompanyDetails } from './hysService'
 
 describe('Higiene y Seguridad', () => {
   it('preserves the thirteen sections requested by the client', () => {
@@ -92,6 +92,39 @@ describe('Higiene y Seguridad', () => {
     expect(isPreviewableHysFile('imagen.JPG')).toBe(true)
     expect(isPreviewableHysFile('plan-de-accion.xlsx')).toBe(false)
     expect(isPreviewableHysFile('procedimiento.docx')).toBe(false)
+  })
+
+  it('loads the Excel template using the correct establishment and values', async () => {
+    const { utils, write } = await import('xlsx')
+    const workbook = utils.book_new()
+    utils.book_append_sheet(workbook, utils.aoa_to_sheet([
+      ['Acción', 'Establecimiento', 'Responsable', 'Prioridad', 'Estado', 'Vencimiento', 'Descripción'],
+      ['Verificar matafuegos', 'Edificio Central', 'Melisa', 'Alta', 'En curso', '20/11/2026', 'Control'],
+    ]), 'Plan de acción')
+    const bytes = write(workbook, { type: 'array', bookType: 'xlsx' })
+    const file = { name: 'plan.xlsx', size: bytes.length, arrayBuffer: async () => bytes.buffer }
+    const options = { units: [{ id: 'central', name: 'Edificio Central' }], canEdit: id => id === 'central' }
+    await expect(parseHysActionsWorkbook(file, options)).resolves.toEqual([{
+      rowNumber: 2, unitId: 'central', values: {
+        title: 'Verificar matafuegos', description: 'Control', responsible: 'Melisa',
+        priority: 'alta', status: 'en_curso', due_date: '2026-11-20',
+      },
+    }])
+    await expect(parseHysActionsWorkbook(file, { ...options, canEdit: () => false }))
+      .rejects.toThrow(/no tenés permiso/)
+  })
+
+  it('rejects an unknown establishment instead of inserting under a different site', async () => {
+    const { utils, write } = await import('xlsx')
+    const book = utils.book_new()
+    utils.book_append_sheet(book, utils.aoa_to_sheet([
+      ['Acción', 'Establecimiento'], ['Revisar extintores', 'Sede desconocida'],
+    ]), 'Plan de acción')
+    const bytes = write(book, { type: 'array', bookType: 'xlsx' })
+    await expect(parseHysActionsWorkbook({
+      name: 'plan.xlsx', size: bytes.length, arrayBuffer: async () => bytes.buffer,
+    }, { units: [{ id: 'central', name: 'Edificio Central' }], canEdit: () => true }))
+      .rejects.toThrow(/no existe o es ambiguo/)
   })
 
 })

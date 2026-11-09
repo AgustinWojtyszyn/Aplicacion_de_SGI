@@ -125,3 +125,9 @@
 .hys-office iframe { width:100%; min-height:55vh; border:0; }
 .hys-office td { border:1px solid #ddd; padding:4px 8px; white-space:pre; }
 .hys-office img,.hys-office canvas { max-width:100%; height:auto; }
+
+.hys-empty-actions { display:grid; justify-items:center; gap:10px; }
+.hys-empty-actions p { margin:0; }
+.hys-import-preview { display:grid; gap:7px; max-height:230px; overflow:auto; }
+.hys-import-preview > div { padding:9px 11px; border:1px solid #e7e2dd; border-radius:9px; display:grid; gap:4px; }
+.hys-import-preview small { color:#69717b; }

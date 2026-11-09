@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysSectionFolders, sectionLabel } from '../lib/hysCatalog'
 import {
   addHysUnit, canUseHys, createHysRecord, downloadActionsExcel, listHysHistory,
-  loadHys, isPreviewableHysFile, downloadHysFile, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, setHysRecordObsolete, setHysOnly,
+  loadHys, isPreviewableHysFile, downloadHysFile, parseHysActionsWorkbook, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, setHysRecordObsolete, setHysOnly,
 } from '../services/hysService'
 
 const initial = { units: [], actions: [], records: [], grants: [], members: [], companyDetails: null, companyDetailsAvailable: true }
@@ -60,6 +60,10 @@ function HysWorkspace({ company, user, isAdmin }) {
   const [recordError, setRecordError] = useState('')
   const [grantDraft, setGrantDraft] = useState({ userId: '', section: 'actions', unitId: '', permission: 'read' })
   const [history, setHistory] = useState(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [importRows, setImportRows] = useState([])
+  const [importError, setImportError] = useState('')
+  const [importing, setImporting] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!company?.id) return
@@ -213,6 +217,49 @@ function HysWorkspace({ company, user, isAdmin }) {
       section: grantDraft.section, permission: grantDraft.permission,
     }), 'Permiso guardado.')
     if (ok) setGrantDraft({ userId: '', section: 'actions', unitId: '', permission: 'read' })
+  }
+
+  async function selectActionsExcel(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setImportRows([])
+    setImportError('')
+    try {
+      const rows = await parseHysActionsWorkbook(file, {
+        units: data.units, defaultUnitId: unitId,
+        canEdit: (siteId) => access('actions', siteId, true),
+      })
+      const duplicate = rows.find((row) => data.actions.some((action) =>
+        (action.unit_id || '') === row.unitId &&
+        action.title.trim().toLocaleLowerCase('es') === row.values.title.toLocaleLowerCase('es') &&
+        (action.due_date || '') === (row.values.due_date || '')))
+      if (duplicate) throw new Error('La fila ' + duplicate.rowNumber + ' ya está en el plan. Quitá las acciones existentes del Excel para evitar duplicados.')
+      setImportRows(rows)
+    } catch (e) {
+      setImportError(errorText(e))
+    }
+  }
+
+  async function confirmActionsImport() {
+    if (importing || !importRows.length) return
+    setImporting(true)
+    setImportError('')
+    let saved = 0
+    try {
+      for (const row of importRows) {
+        await saveHysAction({ companyId: company.id, unitId: row.unitId, userId: user.id, values: row.values })
+        saved++
+      }
+      setImportOpen(false)
+      setImportRows([])
+      setNotice(saved + ' acciones importadas correctamente.')
+    } catch (e) {
+      setImportRows(previous => previous.slice(saved))
+      setImportError('Se guardaron ' + saved + ' acciones. ' + errorText(e) + ' Podés reintentar las restantes.')
+    } finally {
+      await refresh()
+      setImporting(false)
+    }
   }
 
   function fileButtons(record) {
@@ -407,7 +454,8 @@ function HysWorkspace({ company, user, isAdmin }) {
               <div className="hys-panel">
                 <div className="hys-panel-head"><div><h2>Plan de acción editable en línea</h2><p>Los cambios quedan guardados en el sistema y registrados en el historial.</p></div>
                   <div className="hys-actions-row">
-                    <button className="secondary-button" disabled={!actions.length} onClick={async () => { try { await downloadActionsExcel(actions, unitName) } catch (e) { setError(errorText(e)) } }}><Download size={16}/> Excel</button>
+                    <button className="secondary-button" onClick={async () => { try { await downloadActionsExcel(actions, unitName) } catch (e) { setError(errorText(e)) } }}><Download size={16}/> {actions.length ? 'Exportar Excel' : 'Plantilla Excel'}</button>
+                     {canAddAction && <button className="secondary-button" onClick={() => { setImportRows([]); setImportError(''); setImportOpen(true) }}><UploadCloud size={16}/> Importar Excel</button>}
                     {canAddAction && <button className="primary-button" onClick={() => newAction()}><Plus size={16}/> Nueva acción</button>}
                   </div>
                 </div>
@@ -424,7 +472,7 @@ function HysWorkspace({ company, user, isAdmin }) {
                       <button onClick={() => showHistory(a)}><History size={14}/> Historial</button>
                       {access('actions', a.unit_id, true) && <button onClick={() => newRecord(null, a)}><UploadCloud size={14}/> Evidencia</button>}
                     </div></td></tr>)}
-                </tbody></table></div> : <p className="hys-empty">No hay acciones visibles para este establecimiento.</p>}
+                </tbody></table></div> : <div className="hys-empty hys-empty-actions"><p>Todavía no hay acciones cargadas. Creá la primera o descargá la plantilla Excel para importar varias juntas.</p>{canAddAction && <button className="primary-button" onClick={() => newAction()}>Crear primera acción</button>}</div>}
               </div>
               <div className="hys-panel"><h3>Evidencias vinculadas al plan</h3>
                 {data.records.filter((r) => r.section === 'actions' && (!unitId || r.unit_id === unitId)).length === 0 ?
@@ -489,6 +537,19 @@ function HysWorkspace({ company, user, isAdmin }) {
         {error && <p role="alert" className="hys-inline-error">{error}</p>}
         <button className="primary-button" disabled={saving}>Crear establecimiento</button>
       </form></div>}
+
+      {importOpen && <div className="hys-overlay" role="presentation"><div className="hys-dialog" role="dialog" aria-modal="true" aria-label="Importar acciones desde Excel">
+        <div className="hys-modal-title"><h2>Importar acciones desde Excel</h2><button type="button" disabled={importing} aria-label="Cerrar" onClick={() => setImportOpen(false)}><X size={20}/></button></div>
+        <p className="hys-note">Descargá la plantilla, completá las acciones y subí el archivo. La importación agrega acciones nuevas, no reemplaza datos existentes ni documentos adjuntos.</p>
+        <label>Archivo Excel (.xlsx o .xls)<input type="file" accept=".xlsx,.xls" disabled={importing} onChange={selectActionsExcel}/></label>
+        {importError && <p role="alert" className="hys-inline-error">{importError}</p>}
+        {importRows.length > 0 && <>
+          <p><strong>{importRows.length} acciones listas para importar.</strong> Verificá la vista previa antes de confirmar.</p>
+          <div className="hys-import-preview">{importRows.slice(0, 8).map((row) => <div key={row.rowNumber}><strong>{row.values.title}</strong><small>{row.unitId ? unitName(row.unitId) : 'General'} · {HYS_STATES[row.values.status]} · {HYS_PRIORITIES[row.values.priority]}</small></div>)}</div>
+          {importRows.length > 8 && <small>Y {importRows.length - 8} acciones más.</small>}
+          <button type="button" className="primary-button" disabled={importing} onClick={confirmActionsImport}>{importing ? 'Guardando…' : 'Confirmar importación'}</button>
+        </>}
+      </div></div>}
 
       {actionDraft && <div className="hys-overlay" role="presentation"><form className="hys-dialog" onSubmit={submitAction}>
         <div className="hys-modal-title"><h2>{editingAction ? 'Editar acción' : 'Nueva acción correctiva'}</h2><button type="button" onClick={() => setActionDraft(null)} aria-label="Cerrar"><X size={20}/></button></div>

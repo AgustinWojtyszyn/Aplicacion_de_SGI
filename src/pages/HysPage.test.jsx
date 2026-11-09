@@ -61,3 +61,16 @@ it('opens the company matrix without a site and uploads several files into the s
   fireEvent.click(screen.getByRole('button', { name: 'Volver a los subapartados' }))
   expect(screen.getByRole('button', { name: /Renovaciones 1 registro/ })).toBeVisible()
 })
+
+it('offers a blank template and import to begin the action plan', async () => {
+  loadHys.mockResolvedValue({
+    units: [{ id: 'central', name: 'Edificio Central' }],
+    actions: [], records: [], grants: [], members: [], companyDetailsAvailable: true,
+  })
+  render(<HysPage/>)
+  fireEvent.click(await screen.findByRole('button', { name: 'Plan de acción' }))
+  expect(screen.getByRole('button', { name: 'Plantilla Excel' })).toBeEnabled()
+  expect(screen.getByText(/Todavía no hay acciones cargadas/)).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Importar Excel' }))
+  expect(screen.getByRole('dialog', { name: 'Importar acciones desde Excel' })).toBeVisible()
+})

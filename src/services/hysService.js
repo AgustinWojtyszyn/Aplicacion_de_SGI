@@ -229,6 +229,81 @@ export async function downloadHysFile(record) {
   downloadBlob(data, record.file_name || 'documento')
 }
 
+// Esta importación crea acciones nuevas; no modifica archivos Excel/Word adjuntos.
+export async function parseHysActionsWorkbook(file, { units = [], defaultUnitId = '', canEdit = () => false } = {}) {
+  if (!/\.(xls|xlsx)$/i.test(file?.name || '') || !file.size || file.size > 5 * 1024 * 1024) {
+    throw new Error('Seleccioná un Excel .xlsx o .xls de hasta 5 MB.')
+  }
+  const { read, utils, SSF } = await import('xlsx')
+  const book = read(await file.arrayBuffer(), { type: 'array', cellDates: true })
+  const sheet = book.Sheets[book.SheetNames.includes('Plan de acción') ? 'Plan de acción' : book.SheetNames[0]]
+  if (!sheet) throw new Error('La planilla no contiene hojas.')
+  const grid = utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true })
+  const canon = (value) => trim(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ')
+  const cols = (grid[0] || []).map(canon)
+  const index = (name) => cols.indexOf(canon(name))
+  if (index('Acción') < 0) throw new Error('Falta la columna «Acción». Descargá la plantilla del plan y conservá los encabezados.')
+  const cell = (row, name) => index(name) < 0 ? '' : row[index(name)]
+  function dateValue(raw, line) {
+    if (raw === '' || raw == null) return null
+    let y, m, d
+    if (raw instanceof Date) [y, m, d] = [raw.getUTCFullYear(), raw.getUTCMonth() + 1, raw.getUTCDate()]
+    else if (typeof raw === 'number') {
+      const parsed = SSF.parse_date_code(raw)
+      if (!parsed) throw new Error('Fila ' + line + ': fecha inválida.')
+      ;[y, m, d] = [parsed.y, parsed.m, parsed.d]
+    } else {
+      let parts = trim(raw).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+      if (parts) [y, m, d] = parts.slice(1).map(Number)
+      else {
+        parts = trim(raw).match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/)
+        if (!parts) throw new Error('Fila ' + line + ': fecha inválida. Usá DD/MM/AAAA.')
+        ;[d, m, y] = parts.slice(1).map(Number)
+      }
+    }
+    const check = new Date(Date.UTC(y, m - 1, d))
+    if (check.getUTCFullYear() !== y || check.getUTCMonth() + 1 !== m || check.getUTCDate() !== d) {
+      throw new Error('Fila ' + line + ': fecha inválida.')
+    }
+    return [String(y).padStart(4, '0'), String(m).padStart(2, '0'), String(d).padStart(2, '0')].join('-')
+  }
+  const enumValue = (raw, options, fallback, label, line) => {
+    if (!trim(raw)) return fallback
+    const result = Object.entries(options).find(([id, value]) => canon(id) === canon(raw) || canon(value) === canon(raw))
+    if (!result) throw new Error('Fila ' + line + ': ' + label + ' inválido («' + raw + '»).')
+    return result[0]
+  }
+  const result = []
+  const seen = new Set()
+  for (let i = 1; i < grid.length; i++) {
+    const row = grid[i] || []
+    if (!row.some(v => trim(v) !== '')) continue
+    if (result.length >= 500) throw new Error('La planilla admite hasta 500 acciones por importación.')
+    const line = i + 1
+    const name = canon(cell(row, 'Establecimiento'))
+    let unitId = defaultUnitId || ''
+    if (name === 'general' || name === 'empresa') unitId = ''
+    else if (name) {
+      const found = units.filter(unit => canon(unit.name) === name)
+      if (found.length !== 1) throw new Error('Fila ' + line + ': el establecimiento «' + cell(row, 'Establecimiento') + '» no existe o es ambiguo.')
+      unitId = found[0].id
+    }
+    if (!canEdit(unitId)) throw new Error('Fila ' + line + ': no tenés permiso para editar ese establecimiento.')
+    const values = normalizeHysAction({
+      title: cell(row, 'Acción'), description: cell(row, 'Descripción'), responsible: cell(row, 'Responsable'),
+      priority: enumValue(cell(row, 'Prioridad'), HYS_PRIORITIES, 'media', 'prioridad', line),
+      status: enumValue(cell(row, 'Estado'), HYS_STATES, 'pendiente', 'estado', line),
+      due_date: dateValue(cell(row, 'Vencimiento'), line),
+    })
+    const identity = [unitId, canon(values.title), values.due_date].join('|')
+    if (seen.has(identity)) throw new Error('Fila ' + line + ': acción repetida dentro del archivo.')
+    seen.add(identity)
+    result.push({ rowNumber: line, unitId, values })
+  }
+  if (!result.length) throw new Error('La plantilla está vacía. Completá una acción para importarla.')
+  return result
+}
+
 export async function buildActionsExcel(actions, unitName = () => 'General') {
   const { utils, write } = await import('xlsx')
   const header = ['Acción', 'Establecimiento', 'Responsable', 'Prioridad', 'Estado', 'Vencimiento', 'Descripción']
@@ -242,7 +317,7 @@ export async function buildActionsExcel(actions, unitName = () => 'General') {
 }
 export async function downloadActionsExcel(actions, unitName) {
   const blob = new Blob([await buildActionsExcel(actions, unitName)], { type: FILE_TYPES.xlsx })
-  downloadBlob(blob, 'Plan-de-accion-HyS.xlsx')
+  downloadBlob(blob, actions.length ? 'Plan-de-accion-HyS.xlsx' : 'Plantilla-Plan-de-accion-HyS.xlsx')
 }
 
 export function canUseHys({ isAdmin, grants, section, unitId, write = false }) {
