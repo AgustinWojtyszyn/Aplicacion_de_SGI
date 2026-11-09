@@ -52,3 +52,18 @@ export const GENERAL_MATRIX = HYS_SECTIONS.map(section => ({
   prefix: section.number + ' / ',
   categories: generalTopics[section.code] || section.categories,
 }))
+
+/** Per-establishment section overrides; no row means the original 13-section template. */
+export function hysConfiguredSections(configurations = [], unitId) {
+  const rows = (configurations || []).filter(row => row.unit_id === unitId)
+  const byCode = new Map(rows.map(row => [row.code, row]))
+  const fixed = HYS_SECTIONS.map(item => {
+    const override = byCode.get(item.code)
+    return { ...item, label: override?.label || item.label,
+      enabled: override?.is_active !== false, custom: false }
+  })
+  const custom = rows.filter(row => row.code.startsWith('custom_'))
+    .map(row => ({ code: row.code, number: '+', label: row.label,
+      categories: ['Otros'], enabled: row.is_active, custom: true }))
+  return [...fixed, ...custom]
+}

@@ -63,9 +63,29 @@ export function isMissingHysFolders(error) {
     && /hys_folders/i.test(message)
 }
 
+export function isMissingHysUnitSections(error) {
+  const message = String(error?.message || '')
+  return (error?.code === '42P01' || error?.code === 'PGRST205') && /hys_unit_sections/i.test(message)
+}
+
+export async function saveHysUnitSection({ companyId, unitId, code, label, enabled = true }) {
+  const clean = trim(label)
+  if (clean.length < 2 || clean.length > 100) throw new Error('El apartado debe tener entre 2 y 100 caracteres.')
+  if (!unitId) throw new Error('Seleccioná un establecimiento.')
+  const fixed = HYS_ALL_SECTIONS.some(s => s.code === code && code !== 'general')
+  if (!fixed && !/^custom_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(code || '')) {
+    throw new Error('Código de apartado inválido.')
+  }
+  const { data, error } = await requireSupabase().from('hys_unit_sections')
+    .upsert({ company_id: companyId, unit_id: unitId, code, label: clean, is_active: enabled },
+      { onConflict: 'company_id,unit_id,code' }).select().single()
+  if (error) throw error
+  return data
+}
+
 export async function loadHys({ companyId, isAdmin }) {
   const db = requireSupabase()
-  const [units, actions, records, grants, members, companyDetailsResult, folderResult] = await Promise.all([
+  const [units, actions, records, grants, members, companyDetailsResult, folderResult, sectionsResult] = await Promise.all([
     allPages(db.from('hys_units').select('*').eq('company_id', companyId).order('name').order('id')),
     allPages(db.from('hys_actions').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).order('id')),
     allPages(db.from('hys_records').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).order('id')),
@@ -78,11 +98,18 @@ export async function loadHys({ companyId, isAdmin }) {
         if (isMissingHysFolders(error)) return { folders: [], available: false }
         throw error
       }),
+    allPages(db.from('hys_unit_sections').select('*').eq('company_id', companyId).order('created_at').order('id'))
+      .then(sections => ({ sections, available: true }))
+      .catch(error => {
+        if (isMissingHysUnitSections(error)) return { sections: [], available: false }
+        throw error
+      }),
   ])
   const companyDetailsAvailable = !isMissingHysCompanyDetails(companyDetailsResult.error)
   if (companyDetailsResult.error && companyDetailsAvailable) throw companyDetailsResult.error
   return {
     units, actions, records, grants, members, folders: folderResult.folders, foldersAvailable: folderResult.available,
+    sectionSettings: sectionsResult.sections, sectionSettingsAvailable: sectionsResult.available,
     companyDetails: companyDetailsAvailable ? companyDetailsResult.data : null,
     companyDetailsAvailable,
   }
