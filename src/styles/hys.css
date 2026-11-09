@@ -112,7 +112,7 @@
 .hys-folder-heading small { color:#77808b; font-size:.76rem; margin-top:3px; }
 .hys-folder-heading .primary-button { display:flex; gap:7px; align-items:center; }
 .hys-overview-sections { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
-.hys-overview-sections>div { display:flex; gap:10px; align-items:flex-start; padding:12px; border:1px solid #eee6dd; border-radius:10px; }
+.hys-overview-sections>button { text-align:left; background:white; color:inherit; display:flex; gap:10px; align-items:flex-start; padding:12px; border:1px solid #eee6dd; border-radius:10px; }
 .hys-overview-sections b { color:#ad5c21; }
 .hys-overview-sections strong,.hys-overview-sections small { display:block; }
 .hys-overview-sections strong { font-size:.82rem; }
@@ -120,3 +120,8 @@
 .hys-inline-error,.hys-config-warning { color:#9b2020!important; border:1px solid #f1c4c4; background:#fff4f4; border-radius:10px; padding:12px; font-size:.82rem; }
 .hys-file-summary { font-size:.8rem; margin:0; overflow-wrap:anywhere; }
 @media(max-width:550px) { .hys-folder-grid,.hys-overview-sections { grid-template-columns:1fr; } }
+.hys-office { width:min(90vw,850px); }
+.hys-office h2 { overflow-wrap:anywhere; }
+.hys-office iframe { width:100%; min-height:55vh; border:0; }
+.hys-office td { border:1px solid #ddd; padding:4px 8px; white-space:pre; }
+.hys-office img,.hys-office canvas { max-width:100%; height:auto; }

@@ -48,13 +48,14 @@ describe('Higiene y Seguridad', () => {
     expect(canUseHys({ grants, isAdmin: true, section: 'legal', unitId: 'cocina-b', write: true })).toBe(true)
   })
 
-  it('generates an Excel-compatible workbook and escapes user content', () => {
-    const xml = buildActionsExcel([{ title: 'A&B <C>', description: 'Revisar > 10', status: 'pendiente',
+  it('generates an Excel-compatible workbook preserving user content', async () => {
+    const bytes = await buildActionsExcel([{ title: 'A&B <C>', description: 'Revisar > 10', status: 'pendiente',
       priority: 'media', responsible: 'Melisa', due_date: '', unit_id: 'cocina-a' }], () => 'Sede A')
-    expect(xml).toContain('A&amp;B &lt;C&gt;')
-    expect(xml).toContain('Revisar &gt; 10')
-    expect(xml).toContain('Sede A')
-    expect(xml).not.toContain('A&B <C>')
+    const { read } = await import('xlsx')
+    const sheet = read(bytes).Sheets['Plan de acción']
+    expect(sheet.A2.v).toBe('A&B <C>')
+    expect(sheet.B2.v).toBe('Sede A')
+    expect(sheet.G2.v).toBe('Revisar > 10')
   })
 
   it('shows every subapartado even when there are no documents', () => {

@@ -4,11 +4,12 @@ import {
   ShieldCheck, UploadCloud, Users, X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import HysFilePreview from '../components/HysFilePreview'
 import { useAuth } from '../context/AuthContext'
 import { GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysSectionFolders, sectionLabel } from '../lib/hysCatalog'
 import {
   addHysUnit, canUseHys, createHysRecord, downloadActionsExcel, listHysHistory,
-  loadHys, isPreviewableHysFile, openHysFile, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, setHysRecordObsolete, setHysOnly,
+  loadHys, isPreviewableHysFile, downloadHysFile, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, setHysRecordObsolete, setHysOnly,
 } from '../services/hysService'
 
 const initial = { units: [], actions: [], records: [], grants: [], members: [], companyDetails: null, companyDetailsAvailable: true }
@@ -32,7 +33,11 @@ const errorText = (error) => {
 
 export default function HysPage() {
   const { company, user, role } = useAuth()
-  const isAdmin = role === 'admin'
+  return <HysWorkspace key={JSON.stringify([company?.id, user?.id, role])} company={company} user={user} isAdmin={role === 'admin'}/>
+}
+
+function HysWorkspace({ company, user, isAdmin }) {
+  const [preview, setPreview] = useState(null)
   const [data, setData] = useState(initial)
   const [view, setView] = useState('overview')
   const [unitId, setUnitId] = useState('')
@@ -42,6 +47,7 @@ export default function HysPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [overviewUnit, setOverviewUnit] = useState('')
   const [showUnit, setShowUnit] = useState(false)
   const [companyDraft, setCompanyDraft] = useState(emptyCompany)
   const [unitDraft, setUnitDraft] = useState({ name: '', kind: 'sede', address: '' })
@@ -62,6 +68,8 @@ export default function HysPage() {
       setCompanyDraft({ ...emptyCompany, ...(next.companyDetails || {}) })
       setError('')
     } catch (e) {
+      setData(initial)
+      setCompanyDraft(emptyCompany)
       setError(errorText(e))
     } finally {
       setLoading(false)
@@ -70,6 +78,7 @@ export default function HysPage() {
 
   useEffect(() => { refresh() }, [refresh])
 
+  const overviewUnitId = data.units.find(u => u.id === overviewUnit)?.id || data.units[0]?.id || ''
   const unitName = useCallback((id) => data.units.find((u) => u.id === id)?.name || 'Establecimiento', [data.units])
   const access = useCallback((code, id, write = false) =>
     canUseHys({ isAdmin, grants: data.grants, section: code, unitId: id || null, write }),
@@ -79,13 +88,16 @@ export default function HysPage() {
   const activeSection = view === 'general'
     ? HYS_ALL_SECTIONS[0]
     : HYS_SECTIONS.find((s) => s.code === section) || HYS_SECTIONS[0]
-  const today = new Date().toISOString().slice(0, 10)
-  const due = data.records.filter((r) => r.expires_at && r.expires_at < today && !r.is_obsolete).length
-  const expiring = data.records.filter((r) => r.expires_at && !r.is_obsolete)
+  const today = new Intl.DateTimeFormat('sv-SE', {timeZone:'America/Argentina/Buenos_Aires'}).format(new Date())
+
+  const replaced = new Set(data.records.map(r => r.supersedes_id).filter(Boolean))
+  const currentRecords = data.records.filter(r => !replaced.has(r.id) && !r.is_obsolete)
+  const expiring = currentRecords.filter((r) => r.expires_at && !r.is_obsolete)
+  const due = expiring.filter(r => r.expires_at < today).length
   const valid = expiring.filter((r) => r.expires_at >= today).length
   const pending = data.actions.filter((a) => !['verificada', 'resuelta'].includes(a.status))
   const completed = data.actions.filter((a) => a.status === 'verificada').length
-  const canAddAction = access('actions', null, true) || data.units.some((u) => access('actions', u.id, true))
+  const canAddAction = unitId ? access('actions', unitId, true) : access('actions', null, true) || data.units.some((u) => access('actions', u.id, true))
 
   const go = (nextView, nextUnitId = '') => {
     setView(nextView)
@@ -93,7 +105,7 @@ export default function HysPage() {
     setSelectedCategory('')
     setError('')
     setNotice('')
-    if (nextView === 'unit') setSection('legal')
+    if (nextView === 'unit') setSection(HYS_SECTIONS.find(s => access(s.code, nextUnitId))?.code || 'legal')
   }
 
   async function run(operation, success) {
@@ -147,11 +159,11 @@ export default function HysPage() {
   }
 
   function newRecord(existing = null, action = null, category = '', requireFile = false) {
-    const currentSection = action ? 'actions' : view === 'general' ? 'general' : section
+    const currentSection = existing?.section || (action ? 'actions' : view === 'general' ? 'general' : section)
     const categories = HYS_ALL_SECTIONS.find((s) => s.code === currentSection)?.categories || GENERAL_CATEGORIES
     setRecordDraft({
-      ...emptyRecord, section: currentSection, unitId: action?.unit_id || (view === 'general' ? '' : unitId),
-      category: existing?.category || (action ? 'Evidencias' : (category || categories[0])),
+      ...emptyRecord, section: currentSection, unitId: existing ? existing.unit_id : action ? action.unit_id : (view === 'general' ? '' : unitId),
+      category: existing?.category || (action ? 'Evidencias' : (category || selectedCategory || categories[0])),
       requireFile: Boolean(requireFile || existing),
       title: existing?.title || (action ? 'Evidencia: ' + action.title : ''),
       supersedesId: existing?.id || '', versionNo: existing ? existing.version_no + 1 : 1,
@@ -198,6 +210,21 @@ export default function HysPage() {
     if (ok) setGrantDraft({ userId: '', section: 'actions', unitId: '', permission: 'read' })
   }
 
+  function fileButtons(record) {
+    if (!record.file_path) return null
+    const office = /\.(docx?|xlsx?)$/i.test(record.file_name)
+    const open = async (download = false) => {
+      try {
+        if (!download) setPreview(record)
+        else await downloadHysFile(record)
+      } catch (e) { setError(errorText(e)) }
+    }
+    return <>
+      {(office || isPreviewableHysFile(record.file_name)) && <button className="secondary-button" onClick={() => open()}>Ver archivo</button>}
+      <button className="hys-text-button" onClick={() => open(true)}>Descargar</button>
+    </>
+  }
+
   function renderRecords() {
     const code = view === 'general' ? 'general' : section
     const currentUnit = view === 'general' ? null : unitId
@@ -230,20 +257,13 @@ export default function HysPage() {
               <article className={'hys-doc ' + (r.is_obsolete ? 'hys-obsolete' : '')} key={r.id}>
                 <div className="hys-doc-icon"><FileText size={20}/></div>
                 <div className="hys-grow">
-                  <strong>{r.title}</strong><p>Versión {r.version_no}{r.is_obsolete ? ' · Obsoleto' : ''}</p>
+                  <strong>{r.title}</strong><p>Versión {r.version_no}{r.is_obsolete ? ' · Obsoleto' : replaced.has(r.id) ? ' · Versión anterior' : ''}</p>
                   {r.notes && <small>{r.notes}</small>}
                   <small>{r.recorded_at ? 'Fecha: ' + formatDate(r.recorded_at) + ' · ' : ''}{r.expires_at ? 'Vence: ' + formatDate(r.expires_at) : 'Sin vencimiento'}</small>
                 </div>
                 <div className="hys-item-actions">
-                  {r.file_path && <button className="secondary-button" onClick={async () => {
-                    try { await openHysFile(r.file_path, isPreviewableHysFile(r.file_name) ? {} : { downloadName: r.file_name || 'documento' }) }
-                    catch (e) { setError(errorText(e)) }
-                  }}>{isPreviewableHysFile(r.file_name) ? 'Ver archivo' : 'Descargar archivo'}</button>}
-                  {r.file_path && isPreviewableHysFile(r.file_name) && <button className="hys-text-button" onClick={async () => {
-                    try { await openHysFile(r.file_path, { downloadName: r.file_name || 'documento' }) }
-                    catch (e) { setError(errorText(e)) }
-                  }}>Descargar</button>}
-                  {canWrite && !r.is_obsolete && <>
+                  {fileButtons(r)}
+                  {canWrite && !r.is_obsolete && !replaced.has(r.id) && <>
                     <button className="hys-text-button" onClick={() => newRecord(r)}>Nueva versión</button>
                     <button className="hys-text-button" onClick={() => run(() => setHysRecordObsolete(r.id), 'Documento marcado como obsoleto.')}>Obsoletar</button>
                   </>}
@@ -308,21 +328,27 @@ export default function HysPage() {
                 <div className="hys-metric"><ShieldCheck size={20}/><span>Documentos vigentes con fecha</span><strong>{expiring.length ? Math.round(100 * valid / expiring.length) + '%' : '—'}</strong><small>{valid} de {expiring.length} con vencimiento registrado</small></div>
                 <div className="hys-metric"><CalendarDays size={20}/><span>Documentos vencidos</span><strong>{due}</strong><small>En los legajos visibles</small></div>
                 <div className="hys-metric"><ClipboardList size={20}/><span>Acciones pendientes</span><strong>{pending.length}</strong><small>{completed} verificadas</small></div>
-                <div className="hys-metric"><CheckCircle2 size={20}/><span>Visitas registradas</span><strong>{data.records.filter((r) => r.section === 'visits').length}</strong><small>En los establecimientos habilitados</small></div>
+                <div className="hys-metric"><CheckCircle2 size={20}/><span>Visitas registradas</span><strong>{currentRecords.filter((r) => r.section === 'visits').length}</strong><small>En los establecimientos habilitados</small></div>
               </div>
               <div className="hys-panel"><h2>Resumen por establecimiento</h2>
                 {!data.units.length ? <p className="hys-empty">No hay establecimientos visibles. {isAdmin ? 'Creá el primero para comenzar.' : 'Solicitá acceso al administrador.'}</p> :
                   <div className="hys-unit-grid">{data.units.map((u) => <button key={u.id} className="hys-unit-card" onClick={() => go('unit', u.id)}>
                     <Building2 size={22}/><strong>{u.name}</strong><span>{u.kind === 'obra' ? 'Obra' : u.kind === 'prestacion' ? 'Lugar de prestación' : 'Sede'}</span>
-                    <small>{data.records.filter((r) => r.unit_id === u.id).length} registros · {data.actions.filter((a) => a.unit_id === u.id && !['resuelta','verificada'].includes(a.status)).length} acciones pendientes</small>
+                    <small>{currentRecords.filter((r) => r.unit_id === u.id).length} registros actuales · {data.actions.filter((a) => a.unit_id === u.id && !['resuelta','verificada'].includes(a.status)).length} acciones pendientes</small>
                   </button>)}</div>}
               </div>
               <div className="hys-panel">
                 <div className="hys-panel-head"><div><h2>Estructura del legajo · 13 apartados</h2><p>Todos los subapartados del esquema recibido, incluso antes de cargar documentos.</p></div></div>
                 {!data.units.length && <p className="hys-note">Para cargar documentos en el legajo, primero creá un establecimiento desde «Añadir establecimiento». La documentación general se carga por separado.</p>}
-                <div className="hys-overview-sections">{HYS_SECTIONS.map((s) => <div key={s.code}>
+                {data.units.length > 0 && <label className="hys-filter">Abrir legajo del establecimiento
+                  <select value={overviewUnitId} onChange={e => setOverviewUnit(e.target.value)}>{data.units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+                </label>}
+                <div className="hys-overview-sections">{HYS_SECTIONS.map((s) => <button key={s.code} disabled={!overviewUnitId || !access(s.code, overviewUnitId)} onClick={() => {
+                  go('unit', overviewUnitId)
+                  setSection(s.code)
+                }}>
                   <b>{s.number}</b><div><strong>{s.label}</strong><small>{s.categories.join(' · ')}</small></div>
-                </div>)}</div>
+                </button>)}</div>
               </div>
               <p className="hys-note">El porcentaje refleja únicamente documentos cargados con vencimiento. No equivale a una certificación de cumplimiento legal.</p>
             </>}
@@ -331,17 +357,18 @@ export default function HysPage() {
               <div className="hys-panel">
                 <div className="hys-panel-head"><div><p className="eyebrow">ESTABLECIMIENTO</p><h2>{unitName(unitId)}</h2><p>Legajo de Higiene y Seguridad · 13 apartados</p></div></div>
                 <div className="hys-section-grid">{HYS_SECTIONS.map((s) =>
-                  <button key={s.code} className={section === s.code ? 'active' : ''} onClick={() => { if (s.code === 'actions') { setView('actions'); return } setSection(s.code); setSelectedCategory('') }}>
+                  <button key={s.code} className={section === s.code ? 'active' : ''} onClick={() => { setSection(s.code); setSelectedCategory('') }}>
                     <b>{s.number}</b><span>{s.label}</span>{!access(s.code, unitId) && <LockKeyhole size={13}/>}
                   </button>)}</div>
               </div>
+              {section === 'actions' && access('actions', unitId) && <button className="secondary-button" onClick={() => go('actions', unitId)}>Abrir plan de acción de esta sede</button>}
               {renderRecords()}
             </>}
             {view === 'actions' && <>
               <div className="hys-panel">
                 <div className="hys-panel-head"><div><h2>Plan de acción editable en línea</h2><p>Los cambios quedan guardados en el sistema y registrados en el historial.</p></div>
                   <div className="hys-actions-row">
-                    <button className="secondary-button" disabled={!actions.length} onClick={() => downloadActionsExcel(actions, unitName)}><Download size={16}/> Excel</button>
+                    <button className="secondary-button" disabled={!actions.length} onClick={async () => { try { await downloadActionsExcel(actions, unitName) } catch (e) { setError(errorText(e)) } }}><Download size={16}/> Excel</button>
                     {canAddAction && <button className="primary-button" onClick={() => newAction()}><Plus size={16}/> Nueva acción</button>}
                   </div>
                 </div>
@@ -365,7 +392,9 @@ export default function HysPage() {
                   <p className="hys-empty">Todavía no se adjuntaron evidencias.</p> :
                   <div className="hys-doc-list">{data.records.filter((r) => r.section === 'actions' && (!unitId || r.unit_id === unitId)).map((r) =>
                     <article className="hys-doc" key={r.id}><FileText size={18}/><div className="hys-grow"><strong>{r.title}</strong><small>{r.category} · Versión {r.version_no}</small></div>
-                      {r.file_path && <button className="secondary-button" onClick={async () => { try { await openHysFile(r.file_path, isPreviewableHysFile(r.file_name) ? {} : { downloadName: r.file_name || 'documento' }) } catch (e) { setError(errorText(e)) } }}>{isPreviewableHysFile(r.file_name) ? 'Ver archivo' : 'Descargar'}</button>}
+                      {fileButtons(r)}
+                      {access('actions', r.unit_id, true) && !r.is_obsolete && !replaced.has(r.id) &&
+                        <button className="hys-text-button" onClick={() => newRecord(r)}>Nueva versión</button>}
                     </article>)}</div>}
               </div>
             </>}
@@ -412,11 +441,13 @@ export default function HysPage() {
         </div>
       </div>
 
+      {preview && <HysFilePreview record={preview} onClose={() => setPreview(null)}/>}
       {showUnit && <div className="hys-overlay" role="presentation"><form className="hys-dialog" onSubmit={createUnit}>
         <div className="hys-modal-title"><h2>Nuevo establecimiento</h2><button type="button" onClick={() => setShowUnit(false)} aria-label="Cerrar"><X size={20}/></button></div>
         <label>Nombre del establecimiento<input required minLength={2} maxLength={160} value={unitDraft.name} onChange={(e) => setUnitDraft({ ...unitDraft, name: e.target.value })} placeholder="Ej.: Sede central, Obra norte, Planta 1"/></label>
         <label>Domicilio (opcional)<input value={unitDraft.address} onChange={(e) => setUnitDraft({ ...unitDraft, address: e.target.value })} placeholder="Ubicación de la sede"/></label>
         <label>Tipo<select value={unitDraft.kind} onChange={(e) => setUnitDraft({ ...unitDraft, kind: e.target.value })}><option value="sede">Sede</option><option value="obra">Obra</option><option value="prestacion">Lugar de prestación</option></select></label>
+        {error && <p role="alert" className="hys-inline-error">{error}</p>}
         <button className="primary-button" disabled={saving}>Crear establecimiento</button>
       </form></div>}
 
@@ -434,14 +465,15 @@ export default function HysPage() {
           <label>Prioridad<select value={actionDraft.priority} onChange={(e) => setActionDraft({ ...actionDraft, priority: e.target.value })}>{Object.entries(HYS_PRIORITIES).map(([v,l]) => <option value={v} key={v}>{l}</option>)}</select></label>
           <label>Estado<select value={actionDraft.status} onChange={(e) => setActionDraft({ ...actionDraft, status: e.target.value })}>{Object.entries(HYS_STATES).map(([v,l]) => <option value={v} key={v}>{l}</option>)}</select></label>
         </div>
+        {error && <p role="alert" className="hys-inline-error">{error}</p>}
         <button className="primary-button" disabled={saving}>{saving ? 'Guardando…' : 'Guardar acción'}</button>
       </form></div>}
 
       {recordDraft && <div className="hys-overlay" role="presentation"><form className="hys-dialog" onSubmit={submitRecord}>
         <div className="hys-modal-title"><h2>{recordDraft.supersedesId ? 'Nueva versión' : 'Nuevo registro documental'}</h2><button type="button" onClick={() => setRecordDraft(null)} aria-label="Cerrar"><X size={20}/></button></div>
         <p className="hys-note">{sectionLabel(recordDraft.section)}{recordDraft.versionNo > 1 ? ' · Versión ' + recordDraft.versionNo : ''}</p>
-        <label>Subapartado<select value={recordDraft.category} onChange={(e) => setRecordDraft({ ...recordDraft, category: e.target.value })}>
-          {(HYS_ALL_SECTIONS.find((s) => s.code === recordDraft.section)?.categories || []).map((s) => <option key={s} value={s}>{s}</option>)}
+        <label>Subapartado<select value={recordDraft.category} disabled={Boolean(recordDraft.supersedesId)} onChange={(e) => setRecordDraft({ ...recordDraft, category: e.target.value })}>
+          {[...new Set([...(HYS_ALL_SECTIONS.find((s) => s.code === recordDraft.section)?.categories || []), recordDraft.category])].map((s) => <option key={s} value={s}>{s}</option>)}
         </select></label>
         <label>Título<input required maxLength={180} minLength={2} value={recordDraft.title} onChange={(e) => setRecordDraft({ ...recordDraft, title: e.target.value })}/></label>
         <label>Observaciones<textarea rows={3} value={recordDraft.notes} onChange={(e) => setRecordDraft({ ...recordDraft, notes: e.target.value })}/></label>

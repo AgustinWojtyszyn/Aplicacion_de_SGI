@@ -60,11 +60,11 @@ export function isPreviewableHysFile(name = '') {
 export async function loadHys({ companyId, isAdmin }) {
   const db = requireSupabase()
   const [units, actions, records, grants, members, companyDetailsResult] = await Promise.all([
-    rows(db.from('hys_units').select('*').eq('company_id', companyId).order('name')),
-    allPages(db.from('hys_actions').select('*').eq('company_id', companyId).order('created_at', { ascending: false })),
-    allPages(db.from('hys_records').select('*').eq('company_id', companyId).order('created_at', { ascending: false })),
-    allPages(db.from('hys_grants').select('*').eq('company_id', companyId)),
-    isAdmin ? rows(db.from('company_members').select('user_id, role, hys_only, user:profiles(id,full_name,email)').eq('company_id', companyId).eq('is_active', true)) : Promise.resolve([]),
+    allPages(db.from('hys_units').select('*').eq('company_id', companyId).order('name').order('id')),
+    allPages(db.from('hys_actions').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).order('id')),
+    allPages(db.from('hys_records').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).order('id')),
+    allPages(db.from('hys_grants').select('*').eq('company_id', companyId).order('id')),
+    isAdmin ? allPages(db.from('company_members').select('user_id, role, hys_only, user:profiles(id,full_name,email)').eq('company_id', companyId).eq('is_active', true).order('user_id')) : Promise.resolve([]),
     db.from('hys_company_details').select('*').eq('company_id', companyId).maybeSingle(),
   ])
   const companyDetailsAvailable = !isMissingHysCompanyDetails(companyDetailsResult.error)
@@ -137,8 +137,8 @@ export async function setHysOnly({ companyId, userId, enabled }) {
 
 export async function listHysHistory({ companyId, actionId }) {
   const db = requireSupabase()
-  return rows(db.from('hys_action_history').select('id, event, actor_id, details, created_at')
-    .eq('company_id', companyId).eq('action_id', actionId).order('created_at', { ascending: false }).limit(50))
+  return allPages(db.from('hys_action_history').select('id, event, actor_id, details, created_at')
+    .eq('company_id', companyId).eq('action_id', actionId).order('created_at', { ascending: false }).order('id', { ascending: false }))
 }
 
 export async function saveHysGrant({ companyId, userId, unitId, section, permission, actorId }) {
@@ -173,7 +173,16 @@ export async function createHysRecord({ companyId, unitId, userId, values, file 
   }
   const title = trim(values.title)
   if (title.length < 2 || title.length > 180) throw new Error('Ingresá un título de 2 a 180 caracteres.')
-  const id = crypto.randomUUID()
+  // A given revision has one successor even if two editors submit concurrently.
+  let id = crypto.randomUUID()
+  if (values.supersedesId) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('hys-version/' + values.supersedesId))
+    const bytes = new Uint8Array(digest, 0, 16)
+    bytes[6] = (bytes[6] & 0x0f) | 0x80
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+    id = [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-')
+  }
   const path = file ? `${companyId}/${id}/${Date.now()}-${safeFilename(file.name)}` : null
   const payload = {
     id, company_id: companyId, unit_id: unitId || null, created_by: userId,
@@ -187,6 +196,7 @@ export async function createHysRecord({ companyId, unitId, userId, values, file 
     version_no: values.versionNo || 1,
   }
   const { data, error } = await db.from('hys_records').insert(payload).select().single()
+  if (error?.code === '23505' && values.supersedesId) throw new Error('Ya existe una nueva versión. Actualizá el legajo antes de volver a cargarla.')
   if (error) throw error
   if (!file) return data
   const { error: uploadError } = await db.storage.from(BUCKET).upload(path, file, {
@@ -202,48 +212,37 @@ export async function createHysRecord({ companyId, unitId, userId, values, file 
   return data
 }
 
-export async function openHysFile(path, { downloadName = '' } = {}) {
-  if (!path) throw new Error('El registro no tiene un archivo adjunto.')
-  // Open a new tab during the tap, before requesting a signed private URL.
-  const tab = window.open('', '_blank')
-  try {
-    const options = downloadName ? { download: downloadName } : undefined
-    const { data, error } = await requireSupabase().storage.from(BUCKET).createSignedUrl(path, 120, options)
-    if (error) throw error
-    if (!data?.signedUrl) throw new Error('No se pudo generar el enlace del archivo.')
-    if (tab) tab.location.replace(data.signedUrl)
-    else window.location.assign(data.signedUrl)
-  } catch (error) {
-    tab?.close()
-    throw error
-  }
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.append(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-function escapeXml(value) {
-  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+export async function downloadHysFile(record) {
+  const { data, error } = await requireSupabase().storage.from(BUCKET).download(record.file_path)
+  if (error) throw error
+  downloadBlob(data, record.file_name || 'documento')
 }
-export function buildActionsExcel(actions, unitName = () => 'General') {
+
+export async function buildActionsExcel(actions, unitName = () => 'General') {
+  const { utils, write } = await import('xlsx')
   const header = ['Acción', 'Establecimiento', 'Responsable', 'Prioridad', 'Estado', 'Vencimiento', 'Descripción']
   const rows = [header, ...actions.map((a) => [
     a.title, a.unit_id ? unitName(a.unit_id) : 'General',
     a.responsible, HYS_PRIORITIES[a.priority], HYS_STATES[a.status], a.due_date || '', a.description,
   ])]
-  return '<?xml version="1.0" encoding="UTF-8"?>' +
-    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Plan de accion"><Table>' +
-    rows.map((cells) => '<Row>' + cells.map((value) => '<Cell><Data ss:Type="String">' + escapeXml(value) + '</Data></Cell>').join('') + '</Row>').join('') +
-    '</Table></Worksheet></Workbook>'
+  const book = utils.book_new()
+  utils.book_append_sheet(book, utils.aoa_to_sheet(rows), 'Plan de acción')
+  return write(book, { type: 'array', bookType: 'xlsx' })
 }
-export function downloadActionsExcel(actions, unitName) {
-  const blob = new Blob([buildActionsExcel(actions, unitName)], { type: 'application/vnd.ms-excel' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'Plan-de-accion-HyS.xls'
-  document.body.append(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
+export async function downloadActionsExcel(actions, unitName) {
+  const blob = new Blob([await buildActionsExcel(actions, unitName)], { type: FILE_TYPES.xlsx })
+  downloadBlob(blob, 'Plan-de-accion-HyS.xlsx')
 }
 
 export function canUseHys({ isAdmin, grants, section, unitId, write = false }) {
