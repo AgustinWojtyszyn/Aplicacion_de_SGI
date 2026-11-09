@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HYS_SECTIONS } from '../lib/hysCatalog'
-import { buildActionsExcel, canUseHys, normalizeHysAction } from './hysService'
+import { buildActionsExcel, canUseHys, normalizeHysAction, normalizeHysCompanyDetails } from './hysService'
 
 describe('Higiene y Seguridad', () => {
   it('preserves the thirteen sections requested by the client', () => {
@@ -24,6 +24,12 @@ describe('Higiene y Seguridad', () => {
     expect(() => normalizeHysAction({
       title: 'Revisar matafuegos', priority: 'superior', status: 'pendiente',
     })).toThrow(/Prioridad inválida/)
+  })
+
+  it('accepts legal names and normalizes an eleven-digit CUIT', () => {
+    expect(normalizeHysCompanyDetails({ legal_name: '  Servi Food  ', cuit: '30-12345678-9' }))
+      .toMatchObject({ legal_name: 'Servi Food', cuit: '30123456789' })
+    expect(() => normalizeHysCompanyDetails({ cuit: '1234' })).toThrow(/11 dígitos/)
   })
 
   it('restricts a unit grant to its section and unit, including in edit mode', () => {

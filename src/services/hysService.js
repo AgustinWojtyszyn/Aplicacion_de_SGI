@@ -48,19 +48,41 @@ async function allPages(query) {
 
 export async function loadHys({ companyId, isAdmin }) {
   const db = requireSupabase()
-  const [units, actions, records, grants, members] = await Promise.all([
+  const [units, actions, records, grants, members, companyDetailsResult] = await Promise.all([
     rows(db.from('hys_units').select('*').eq('company_id', companyId).order('name')),
     allPages(db.from('hys_actions').select('*').eq('company_id', companyId).order('created_at', { ascending: false })),
     allPages(db.from('hys_records').select('*').eq('company_id', companyId).order('created_at', { ascending: false })),
     allPages(db.from('hys_grants').select('*').eq('company_id', companyId)),
     isAdmin ? rows(db.from('company_members').select('user_id, role, hys_only, user:profiles(id,full_name,email)').eq('company_id', companyId).eq('is_active', true)) : Promise.resolve([]),
+    db.from('hys_company_details').select('*').eq('company_id', companyId).maybeSingle(),
   ])
-  return { units, actions, records, grants, members }
+  if (companyDetailsResult.error) throw companyDetailsResult.error
+  return { units, actions, records, grants, members, companyDetails: companyDetailsResult.data }
 }
 
-export async function addHysUnit({ companyId, name, kind }) {
+export async function addHysUnit({ companyId, name, kind, address }) {
   const db = requireSupabase()
-  const { data, error } = await db.from('hys_units').insert({ company_id: companyId, name: trim(name), kind }).select().single()
+  const { data, error } = await db.from('hys_units').insert({ company_id: companyId, name: trim(name), kind, address: trim(address) || null }).select().single()
+  if (error) throw error
+  return data
+}
+
+export function normalizeHysCompanyDetails(values = {}) {
+  const cuit = String(values.cuit || '').replace(/[-\s]/g, '') || null
+  if (cuit && !/^\d{11}$/.test(cuit)) throw new Error('El CUIT debe tener 11 dígitos.')
+  const legal_name = trim(values.legal_name)
+  if (legal_name.length > 180) throw new Error('La razón social no puede superar 180 caracteres.')
+  return {
+    legal_name, cuit,
+    activity: trim(values.activity),
+    art_provider: trim(values.art_provider),
+  }
+}
+
+export async function saveHysCompanyDetails({ companyId, values }) {
+  const { data, error } = await requireSupabase().from('hys_company_details')
+    .upsert({ company_id: companyId, ...normalizeHysCompanyDetails(values) }, { onConflict: 'company_id' })
+    .select().single()
   if (error) throw error
   return data
 }

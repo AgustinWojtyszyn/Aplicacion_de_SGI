@@ -56,6 +56,26 @@ create policy companies_hys_only_self_select on public.companies for select to a
     where cm.company_id = id and cm.user_id = (select auth.uid())
       and cm.is_active and cm.hys_only));
 
+create table public.hys_company_details (
+  company_id uuid primary key references public.companies(id) on delete cascade,
+  legal_name text not null default '' check (length(btrim(legal_name)) <= 180),
+  cuit text check (cuit is null or cuit ~ '^[0-9]{11}$'),
+  activity text not null default '',
+  art_provider text not null default '',
+  updated_at timestamptz not null default now()
+);
+create trigger hys_company_details_timestamp before update on public.hys_company_details
+  for each row execute function public.set_updated_at();
+alter table public.hys_company_details enable row level security;
+create policy hys_company_details_read on public.hys_company_details for select to authenticated
+  using (public.hys_is_member(company_id));
+create policy hys_company_details_add on public.hys_company_details for insert to authenticated
+  with check (public.has_company_role(company_id,array['admin'::public.company_role]));
+create policy hys_company_details_edit on public.hys_company_details for update to authenticated
+  using (public.has_company_role(company_id,array['admin'::public.company_role]))
+  with check (public.has_company_role(company_id,array['admin'::public.company_role]));
+grant select,insert,update on public.hys_company_details to authenticated;
+
 create table public.hys_units (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,

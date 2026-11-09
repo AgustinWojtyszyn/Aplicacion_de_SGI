@@ -5,7 +5,8 @@ Basado en el documento **Esquema funcional – Higiene y Seguridad** recibido el
 ## Qué agrega
 
 - Navegación nueva `/hys` en EP GESTIÓN, sin alterar el SGI/ISO existente.
-- Establecimientos (sedes, obras o lugares de prestación) por empresa.
+- Ficha de empresa / cliente con razón social, CUIT (11 dígitos), actividad y ART.
+- Establecimientos (sedes, obras o lugares de prestación) por empresa, con domicilio opcional.
 - Documentación general de empresa y legajo específico de **13 apartados** por establecimiento.
 - Registros con título, subapartado, observaciones, fecha, vencimiento, archivo opcional, versiones y marcado obsoleto.
 - Archivos privados en bucket separado `hys-files`, no en `sgi-documents`.

@@ -8,10 +8,11 @@ import { useAuth } from '../context/AuthContext'
 import { GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, sectionLabel } from '../lib/hysCatalog'
 import {
   addHysUnit, canUseHys, createHysRecord, downloadActionsExcel, listHysHistory,
-  loadHys, openHysFile, removeHysGrant, saveHysAction, saveHysGrant, setHysRecordObsolete, setHysOnly,
+  loadHys, openHysFile, removeHysGrant, saveHysAction, saveHysCompanyDetails, saveHysGrant, setHysRecordObsolete, setHysOnly,
 } from '../services/hysService'
 
-const initial = { units: [], actions: [], records: [], grants: [], members: [] }
+const initial = { units: [], actions: [], records: [], grants: [], members: [], companyDetails: null }
+const emptyCompany = { legal_name: '', cuit: '', activity: '', art_provider: '' }
 const emptyAction = { title: '', description: '', responsible: '', priority: 'media', status: 'pendiente', due_date: '', unitId: '' }
 const emptyRecord = { title: '', notes: '', category: '', recorded_at: '', expires_at: '', supersedesId: '', versionNo: 1, actionId: '' }
 const formatDate = (date) => date ? new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(date + 'T12:00:00')) : '—'
@@ -34,7 +35,8 @@ export default function HysPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showUnit, setShowUnit] = useState(false)
-  const [unitDraft, setUnitDraft] = useState({ name: '', kind: 'sede' })
+  const [companyDraft, setCompanyDraft] = useState(emptyCompany)
+  const [unitDraft, setUnitDraft] = useState({ name: '', kind: 'sede', address: '' })
   const [actionDraft, setActionDraft] = useState(null)
   const [editingAction, setEditingAction] = useState(null)
   const [recordDraft, setRecordDraft] = useState(null)
@@ -48,6 +50,7 @@ export default function HysPage() {
     try {
       const next = await loadHys({ companyId: company.id, isAdmin })
       setData(next)
+      setCompanyDraft({ ...emptyCompany, ...(next.companyDetails || {}) })
       setError('')
     } catch (e) {
       setError(errorText(e))
@@ -106,7 +109,7 @@ export default function HysPage() {
   async function createUnit(e) {
     e.preventDefault()
     const ok = await run(() => addHysUnit({ companyId: company.id, ...unitDraft }), 'Establecimiento creado.')
-    if (ok) { setShowUnit(false); setUnitDraft({ name: '', kind: 'sede' }) }
+    if (ok) { setShowUnit(false); setUnitDraft({ name: '', kind: 'sede', address: '' }) }
   }
 
   function newAction(action = null) {
@@ -232,6 +235,24 @@ export default function HysPage() {
         <div className="hys-main">
           {loading ? <div className="hys-panel"><p>Cargando datos del módulo…</p></div> : <>
             {view === 'overview' && <>
+              <div className="hys-panel">
+                <div className="hys-panel-head"><div><h2>Ficha de empresa / cliente</h2><p>Datos comunes a los establecimientos y legajos.</p></div><Building2 size={22}/></div>
+                {isAdmin ? <form className="hys-form hys-company-form" onSubmit={async (e) => {
+                  e.preventDefault()
+                  await run(() => saveHysCompanyDetails({ companyId: company.id, values: companyDraft }), 'Ficha de empresa actualizada.')
+                }}>
+                  <label>Razón social<input value={companyDraft.legal_name || ''} onChange={(e) => setCompanyDraft({ ...companyDraft, legal_name: e.target.value })} placeholder={company.name} maxLength={180}/></label>
+                  <label>CUIT<input value={companyDraft.cuit || ''} onChange={(e) => setCompanyDraft({ ...companyDraft, cuit: e.target.value })} placeholder="11 dígitos" inputMode="numeric" maxLength={13}/></label>
+                  <label>Actividad<input value={companyDraft.activity || ''} onChange={(e) => setCompanyDraft({ ...companyDraft, activity: e.target.value })} placeholder="Industria, servicios, construcción…"/></label>
+                  <label>ART / Cobertura<input value={companyDraft.art_provider || ''} onChange={(e) => setCompanyDraft({ ...companyDraft, art_provider: e.target.value })}/></label>
+                  <button className="primary-button" disabled={saving}>Guardar ficha</button>
+                </form> : <div className="hys-company-info">
+                  <strong>{data.companyDetails?.legal_name || company.name}</strong>
+                  <span>CUIT: {data.companyDetails?.cuit || 'No registrado'}</span>
+                  <span>Actividad: {data.companyDetails?.activity || 'No registrada'}</span>
+                  <span>ART: {data.companyDetails?.art_provider || 'No registrada'}</span>
+                </div>}
+              </div>
               <div className="hys-metrics">
                 <div className="hys-metric"><ShieldCheck size={20}/><span>Documentos vigentes con fecha</span><strong>{expiring.length ? Math.round(100 * valid / expiring.length) + '%' : '—'}</strong><small>{valid} de {expiring.length} con vencimiento registrado</small></div>
                 <div className="hys-metric"><CalendarDays size={20}/><span>Documentos vencidos</span><strong>{due}</strong><small>En los legajos visibles</small></div>
@@ -336,6 +357,7 @@ export default function HysPage() {
       {showUnit && <div className="hys-overlay" role="presentation"><form className="hys-dialog" onSubmit={createUnit}>
         <div className="hys-modal-title"><h2>Nuevo establecimiento</h2><button type="button" onClick={() => setShowUnit(false)} aria-label="Cerrar"><X size={20}/></button></div>
         <label>Nombre<input required minLength={2} maxLength={160} value={unitDraft.name} onChange={(e) => setUnitDraft({ ...unitDraft, name: e.target.value })} placeholder="Cocina / Institución A"/></label>
+        <label>Domicilio (opcional)<input value={unitDraft.address} onChange={(e) => setUnitDraft({ ...unitDraft, address: e.target.value })} placeholder="Ubicación de la sede"/></label>
         <label>Tipo<select value={unitDraft.kind} onChange={(e) => setUnitDraft({ ...unitDraft, kind: e.target.value })}><option value="sede">Sede</option><option value="obra">Obra</option><option value="prestacion">Lugar de prestación</option></select></label>
         <button className="primary-button" disabled={saving}>Crear establecimiento</button>
       </form></div>}
