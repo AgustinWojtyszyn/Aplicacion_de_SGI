@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import HysPage from './HysPage'
 import { createHysRecord, loadHys, saveHysFolder, deleteHysFolder } from '../services/hysService'
@@ -118,7 +118,10 @@ it('creates, renames and deletes an empty folder without requiring documents', a
   fireEvent.click(screen.getByRole('button', { name: 'Editar carpeta Temporal' }))
   fireEvent.change(screen.getByLabelText('Nombre de la carpeta'), { target: { value: 'Archivo 2026' } })
   fireEvent.submit(screen.getByRole('dialog', { name: 'Editar carpeta' }))
-  expect(await screen.findByRole('button', { name: /Archivo 2026 0 registros/ })).toBeVisible()
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog', { name: 'Editar carpeta' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Archivo 2026 0 registros/ })).toBeVisible()
+  })
   fireEvent.click(screen.getByRole('button', { name: 'Eliminar carpeta Archivo 2026' }))
   expect(screen.getByText(/La carpeta está vacía/)).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Confirmar eliminación' }))
