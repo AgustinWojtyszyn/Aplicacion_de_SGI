@@ -3,7 +3,7 @@ import {
   FileText, FolderPlus, History, LayoutDashboard, LockKeyhole, MapPin, Pencil, Plus, RefreshCw, Trash2,
   ShieldCheck, UploadCloud, Users, X, RotateCcw,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import HysFilePreview from '../components/HysFilePreview'
 import { useAuth } from '../context/AuthContext'
 import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysConfiguredSections, sectionLabel } from '../lib/hysCatalog'
@@ -70,24 +70,29 @@ function HysWorkspace({ company, user, isAdmin }) {
   const [importError, setImportError] = useState('')
   const [importing, setImporting] = useState(false)
 
+  const requestVersion = useRef(0)
   const refresh = useCallback(async () => {
     if (!company?.id) return
+    const version = ++requestVersion.current
     setLoading(true)
+    setData(initial)
     try {
       const next = await loadHys({ companyId: company.id, isAdmin })
+      if (version !== requestVersion.current) return
       setData(next)
       setCompanyDraft({ ...emptyCompany, ...(next.companyDetails || {}) })
       setError('')
     } catch (e) {
+      if (version !== requestVersion.current) return
       setData(initial)
       setCompanyDraft(emptyCompany)
       setError(errorText(e))
     } finally {
-      setLoading(false)
+      if (version === requestVersion.current) setLoading(false)
     }
   }, [company?.id, isAdmin])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => { refresh(); return () => { requestVersion.current += 1 } }, [refresh])
 
   const overviewUnitId = data.units.find(u => u.id === overviewUnit)?.id || data.units[0]?.id || ''
   const unitName = useCallback((id) => data.units.find((u) => u.id === id)?.name || 'Establecimiento', [data.units])
@@ -96,7 +101,7 @@ function HysWorkspace({ company, user, isAdmin }) {
   [isAdmin, data.grants])
 
   const actions = useMemo(() => data.actions.filter((a) => !unitId || a.unit_id === unitId), [data.actions, unitId])
-  const sectionsForUnit = (id) => hysConfiguredSections(data.sectionSettings, id)
+  const sectionsForUnit = (id) => hysConfiguredSections(data.sectionSettings, id, company.id)
   const visibleSectionsForUnit = (id) => sectionsForUnit(id).filter(s => s.enabled && access(s.code, id))
   const unitSections = visibleSectionsForUnit(unitId)
   const activeSection = view === 'general'
@@ -235,12 +240,9 @@ function HysWorkspace({ company, user, isAdmin }) {
 
   function folderParentOptions(draft) {
     if (!draft) return []
-    const scope = (data.folders || []).filter(f => f.section === draft.section && (f.unit_id || '') === (draft.unitId || ''))
+    const scope = (data.folders || []).filter(f => f.company_id === company.id && f.section === draft.section && (f.unit_id || '') === (draft.unitId || ''))
     const fixed = draft.section === 'general'
-      ? GENERAL_MATRIX.flatMap(group => [
-        { value: group.prefix, label: group.number + ' · ' + group.label },
-        ...group.categories.map(name => ({ value: group.prefix + name, label: '↳ ' + name })),
-      ])
+      ? GENERAL_CATEGORIES.map(name => ({ value: name, label: name }))
       : (sectionsForUnit(draft.unitId).find(item => item.code === draft.section)?.categories || [])
           .map(name => ({ value: name, label: name }))
     const values = [{ value: '', label: 'Raíz del apartado' }, ...fixed,
@@ -304,7 +306,7 @@ function HysWorkspace({ company, user, isAdmin }) {
         .find(s => s.code === currentSection)?.categories) || ['Otros']
     setRecordDraft({
       ...emptyRecord, section: currentSection, unitId: existing ? existing.unit_id : action ? action.unit_id : (view === 'general' ? '' : unitId),
-      category: existing?.category || (action ? 'Evidencias' : (category || selectedCategory || categories[0])),
+      category: existing?.category || (action ? 'Evidencias' : (category || selectedCategory || categories[0] || '')),
       requireFile: Boolean(requireFile || existing),
       title: existing?.title || (action ? 'Evidencia: ' + action.title : ''),
       supersedesId: existing?.id || '', versionNo: existing ? existing.version_no + 1 : 1,
@@ -416,18 +418,18 @@ function HysWorkspace({ company, user, isAdmin }) {
     const allowed = access(code, currentUnit)
     const canWrite = access(code, currentUnit, true)
     const sectionRecords = data.records.filter(r =>
-      r.section === code && (r.unit_id || '') === (view === 'general' ? '' : unitId))
+      r.company_id === company.id && r.section === code && (r.unit_id || '') === (view === 'general' ? '' : unitId))
     const scopeFolders = (data.folders || []).filter(f =>
-      f.section === code && (f.unit_id || '') === (currentUnit || ''))
+      f.company_id === company.id && f.section === code && (f.unit_id || '') === (currentUnit || ''))
     const general = view === 'general'
     const inGroup = Boolean(general && generalGroup)
     const parent = inGroup ? generalGroup.prefix : null
-    const activeNames = inGroup ? generalGroup.categories : general ? [] : activeSection.categories
+    const activeNames = inGroup ? [] : general ? GENERAL_CATEGORIES : activeSection.categories
     const defaults = activeNames.map(name => ({ name, category: inGroup ? parent + name : name }))
     const custom = scopeFolders.filter(f => f.parent_category === parent)
       .map(f => ({ ...f, category: f.category }))
     const isDescendant = (child, root) => child.startsWith(root + ' / ')
-    const legacy = [...new Set(sectionRecords.map(r => r.category)
+    const legacy = [...new Set([...sectionRecords.map(r => r.category), ...scopeFolders.map(f => f.parent_category).filter(Boolean)]
       .filter(category => inGroup ? category.startsWith(parent) : general
         ? !GENERAL_MATRIX.some(group => category.startsWith(group.prefix))
         : true)
@@ -518,15 +520,15 @@ function HysWorkspace({ company, user, isAdmin }) {
           ))}</div> : <p className="hys-empty">Esta carpeta no tiene documentos. {canWrite ? 'Podés subir el primero o crear subcarpetas.' : 'Todavía no hay documentos cargados.'}</p>}
         </> : general && !inGroup ? <>
           <div className="hys-folder-toolbar">
-            <p className="hys-folder-intro">Elegí un apartado de la matriz para ver sus subcarpetas.</p>
+            <p className="hys-folder-intro">Elegí una carpeta para consultar o cargar archivos.</p>
             {canWrite && data.foldersAvailable !== false && <button className="secondary-button" type="button"
               onClick={() => editFolder(null, null, code, currentUnit)}><FolderPlus size={16}/> Crear carpeta</button>}
           </div>
-          <div className="hys-folder-grid">{GENERAL_MATRIX.map(group => <button type="button" key={group.code} onClick={() => {
+          <div className="hys-folder-grid">{GENERAL_MATRIX.filter(group => [...sectionRecords, ...scopeFolders].some(row => row.category.startsWith(group.prefix))).map(group => <button type="button" key={group.code} onClick={() => {
             setGeneralGroup(group); setSelectedCategory(''); setFolderTrail([])
           }}><FolderOpen size={20}/><span>{group.number} · {group.label}</span></button>)}</div>
           {rootEntries.length > 0 && <>
-            <h3>Otras carpetas</h3>
+            <h3>Carpetas</h3>
             <div className="hys-folder-grid">{rootEntries.map(folderCard)}</div>
           </>}
         </> : <>

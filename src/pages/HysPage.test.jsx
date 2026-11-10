@@ -18,14 +18,14 @@ it('opens the action folders and the editable plan for the selected establishmen
   render(<HysPage/>)
   fireEvent.change(await screen.findByLabelText('Abrir legajo del establecimiento'), { target: { value: 'south' } })
   fireEvent.click(screen.getByRole('button', { name: /12 Seguimiento/ }))
-  fireEvent.click(screen.getByRole('button', { name: /Evidencias 0 registros/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Acciones correctivas y preventivas 0 registros/ }))
   expect(screen.getByRole('button', { name: 'Subir documento' })).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Abrir plan de acción de esta sede' }))
   expect(screen.getByLabelText('Establecimiento')).toHaveValue('south')
 })
 
 it('opens the company matrix without a site and uploads several files into the selected topic', async () => {
-  const records = [{ id: 'old', section: 'general', unit_id: null, category: 'ART y cobertura', title: 'Póliza anterior', version_no: 1 }]
+  const records = [{ id: 'historical-art', company_id: 'qa', section: 'general', unit_id: null, category: '03 / 03.02 RGRL – Relevamiento General de Riesgos Laborales', title: 'Histórico ART', version_no: 1 }, { id: 'old', company_id: 'qa', section: 'general', unit_id: null, category: 'ART y cobertura', title: 'Póliza anterior', version_no: 1 }]
   const folders = []
   loadHys.mockImplementation(async () => ({
     units: [], actions: [], records: [...records], folders: [...folders],
@@ -35,7 +35,7 @@ it('opens the company matrix without a site and uploads several files into the s
     const existing = folders.find(f => f.id === id)
     if (existing) { existing.name = name; existing.category = parentCategory + name; return existing }
     const folder = { id: 'folder-' + (folders.length + 1), name, category: parentCategory + name,
-      section, unit_id: null, parent_category: parentCategory }
+      company_id: 'qa', section, unit_id: null, parent_category: parentCategory }
     folders.push(folder)
     return folder
   })
@@ -44,7 +44,7 @@ it('opens the company matrix without a site and uploads several files into the s
     if (index >= 0) folders.splice(index, 1)
   })
   createHysRecord.mockImplementation(async ({ values, unitId }) => {
-    records.push({ ...values, id: String(records.length), unit_id: unitId || null, version_no: 1 })
+    records.push({ ...values, company_id: 'qa', id: String(records.length), unit_id: unitId || null, version_no: 1 })
   })
   render(<HysPage/>)
   fireEvent.click(await screen.findByRole('button', { name: 'Documentación general' }))
@@ -65,7 +65,7 @@ it('opens the company matrix without a site and uploads several files into the s
     }))
   }
   fireEvent.click(screen.getByRole('button', { name: 'Volver a los subapartados' }))
-  expect(screen.getByRole('button', { name: /03.02 RGRL.*2 registros/ })).toBeVisible()
+  expect(screen.getByRole('button', { name: /03.02 RGRL.*3 registros/ })).toBeVisible()
   fireEvent.click(screen.getByRole('button', { name: 'Crear subcarpeta' }))
   expect(screen.getByRole('dialog', { name: 'Crear carpeta' })).toBeVisible()
   fireEvent.change(screen.getByLabelText('Nombre de la subcarpeta'), { target: { value: 'Renovaciones' } })
@@ -100,7 +100,7 @@ it('creates, renames and deletes an empty folder without requiring documents', a
       return folder
     }
     const folder = { id: 'empty', name, category: name, parent_category: parentCategory,
-      section, unit_id: null }
+      company_id: 'qa', section, unit_id: null }
     folders.push(folder)
     return folder
   })
@@ -183,4 +183,54 @@ it('creates and hides an independent legajo section, then restores the original'
   await waitFor(() => expect(saveHysUnitSection).toHaveBeenLastCalledWith(expect.objectContaining({
     unitId: 'north', code: 'legal', enabled: true,
   })))
+})
+
+it('isolates Melisa’s repurposed section while keeping saved documents and nested folders accessible', async () => {
+  loadHys.mockResolvedValue({
+    units: [{ id: 'north', name: 'Planta Norte' }, { id: 'south', name: 'Sede Sur' }],
+    actions: [], grants: [], members: [], foldersAvailable: true,
+    sectionSettings: [{ company_id: 'qa', unit_id: 'north', code: 'legal', label: 'Material de capacitación', is_active: true }],
+    records: [{ id: 'old', company_id: 'qa', unit_id: 'north', section: 'legal', category: 'Legajo histórico', title: 'Documento conservado', version_no: 1 }],
+    folders: [
+      { id: 'own', company_id: 'qa', unit_id: 'north', section: 'legal', name: '1. Inducción en H&S', category: '1. Inducción en H&S', parent_category: null },
+      { id: 'child', company_id: 'qa', unit_id: 'north', section: 'legal', name: 'Anexo', category: 'Padre anterior / Anexo', parent_category: 'Padre anterior' },
+      ...[['qa', 'south', 'legal'], ['qa', 'north', 'training'], ['other', 'north', 'legal']].map(([company_id, unit_id, section], i) => ({ id: 'foreign' + i, company_id, unit_id, section, name: 'Ajena ' + i, category: 'Ajena ' + i, parent_category: null })),
+    ],
+  })
+  render(<HysPage />)
+  fireEvent.change(await screen.findByLabelText('Abrir legajo del establecimiento'), { target: { value: 'north' } })
+  fireEvent.click(screen.getByRole('button', { name: /01 Material de capacitación/ }))
+  expect(await screen.findByRole('heading', { name: '01 · Material de capacitación' })).toBeVisible()
+  expect(screen.getByRole('button', { name: /1. Inducción en H&S 0 registros/ })).toBeVisible()
+  expect(screen.queryByRole('button', { name: /^Documentación legal/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^Organización preventiva/ })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Ajena/ })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Padre anterior 0 registros/ }))
+  expect(screen.getByRole('button', { name: /Anexo 0 registros/ })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Volver a los subapartados' }))
+  fireEvent.click(screen.getByRole('button', { name: /Legajo histórico 1 registro/ }))
+  expect(screen.getByText('Documento conservado')).toBeVisible()
+})
+
+it('navigates every matrix section and subfolder without mixing another section’s folders', async () => {
+  const { HYS_SECTIONS } = await import('../lib/hysCatalog')
+  loadHys.mockResolvedValue({
+    units: [{ id: 'north', name: 'Planta Norte' }], actions: [], records: [], grants: [], members: [],
+    sectionSettings: [], foldersAvailable: true,
+    folders: HYS_SECTIONS.map(s => ({ id: s.code, company_id: 'qa', unit_id: 'north', section: s.code,
+      name: 'Personal ' + s.code, category: 'Personal ' + s.code, parent_category: null })),
+  })
+  render(<HysPage />)
+  fireEvent.click(await screen.findByRole('button', { name: /01 Legajo legal/ }))
+  for (const section of HYS_SECTIONS) {
+    fireEvent.click(screen.getByRole('button', { name: section.number + ' ' + section.label }))
+    const folderButtons = [...document.querySelectorAll('.hys-folder-open')]
+    expect(folderButtons).toHaveLength(section.categories.length + 1)
+    expect(screen.getByRole('button', { name: 'Personal ' + section.code + ' 0 registros' })).toBeVisible()
+    for (const name of section.categories) {
+      fireEvent.click(screen.getByRole('button', { name: name + ' 0 registros' }))
+      expect(screen.getByRole('button', { name: 'Subir documento' })).toBeVisible()
+      fireEvent.click(screen.getByRole('button', { name: 'Volver a los subapartados' }))
+    }
+  }
 })

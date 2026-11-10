@@ -154,7 +154,7 @@ describe('Apartados configurables por establecimiento', () => {
     const north = hysConfiguredSections(settings, 'north')
     const south = hysConfiguredSections(settings, 'south')
     expect(north.find(s => s.code === 'legal')).toMatchObject({ label: 'Legajo normativo', enabled: false })
-    expect(north.find(s => s.code === 'custom_123')).toMatchObject({ enabled: true, categories: ['Otros'] })
+    expect(north.find(s => s.code === 'custom_123')).toMatchObject({ enabled: true, categories: [] })
     expect(south).toHaveLength(13)
     expect(south.find(s => s.code === 'legal')).toMatchObject({ label: 'Legajo legal', enabled: true })
   })

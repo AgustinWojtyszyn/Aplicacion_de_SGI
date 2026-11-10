@@ -1,5 +1,5 @@
 import { requireSupabase } from '../lib/supabase'
-import { HYS_STATES, HYS_PRIORITIES, HYS_ALL_SECTIONS, GENERAL_MATRIX } from '../lib/hysCatalog'
+import { HYS_STATES, HYS_PRIORITIES, HYS_ALL_SECTIONS, GENERAL_CATEGORIES, hysConfiguredSections } from '../lib/hysCatalog'
 
 const BUCKET = 'hys-files'
 const MAX_SIZE = 25 * 1024 * 1024
@@ -127,14 +127,19 @@ export function normalizeHysFolder({ name, parentCategory = null }) {
 
 export async function saveHysFolder({ companyId, unitId, section, name, parentCategory, id }) {
   const values = normalizeHysFolder({ name, parentCategory })
-  // Los apartados fijos de la matriz no se pueden reemplazar por carpetas editables.
-  const reserved = section === 'general'
-    ? GENERAL_MATRIX.flatMap(group => group.categories.map(category => group.prefix + category))
-    : HYS_ALL_SECTIONS.find(item => item.code === section)?.categories || []
+  const db = requireSupabase()
+  // Resolve the same per-site catalog used by navigation before reserving names.
+  let reserved = GENERAL_CATEGORIES
+  if (section !== 'general') {
+    const { data: settings, error } = await db.from('hys_unit_sections').select('*')
+      .eq('company_id', companyId).eq('unit_id', unitId)
+    if (error && !isMissingHysUnitSections(error)) throw error
+    reserved = hysConfiguredSections(settings || [], unitId, companyId)
+      .find(item => item.code === section)?.categories || []
+  }
   if (reserved.some(category => category.toLocaleLowerCase('es') === values.category.toLocaleLowerCase('es'))) {
     throw new Error('Este subapartado pertenece a la matriz fija. Elegí otro nombre.')
   }
-  const db = requireSupabase()
   const { data, error } = id
     ? await db.rpc('hys_update_folder', {
       p_id: id, p_parent_category: values.parentCategory, p_name: values.name,
