@@ -458,10 +458,10 @@ export async function parseHysActionsWorkbook(file, options = {}) {
   const analysis = await inspectHysActionsWorkbook(file)
   const { rows, skipped } = previewHysActionsWorkbook(analysis, options)
   if (!rows.length) throw new Error(skipped[0] ? 'Fila ' + skipped[0].rowNumber + ': ' + skipped[0].reason : 'No hay acciones para importar.')
-  return rows.map(row => ({ ...row, values: {
-    ...row.values,
-    ...(analysis.mapping.detection_date < 0 ? { detection_date: undefined } : {}),
-  } }))
+  return rows.map(row => {
+    const { detection_date, ...other } = row.values
+    return { ...row, values: analysis.mapping.detection_date < 0 ? other : { ...other, detection_date } }
+  })
 }
 
 export async function hysActionImportKey(companyId, row) {
