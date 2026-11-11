@@ -1,17 +1,8 @@
 import { requireSupabase } from '../lib/supabase'
 import { HYS_STATES, HYS_PRIORITIES, HYS_ALL_SECTIONS, GENERAL_CATEGORIES, hysConfiguredSections } from '../lib/hysCatalog'
+import { HYS_FILE_TYPES as FILE_TYPES, isHysVideoFile, validateHysFile } from '../lib/hysFileTypes'
 
 const BUCKET = 'hys-files'
-const MAX_SIZE = 25 * 1024 * 1024
-const FILE_TYPES = {
-  pdf: 'application/pdf', doc: 'application/msword',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  xls: 'application/vnd.ms-excel',
-  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  csv: 'text/csv', txt: 'text/plain',
-  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
-}
-
 const trim = (value) => String(value ?? '').trim()
 const dateOrNull = (value) => trim(value) || null
 
@@ -55,7 +46,7 @@ export function isMissingHysCompanyDetails(error) {
 }
 
 export function isPreviewableHysFile(name = '') {
-  return /\.(?:pdf|png|jpe?g|webp)$/i.test(String(name))
+  return /\.(?:pdf|png|jpe?g|webp)$/i.test(String(name)) || isHysVideoFile(name)
 }
 
 export function isMissingHysFolders(error) {
@@ -251,11 +242,7 @@ function safeFilename(value) {
 
 export async function createHysRecord({ companyId, unitId, userId, values, file }) {
   const db = requireSupabase()
-  if (file && (!file.size || file.size > MAX_SIZE)) throw new Error('El archivo debe ser válido y pesar menos de 25 MB.')
-  const extension = file?.name?.split('.').pop()?.toLowerCase()
-  if (file && !Object.hasOwn(FILE_TYPES, extension)) {
-    throw new Error('Solo se admiten PDF, Word, Excel, CSV, TXT e imágenes JPG, PNG o WEBP.')
-  }
+  const contentType = validateHysFile(file)
   const title = trim(values.title)
   if (title.length < 2 || title.length > 180) throw new Error('Ingresá un título de 2 a 180 caracteres.')
   // A given revision has one successor even if two editors submit concurrently.
@@ -285,7 +272,7 @@ export async function createHysRecord({ companyId, unitId, userId, values, file 
   if (error) throw error
   if (!file) return data
   const { error: uploadError } = await db.storage.from(BUCKET).upload(path, file, {
-    upsert: false, contentType: FILE_TYPES[extension],
+    upsert: false, contentType,
   })
   if (uploadError) {
     const { error: cleanupError } = await db.from('hys_records').delete().eq('id', id)

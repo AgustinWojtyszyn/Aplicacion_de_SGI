@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import HysFilePreview from '../components/HysFilePreview'
 import { useAuth } from '../context/AuthContext'
 import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysConfiguredSections, sectionLabel } from '../lib/hysCatalog'
+import { HYS_FILE_ACCEPT, validateHysFile } from '../lib/hysFileTypes'
 import {
   addHysUnit, canUseHys, createHysRecord, downloadActionsExcel, listHysHistory,
   loadHys, isPreviewableHysFile, downloadHysFile, inspectHysActionsWorkbook, previewHysActionsWorkbook,
@@ -938,15 +939,17 @@ function HysWorkspace({ company, user, isAdmin }) {
           <label>Vencimiento (opcional)<input type="date" value={recordDraft.expires_at} onChange={(e) => setRecordDraft({ ...recordDraft, expires_at: e.target.value })}/></label>
         </div>
         <label>Archivo {recordDraft.requireFile ? '(obligatorio)' : '(opcional para registros sin adjunto)'}
-          <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.png,.jpg,.jpeg,.webp"
+          <input type="file" accept={HYS_FILE_ACCEPT}
             required={Boolean(recordDraft.requireFile)} onChange={(e) => {
               const file = e.target.files?.[0] || null
               setRecordFile(file)
-              setRecordError(file && file.size > 25 * 1024 * 1024 ? 'El archivo supera el máximo de 25 MB.' : '')
+              try { validateHysFile(file); setRecordError('') }
+              catch (error) { setRecordError(error.message) }
             }}/></label>
+        <p className="hys-file-summary">PDF, Office, PowerPoint y videos MP4, WebM, MOV o M4V. Máximo 25 MB por documento o 50 MB por video. Las presentaciones se descargan para abrirlas.</p>
         {recordFile && <p className="hys-file-summary">Seleccionado: {recordFile.name} · {(recordFile.size / 1024 / 1024).toFixed(2)} MB</p>}
         {recordError && <p className="hys-inline-error" role="alert">{recordError}</p>}
-        <button className="primary-button" disabled={saving}>{saving ? 'Guardando…' : 'Guardar en legajo'}</button>
+        <button className="primary-button" disabled={saving || Boolean(recordError)}>{saving ? 'Guardando…' : 'Guardar en legajo'}</button>
       </form></div>}
 
       {history && <div className="hys-overlay" role="presentation"><div className="hys-dialog">

@@ -7,6 +7,7 @@ async function readPreview(record) {
   const { data, error } = await requireSupabase().storage.from('hys-files').download(record.file_path)
   if (error) throw error
   if (/\.(?:png|jpe?g|webp)$/i.test(record.file_name)) return { image: URL.createObjectURL(data) }
+  if (/\.(?:mp4|webm|mov|m4v)$/i.test(record.file_name)) return { video: URL.createObjectURL(data) }
   const buffer = await data.arrayBuffer()
   if (/\.pdf$/i.test(record.file_name)) return { pdf: buffer }
   if (/\.docx?$/i.test(record.file_name)) {
@@ -40,22 +41,32 @@ export default function HysFilePreview({ record, onClose }) {
   const [preview, setPreview] = useState(null)
   const [error, setError] = useState('')
   const [sheet, setSheet] = useState(0)
+  const [videoError, setVideoError] = useState(false)
   useEffect(() => {
     let active = true
-    let imageUrl
+    let mediaUrl
+    setPreview(null)
+    setError('')
+    setVideoError(false)
     readPreview(record).then(result => {
-      imageUrl = result.image
+      mediaUrl = result.image || result.video
       if (active) setPreview(result)
-      else if (imageUrl) URL.revokeObjectURL(imageUrl)
+      else if (mediaUrl) URL.revokeObjectURL(mediaUrl)
     })
       .catch(() => { if (active) setError('No se pudo leer este archivo. Podés descargar el original desde el legajo.') })
-    return () => { active = false; if (imageUrl) URL.revokeObjectURL(imageUrl) }
+    return () => { active = false; if (mediaUrl) URL.revokeObjectURL(mediaUrl) }
   }, [record])
   return <div className="hys-overlay"><div className="hys-dialog hys-office" role="dialog" aria-modal="true" aria-label="Vista previa">
     <div className="hys-modal-title"><h2>{record.file_name}</h2><button type="button" onClick={onClose} autoFocus>Cerrar</button></div>
     {error && <p role="alert">{error}</p>}
     {!preview && !error && <p role="status">Abriendo archivo…</p>}
     {preview?.image && <img src={preview.image} alt={record.file_name}/>}
+    {preview?.video && <>
+      <video src={preview.video} controls playsInline preload="metadata" onError={() => setVideoError(true)} style={{ width: '100%', maxHeight: '70vh' }}>
+        Tu navegador no puede reproducir este video.
+      </video>
+      {videoError && <p role="alert">Este video no se puede reproducir en tu navegador. Descargalo desde el legajo para verlo en un reproductor compatible.</p>}
+    </>}
     {preview?.pdf && <Suspense fallback={<p>Abriendo PDF…</p>}><PdfPreview bytes={preview.pdf}/></Suspense>}
     {preview?.markup && <iframe sandbox="" title={record.file_name} srcDoc={preview.markup}/>}
     {preview?.sheets && <>
