@@ -457,7 +457,13 @@ export function previewHysActionsWorkbook(analysis, {
 export async function parseHysActionsWorkbook(file, options = {}) {
   const analysis = await inspectHysActionsWorkbook(file)
   const { rows, skipped } = previewHysActionsWorkbook(analysis, options)
-  if (!rows.length) throw new Error(skipped[0] ? 'Fila ' + skipped[0].rowNumber + ': ' + skipped[0].reason : 'No hay acciones para importar.')
+  if (!rows.length) {
+    const first = skipped[0]
+    if (!first) throw new Error('No hay acciones para importar.')
+    if (first.reason.startsWith('Sin permiso')) throw new Error('Fila ' + first.rowNumber + ': no tenés permiso para editar ese establecimiento.')
+    if (first.reason.startsWith('Establecimiento inexistente')) throw new Error('Fila ' + first.rowNumber + ': el establecimiento no existe o es ambiguo.')
+    throw new Error('Fila ' + first.rowNumber + ': ' + first.reason)
+  }
   return rows.map(row => {
     const { detection_date, ...other } = row.values
     return { ...row, values: analysis.mapping.detection_date < 0 ? other : { ...other, detection_date } }
