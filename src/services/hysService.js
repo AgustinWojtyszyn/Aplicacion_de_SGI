@@ -27,6 +27,7 @@ export function normalizeHysAction(values) {
     priority: values.priority,
     status: values.status,
     due_date: dateOrNull(values.due_date),
+    ...(values.detection_date !== undefined ? { detection_date: dateOrNull(values.detection_date) } : {}),
   }
 }
 
@@ -185,7 +186,7 @@ export async function saveHysCompanyDetails({ companyId, values }) {
   return data
 }
 
-export async function saveHysAction({ companyId, unitId, userId, values, existing }) {
+export async function saveHysAction({ companyId, unitId, userId, values, existing, importKey }) {
   const db = requireSupabase()
   const clean = normalizeHysAction(values)
   if (existing) {
@@ -197,7 +198,9 @@ export async function saveHysAction({ companyId, unitId, userId, values, existin
   }
   const { data, error } = await db.from('hys_actions').insert({
     ...clean, company_id: companyId, unit_id: unitId || null, created_by: userId,
+    ...(importKey ? { import_key: importKey } : {}),
   }).select().single()
+  if (error?.code === '23505' && importKey && /hys_actions_import_key_uniq/.test(error.message || '')) return { duplicate: true }
   if (error) throw error
   return data
 }
@@ -311,87 +314,168 @@ export async function downloadHysFile(record) {
   downloadBlob(data, record.file_name || 'documento')
 }
 
-// Esta importación crea acciones nuevas; no modifica archivos Excel/Word adjuntos.
-export async function parseHysActionsWorkbook(file, { units = [], defaultUnitId = '', canEdit = () => false } = {}) {
+// Importa hallazgos de planillas externas sin tocar documentos ni acciones existentes.
+const HYS_IMPORT_FIELDS = [
+  { key: 'title', label: 'Acción', aliases: ['accion', 'hallazgo situacion', 'hallazgo', 'situacion', 'hallazgo detectado'] },
+  { key: 'unitId', label: 'Establecimiento', aliases: ['establecimiento', 'sede', 'centro de trabajo', 'ubicacion'] },
+  { key: 'responsible', label: 'Responsable', aliases: ['responsable', 'responsable accion', 'responsable de la accion'] },
+  { key: 'projectManager', label: 'Responsable alternativo', aliases: ['project manager', 'pm', 'jefe de proyecto'] },
+  { key: 'priority', label: 'Prioridad', aliases: ['prioridad', 'nivel de prioridad'] },
+  { key: 'status', label: 'Estado', aliases: ['estado', 'estatus', 'status'] },
+  { key: 'due_date', label: 'Plazo', aliases: ['vencimiento', 'plazo', 'compromiso fecha', 'fecha compromiso', 'fecha limite', 'fecha de compromiso'] },
+  { key: 'detection_date', label: 'Fecha de detección', aliases: ['deteccion', 'fecha deteccion', 'fecha de deteccion'] },
+  { key: 'description', label: 'Descripción adicional', aliases: ['descripcion', 'observaciones', 'detalle'] },
+]
+export const HYS_IMPORT_MAPPING_FIELDS = HYS_IMPORT_FIELDS.map(({ key, label }) => ({ key, label }))
+const canonImport = value => trim(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
+  .replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ')
+const headerMapping = headers => Object.fromEntries(HYS_IMPORT_FIELDS.map(field => [
+  field.key, headers.findIndex(header => field.aliases.includes(canonImport(header))),
+]))
+const cellImport = (row, mapping, field) => {
+  const index = mapping[field]
+  return Number.isInteger(index) && index >= 0 ? row[index] : ''
+}
+const dateImport = (raw, ssf) => {
+  if (raw === '' || raw == null) return null
+  let y, m, d
+  if (raw instanceof Date) [y, m, d] = [raw.getUTCFullYear(), raw.getUTCMonth() + 1, raw.getUTCDate()]
+  else if (typeof raw === 'number') {
+    const parsed = ssf.parse_date_code(raw)
+    if (!parsed) throw new Error('fecha inválida')
+    ;[y, m, d] = [parsed.y, parsed.m, parsed.d]
+  } else {
+    const input = trim(raw).replace(/\s+\d{1,2}:\d{2}(?::\d{2})?$/, '')
+    let parts = input.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+    if (parts) [y, m, d] = parts.slice(1).map(Number)
+    else {
+      parts = input.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/)
+      if (!parts) throw new Error('fecha inválida (usá DD/MM/AAAA)')
+      ;[d, m, y] = parts.slice(1).map(Number)
+    }
+  }
+  const check = new Date(Date.UTC(y, m - 1, d))
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() + 1 !== m || check.getUTCDate() !== d) throw new Error('fecha inválida')
+  return [String(y).padStart(4, '0'), String(m).padStart(2, '0'), String(d).padStart(2, '0')].join('-')
+}
+const enumImport = (raw, options, fallback, label) => {
+  if (!trim(raw)) return fallback
+  const canonical = canonImport(raw)
+  const synonyms = label === 'Prioridad' ? { alto: 'alta', medio: 'media', bajo: 'baja', critico: 'critica' } : {}
+  const found = Object.entries(options).find(([key, value]) => canonImport(key) === canonical || canonImport(value) === canonical)
+  const key = found?.[0] || synonyms[canonical]
+  if (!key || !Object.hasOwn(options, key)) throw new Error(label + ' inválida: «' + raw + '»')
+  return key
+}
+const hysActionIdentity = (unitId, title, date) =>
+  [unitId || '', canonImport(title), date || ''].join('|')
+
+export async function inspectHysActionsWorkbook(file) {
   if (!/\.(xls|xlsx)$/i.test(file?.name || '') || !file.size || file.size > 5 * 1024 * 1024) {
     throw new Error('Seleccioná un Excel .xlsx o .xls de hasta 5 MB.')
   }
   const { read, utils, SSF } = await import('xlsx')
   const book = read(await file.arrayBuffer(), { type: 'array', cellDates: true })
-  const sheet = book.Sheets[book.SheetNames.includes('Plan de acción') ? 'Plan de acción' : book.SheetNames[0]]
-  if (!sheet) throw new Error('La planilla no contiene hojas.')
-  const grid = utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true })
-  const canon = (value) => trim(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ')
-  const cols = (grid[0] || []).map(canon)
-  const index = (name) => cols.indexOf(canon(name))
-  if (index('Acción') < 0) throw new Error('Falta la columna «Acción». Descargá la plantilla del plan y conservá los encabezados.')
-  const cell = (row, name) => index(name) < 0 ? '' : row[index(name)]
-  function dateValue(raw, line) {
-    if (raw === '' || raw == null) return null
-    let y, m, d
-    if (raw instanceof Date) [y, m, d] = [raw.getUTCFullYear(), raw.getUTCMonth() + 1, raw.getUTCDate()]
-    else if (typeof raw === 'number') {
-      const parsed = SSF.parse_date_code(raw)
-      if (!parsed) throw new Error('Fila ' + line + ': fecha inválida.')
-      ;[y, m, d] = [parsed.y, parsed.m, parsed.d]
-    } else {
-      let parts = trim(raw).match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
-      if (parts) [y, m, d] = parts.slice(1).map(Number)
-      else {
-        parts = trim(raw).match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/)
-        if (!parts) throw new Error('Fila ' + line + ': fecha inválida. Usá DD/MM/AAAA.')
-        ;[d, m, y] = parts.slice(1).map(Number)
+  let best = null
+  for (const name of book.SheetNames) {
+    if (/^(tablero|dashboard|indicadores?|kpis?|resumen de indicadores)$/i.test(canonImport(name))) continue
+    const sheet = book.Sheets[name]
+    if (!sheet?.['!ref']) continue
+    const offset = utils.decode_range(sheet['!ref']).s.r
+    const grid = utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true, blankrows: true })
+    for (let index = 0; index < Math.min(grid.length, 100); index++) {
+      const headers = (grid[index] || []).map(trim)
+      const mapping = headerMapping(headers)
+      const matching = HYS_IMPORT_FIELDS.filter(field => mapping[field.key] >= 0)
+      if (mapping.title < 0 || matching.length < 2) continue
+      const sample = grid.slice(index + 1, index + 21)
+        .filter(row => trim(cellImport(row || [], mapping, 'title'))).length
+      const score = matching.length * 10 + Math.min(sample, 10) +
+        (canonImport(name) === 'plan de accion' ? 1 : 0)
+      if (!best || score > best.score) {
+        best = { sheetName: name, headerRow: offset + index + 1, headers, grid, offset, mapping, ssf: SSF, score }
       }
     }
-    const check = new Date(Date.UTC(y, m - 1, d))
-    if (check.getUTCFullYear() !== y || check.getUTCMonth() + 1 !== m || check.getUTCDate() !== d) {
-      throw new Error('Fila ' + line + ': fecha inválida.')
+  }
+  if (!best) throw new Error('No encontré una tabla de acciones o hallazgos. Revisá el Excel o elegí una hoja que contenga «Hallazgo / situación» o «Acción».')
+  const { score, ...analysis } = best
+  return analysis
+}
+
+export function previewHysActionsWorkbook(analysis, {
+  mapping = analysis.mapping, units = [], defaultUnitId = '', canEdit = () => false, existingActions = [],
+} = {}) {
+  const rows = [], skipped = [], seen = new Set()
+  const selectedUnit = defaultUnitId || ''
+  const existing = new Set(existingActions.map(action =>
+    hysActionIdentity(action.unit_id, action.title, action.due_date)))
+  for (let i = analysis.headerRow - analysis.offset; i < analysis.grid.length; i++) {
+    const rawRow = analysis.grid[i] || []
+    if (!rawRow.some(value => trim(value))) continue
+    const rowNumber = analysis.offset + i + 1
+    const skip = reason => skipped.push({ rowNumber, reason })
+    const hallazgo = trim(cellImport(rawRow, mapping, 'title'))
+    if (!hallazgo) { skip('Sin hallazgo o acción'); continue }
+    try {
+      const name = canonImport(cellImport(rawRow, mapping, 'unitId'))
+      let unitId = selectedUnit
+      if (name === 'general' || name === 'empresa') unitId = ''
+      else if (name) {
+        const found = units.filter(unit => canonImport(unit.name) === name)
+        if (found.length !== 1) { skip('Establecimiento inexistente o ambiguo: ' + cellImport(rawRow, mapping, 'unitId')); continue }
+        unitId = found[0].id
+      }
+      if (selectedUnit && unitId !== selectedUnit) { skip('Fuera del establecimiento seleccionado'); continue }
+      if (!canEdit(unitId)) { skip('Sin permiso para editar este establecimiento'); continue }
+      const due_date = dateImport(cellImport(rawRow, mapping, 'due_date'), analysis.ssf)
+      const detection_date = dateImport(cellImport(rawRow, mapping, 'detection_date'), analysis.ssf)
+      const title = hallazgo.slice(0, 180).trim()
+      const extra = trim(cellImport(rawRow, mapping, 'description'))
+      const description = [hallazgo.length > 180 ? hallazgo : '', extra].filter(Boolean).join('\n')
+      const values = normalizeHysAction({
+        title, description,
+        responsible: trim(cellImport(rawRow, mapping, 'responsible')) ||
+          trim(cellImport(rawRow, mapping, 'projectManager')),
+        priority: enumImport(cellImport(rawRow, mapping, 'priority'), HYS_PRIORITIES, 'media', 'Prioridad'),
+        status: enumImport(cellImport(rawRow, mapping, 'status'), HYS_STATES, 'pendiente', 'Estado'),
+        due_date,
+        detection_date,
+      })
+      const identity = hysActionIdentity(unitId, values.title, values.due_date)
+      if (seen.has(identity) || existing.has(identity)) { skip('Acción duplicada'); continue }
+      if (rows.length >= 500) { skip('Supera el límite de 500 acciones por importación'); continue }
+      seen.add(identity)
+      rows.push({ rowNumber, unitId, values })
+    } catch (error) {
+      skip(error.message || 'Fila inválida')
     }
-    return [String(y).padStart(4, '0'), String(m).padStart(2, '0'), String(d).padStart(2, '0')].join('-')
   }
-  const enumValue = (raw, options, fallback, label, line) => {
-    if (!trim(raw)) return fallback
-    const result = Object.entries(options).find(([id, value]) => canon(id) === canon(raw) || canon(value) === canon(raw))
-    if (!result) throw new Error('Fila ' + line + ': ' + label + ' inválido («' + raw + '»).')
-    return result[0]
-  }
-  const result = []
-  const seen = new Set()
-  for (let i = 1; i < grid.length; i++) {
-    const row = grid[i] || []
-    if (!row.some(v => trim(v) !== '')) continue
-    if (result.length >= 500) throw new Error('La planilla admite hasta 500 acciones por importación.')
-    const line = i + 1
-    const name = canon(cell(row, 'Establecimiento'))
-    let unitId = defaultUnitId || ''
-    if (name === 'general' || name === 'empresa') unitId = ''
-    else if (name) {
-      const found = units.filter(unit => canon(unit.name) === name)
-      if (found.length !== 1) throw new Error('Fila ' + line + ': el establecimiento «' + cell(row, 'Establecimiento') + '» no existe o es ambiguo.')
-      unitId = found[0].id
-    }
-    if (!canEdit(unitId)) throw new Error('Fila ' + line + ': no tenés permiso para editar ese establecimiento.')
-    const values = normalizeHysAction({
-      title: cell(row, 'Acción'), description: cell(row, 'Descripción'), responsible: cell(row, 'Responsable'),
-      priority: enumValue(cell(row, 'Prioridad'), HYS_PRIORITIES, 'media', 'prioridad', line),
-      status: enumValue(cell(row, 'Estado'), HYS_STATES, 'pendiente', 'estado', line),
-      due_date: dateValue(cell(row, 'Vencimiento'), line),
-    })
-    const identity = [unitId, canon(values.title), values.due_date].join('|')
-    if (seen.has(identity)) throw new Error('Fila ' + line + ': acción repetida dentro del archivo.')
-    seen.add(identity)
-    result.push({ rowNumber: line, unitId, values })
-  }
-  if (!result.length) throw new Error('La plantilla está vacía. Completá una acción para importarla.')
-  return result
+  return { rows, skipped }
+}
+
+// Se conserva la firma anterior para integraciones que importan la plantilla de GESTIQA.
+export async function parseHysActionsWorkbook(file, options = {}) {
+  const analysis = await inspectHysActionsWorkbook(file)
+  const { rows, skipped } = previewHysActionsWorkbook(analysis, options)
+  if (!rows.length) throw new Error(skipped[0] ? 'Fila ' + skipped[0].rowNumber + ': ' + skipped[0].reason : 'No hay acciones para importar.')
+  return rows.map(row => ({ ...row, values: {
+    ...row.values,
+    ...(analysis.mapping.detection_date < 0 ? { detection_date: undefined } : {}),
+  } }))
+}
+
+export async function hysActionImportKey(companyId, row) {
+  const value = [companyId, row.unitId || '', canonImport(row.values.title), row.values.due_date || '']
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value)))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export async function buildActionsExcel(actions, unitName = () => 'General') {
   const { utils, write } = await import('xlsx')
-  const header = ['Acción', 'Establecimiento', 'Responsable', 'Prioridad', 'Estado', 'Vencimiento', 'Descripción']
+  const header = ['Acción', 'Establecimiento', 'Responsable', 'Prioridad', 'Estado', 'Vencimiento', 'Descripción', 'Detección']
   const rows = [header, ...actions.map((a) => [
     a.title, a.unit_id ? unitName(a.unit_id) : 'General',
-    a.responsible, HYS_PRIORITIES[a.priority], HYS_STATES[a.status], a.due_date || '', a.description,
+    a.responsible, HYS_PRIORITIES[a.priority], HYS_STATES[a.status], a.due_date || '', a.description, a.detection_date || '',
   ])]
   const book = utils.book_new()
   utils.book_append_sheet(book, utils.aoa_to_sheet(rows), 'Plan de acción')
