@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HYS_SECTIONS, hysSectionFolders } from '../lib/hysCatalog'
-import { buildActionsExcel, canUseHys, isMissingHysCompanyDetails, isPreviewableHysFile, parseHysActionsWorkbook, normalizeHysAction, normalizeHysCompanyDetails, normalizeHysFolder, isMissingHysFolders } from './hysService'
+import { buildActionsExcel, canUseHys, isMissingHysCompanyDetails, isPreviewableHysFile, parseHysActionsWorkbook, normalizeHysAction, normalizeHysCompanyDetails, normalizeHysFolder, isMissingHysFolders, inspectHysActionsWorkbook, previewHysActionsWorkbook } from './hysService'
 
 describe('Higiene y Seguridad', () => {
   it('preserves the thirteen sections requested by the client', () => {
@@ -142,6 +142,90 @@ describe('Higiene y Seguridad', () => {
       .rejects.toThrow(/no existe o es ambiguo/)
   })
 
+})
+
+
+describe('Importación flexible de hallazgos HyS', () => {
+  async function makeFile(sheets) {
+    const { utils, write } = await import('xlsx')
+    const book = utils.book_new()
+    for (const [name, grid] of Object.entries(sheets)) {
+      const sheet = utils.aoa_to_sheet(grid)
+      if (name === 'Hallazgos') sheet['!merges'] = [utils.decode_range('A1:G1')]
+      utils.book_append_sheet(book, sheet, name)
+    }
+    const bytes = write(book, { type: 'array', bookType: 'xlsx' })
+    return { name: 'D SGC 12 Evaluación de proveedores - INCODES (corregido).xlsx',
+      size: bytes.byteLength, arrayBuffer: async () => bytes }
+  }
+
+  it('ignores TABLERO, discovers headers below logo, maps findings and reports invalid rows', async () => {
+    const file = await makeFile({
+      TABLERO: [['Indicadores', 'Valor'], ['Cumplimiento', '95%']],
+      Hallazgos: [
+        ['INCODES'], ['Evaluación de proveedores'], [],
+        ['Detección', 'Prioridad', 'Establecimiento', 'Project Manager', 'Hallazgo / situación', 'Responsable', 'Compromiso (fecha)'],
+        ['01/11/2026', 'Alta', 'Celeste Mar', 'Melisa', 'Actualizar documentación', '', '15/11/2026'],
+        ['31/02/2026', 'Media', 'Celeste Mar', 'Melisa', 'Revisar carpeta', '', '20/11/2026'],
+        ['12/11/2026', 'Baja', 'Sede Sur', 'Melisa', 'Revisar equipos', '', '21/11/2026'],
+        ['12/11/2026', 'Baja', 'Celeste Mar', 'Melisa', '', '', '22/11/2026'],
+        ['01/11/2026', 'Alta', 'Celeste Mar', 'Melisa', 'Actualizar documentación', '', '15/11/2026'],
+      ],
+    })
+    const analysis = await inspectHysActionsWorkbook(file)
+    expect(analysis.sheetName).toBe('Hallazgos')
+    expect(analysis.headerRow).toBe(4)
+    const preview = previewHysActionsWorkbook(analysis, {
+      units: [{ id: 'celeste', name: 'Celeste Mar' }, { id: 'sur', name: 'Sede Sur' }],
+      defaultUnitId: 'celeste', canEdit: id => id === 'celeste',
+    })
+    expect(preview.rows).toHaveLength(1)
+    expect(preview.rows[0]).toMatchObject({ rowNumber: 5, unitId: 'celeste',
+      values: { title: 'Actualizar documentación', responsible: 'Melisa', priority: 'alta',
+        status: 'pendiente', due_date: '2026-11-15', detection_date: '2026-11-01' } })
+    expect(preview.skipped.map(row => row.reason)).toEqual(expect.arrayContaining([
+      'fecha inválida', 'Fuera del establecimiento seleccionado', 'Sin hallazgo o acción', 'Acción duplicada',
+    ]))
+  })
+
+  it('supports manual mapping, skips unauthorized establishments and deduplicates existing actions', async () => {
+    const file = await makeFile({ Acciones: [
+      ['Acción', 'Centro', 'Plazo'],
+      ['Inspeccionar matafuegos', 'Celeste Mar', '20/11/2026'],
+      ['Revisar checklist', 'Sede Sur', '21/11/2026'],
+    ] })
+    const analysis = await inspectHysActionsWorkbook(file)
+    expect(analysis.mapping.unitId).toBe(-1)
+    const options = {
+      mapping: { ...analysis.mapping, unitId: 1 }, units: [
+        { id: 'celeste', name: 'Celeste Mar' }, { id: 'sur', name: 'Sede Sur' }],
+      canEdit: id => id === 'celeste',
+    }
+    const preview = previewHysActionsWorkbook(analysis, options)
+    expect(preview.rows).toHaveLength(1)
+    expect(preview.rows[0].unitId).toBe('celeste')
+    expect(preview.skipped).toEqual([{ rowNumber: 3, reason: 'Sin permiso para editar este establecimiento' }])
+    const repeated = previewHysActionsWorkbook(analysis, {
+      ...options, existingActions: [{ unit_id: 'celeste', title: 'Inspeccionar matafuegos', due_date: '2026-11-20' }],
+    })
+    expect(repeated.rows).toHaveLength(0)
+    expect(repeated.skipped.map(row => row.reason)).toContain('Acción duplicada')
+  })
+
+  it('preserves the full finding when its title exceeds 180 characters', async () => {
+    const finding = 'Observación de seguridad '.repeat(11)
+    const file = await makeFile({ Hallazgos: [
+      ['Hallazgo / situación', 'Establecimiento'],
+      [finding, 'Celeste Mar'],
+    ] })
+    const analysis = await inspectHysActionsWorkbook(file)
+    const preview = previewHysActionsWorkbook(analysis, {
+      units: [{ id: 'celeste', name: 'Celeste Mar' }], canEdit: () => true,
+    })
+    expect(preview.rows).toHaveLength(1)
+    expect(preview.rows[0].values.title.length).toBeLessThanOrEqual(180)
+    expect(preview.rows[0].values.description).toBe(finding.trim())
+  })
 })
 
 describe('Apartados configurables por establecimiento', () => {
