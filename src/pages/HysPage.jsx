@@ -683,8 +683,8 @@ function HysWorkspace({ company, user, isAdmin }) {
                     {data.units.map((u) => <option value={u.id} key={u.id}>{u.name}</option>)}
                   </select>
                 </label>
-                {actions.length ? <div className="hys-table-wrap"><table className="hys-table"><thead><tr><th>Acción</th><th>Sede</th><th>Responsable</th><th>Prioridad</th><th>Estado</th><th>Plazo</th><th>Operaciones</th></tr></thead><tbody>
-                  {actions.map((a) => <tr key={a.id}><td><strong>{a.title}</strong><small>{a.description}</small></td><td>{a.unit_id ? unitName(a.unit_id) : 'General'}</td><td>{a.responsible || 'Sin asignar'}</td><td>{HYS_PRIORITIES[a.priority]}</td><td><span className={'hys-state hys-state-' + a.status}>{HYS_STATES[a.status]}</span></td><td>{formatDate(a.due_date)}</td>
+                {actions.length ? <div className="hys-table-wrap"><table className="hys-table"><thead><tr><th>Acción</th><th>Sede</th><th>Responsable</th><th>Prioridad</th><th>Estado</th><th>Plazo</th><th>Detección</th><th>Operaciones</th></tr></thead><tbody>
+                  {actions.map((a) => <tr key={a.id}><td><strong>{a.title}</strong><small>{a.description}</small></td><td>{a.unit_id ? unitName(a.unit_id) : 'General'}</td><td>{a.responsible || 'Sin asignar'}</td><td>{HYS_PRIORITIES[a.priority]}</td><td><span className={'hys-state hys-state-' + a.status}>{HYS_STATES[a.status]}</span></td><td>{formatDate(a.due_date)}</td><td>{formatDate(a.detection_date)}</td>
                     <td><div className="hys-table-buttons">
                       {access('actions', a.unit_id, true) && <button onClick={() => newAction(a)}>Editar</button>}
                       <button onClick={() => showHistory(a)}><History size={14}/> Historial</button>
