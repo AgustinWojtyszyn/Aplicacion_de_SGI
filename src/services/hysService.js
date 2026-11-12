@@ -485,3 +485,33 @@ export function canUseHys({ isAdmin, grants, section, unitId, write = false }) {
     (!write || g.permission === 'edit') &&
     (g.unit_id === null || (unitId != null && g.unit_id === unitId)))
 }
+
+export async function checkHysFolderUpload() {
+  const { error } = await requireSupabase().from('hys_folder_uploads').select('id').limit(0)
+  if (error) throw error
+}
+
+export async function uploadHysFolderFile({ companyId, folder, id, file }) {
+  const db = requireSupabase()
+  const contentType = validateHysFile(file)
+  const path = `${companyId}/${id}/archivo`
+  const reservation = {
+    id, folder_id: folder.id, category: folder.category,
+    file_name: file.name, file_size: file.size, file_path: path,
+  }
+  async function finish() {
+    const { data, error } = await db.rpc('hys_finish_folder_upload', {
+      p_id: id, p_folder: folder.id, p_category: folder.category, p_name: file.name, p_size: file.size,
+    })
+    if (error) throw error
+    return data
+  }
+  // INSERT ON CONFLICT DO NOTHING never replaces a reservation.
+  const { error } = await db.from('hys_folder_uploads').upsert(reservation, { ignoreDuplicates: true })
+  if (error) throw error
+  // A previous finalize request may have committed before its response arrived.
+  if (await finish()) return
+  const { error: uploadError } = await db.storage.from(BUCKET).upload(path, file, { upsert: false, contentType })
+  if (await finish()) return
+  throw uploadError || new Error('No se pudo verificar el archivo guardado. Volvé a intentar.')
+}

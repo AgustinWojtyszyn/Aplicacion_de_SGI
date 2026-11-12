@@ -4,6 +4,7 @@ import {
   ShieldCheck, UploadCloud, Users, X, RotateCcw,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import HysFolderUpload from '../components/HysFolderUpload'
 import HysFilePreview from '../components/HysFilePreview'
 import { useAuth } from '../context/AuthContext'
 import { GENERAL_MATRIX, GENERAL_CATEGORIES, HYS_ALL_SECTIONS, HYS_SECTIONS, HYS_PRIORITIES, HYS_STATES, hysConfiguredSections, sectionLabel } from '../lib/hysCatalog'
@@ -47,6 +48,7 @@ function HysWorkspace({ company, user, isAdmin }) {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [generalGroup, setGeneralGroup] = useState(null)
   const [folderDraft, setFolderDraft] = useState(null)
+  const [folderUpload, setFolderUpload] = useState(null)
   const [sectionsOpen, setSectionsOpen] = useState(false)
   const [sectionToDelete, setSectionToDelete] = useState(null)
   const [sectionDraft, setSectionDraft] = useState(null)
@@ -506,6 +508,11 @@ function HysWorkspace({ company, user, isAdmin }) {
               {canWrite && <button className="primary-button" onClick={() => newRecord(null, null, selectedCategory, true)}>
                 <UploadCloud size={16}/> Subir documento
               </button>}
+              {canWrite && data.foldersAvailable !== false && <button className="secondary-button" type="button"
+                onClick={() => setFolderUpload({
+                  companyId: company.id, unitId: currentUnit, section: code, category: selectedCategory,
+                  label: [general ? 'Documentación general' : unitName(currentUnit), selectedCategory].join(' · '),
+                })}><FolderOpen size={16}/> Subir carpeta completa</button>}
             </div>
           </div>
           {children.length > 0 && <>
@@ -846,6 +853,10 @@ function HysWorkspace({ company, user, isAdmin }) {
         </form>
       </div>}
 
+      {folderUpload && <HysFolderUpload destination={folderUpload} onClose={changed => {
+        setFolderUpload(null)
+        if (changed) refresh()
+      }}/>}
       {preview && <HysFilePreview record={preview} onClose={() => setPreview(null)}/>}
       {showUnit && <div className="hys-overlay" role="presentation"><form className="hys-dialog" onSubmit={createUnit}>
         <div className="hys-modal-title"><h2>Nuevo establecimiento</h2><button type="button" onClick={() => setShowUnit(false)} aria-label="Cerrar"><X size={20}/></button></div>

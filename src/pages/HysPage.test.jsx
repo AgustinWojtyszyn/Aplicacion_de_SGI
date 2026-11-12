@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import HysPage from './HysPage'
-import { createHysRecord, loadHys, saveHysFolder, deleteHysFolder, saveHysUnitSection } from '../services/hysService'
+import { checkHysFolderUpload, uploadHysFolderFile, createHysRecord, loadHys, saveHysFolder, deleteHysFolder, saveHysUnitSection } from '../services/hysService'
 
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ company: { id: 'qa', name: 'Empresa QA' }, user: { id: 'admin' }, role: 'admin' }),
 }))
 vi.mock('../services/hysService', async (original) => ({
-  ...await original(), loadHys: vi.fn(), createHysRecord: vi.fn(), saveHysFolder: vi.fn(), deleteHysFolder: vi.fn(), saveHysUnitSection: vi.fn(),
+  ...await original(), checkHysFolderUpload: vi.fn(), uploadHysFolderFile: vi.fn(), loadHys: vi.fn(), createHysRecord: vi.fn(), saveHysFolder: vi.fn(), deleteHysFolder: vi.fn(), saveHysUnitSection: vi.fn(),
 }))
 
 it('opens the action folders and the editable plan for the selected establishment', async () => {
@@ -232,5 +232,71 @@ it('navigates every matrix section and subfolder without mixing another section�
       expect(screen.getByRole('button', { name: 'Subir documento' })).toBeVisible()
       fireEvent.click(screen.getByRole('button', { name: 'Volver a los subapartados' }))
     }
+  }
+})
+
+it('previews a directory, creates its nested destination and retries only the interrupted file', async () => {
+  const native = vi.fn(async () => ({
+    name: 'Capacitaciones 2026',
+    async *values() {
+      yield {
+        kind: 'directory', name: 'Enero',
+        async *values() {
+          for (const name of ['Asistencia.pdf', 'Presentacion.pptx']) {
+            yield { kind: 'file', name, getFile: async () => new File(['contenido'], name) }
+          }
+        },
+      }
+    },
+  }))
+  vi.stubGlobal('showDirectoryPicker', native)
+  const originalShowModal = HTMLDialogElement.prototype.showModal
+  HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
+  const folders = []
+  const existing = {
+    id: 'existing', company_id: 'qa', unit_id: null, section: 'general',
+    category: 'ART y cobertura', title: 'Documento histórico', version_no: 1,
+  }
+  loadHys.mockImplementation(async () => ({
+    units: [], actions: [], records: [existing], folders: [...folders],
+    foldersAvailable: true, grants: [], members: [],
+  }))
+  saveHysFolder.mockClear()
+  saveHysFolder.mockImplementation(async ({ companyId, unitId, section, name, parentCategory }) => {
+    const folder = { id: name, company_id: companyId, unit_id: unitId, section,
+      category: parentCategory + ' / ' + name, parent_category: parentCategory, name }
+    folders.push(folder)
+    return folder
+  })
+  checkHysFolderUpload.mockResolvedValue()
+  uploadHysFolderFile.mockReset()
+  uploadHysFolderFile.mockImplementation(async ({ file }) => {
+    if (file.name === 'Presentacion.pptx' && uploadHysFolderFile.mock.calls.filter(
+      ([args]) => args.file.name === file.name).length === 1) throw new Error('Offline')
+  })
+  try {
+    render(<HysPage/>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Documentación general' }))
+    fireEvent.click(screen.getByRole('button', { name: /ART y cobertura/ }))
+    expect(screen.getByRole('button', { name: 'Subir documento' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir carpeta completa' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Subir carpeta completa' }))
+    fireEvent.click(dialog.getByRole('button', { name: 'Elegir carpeta' }))
+    expect(await dialog.findByText('Capacitaciones 2026/Enero/Asistencia.pdf')).toBeVisible()
+    expect(dialog.getByText(/2 archivo\(s\) para subir · 18 bytes/)).toBeVisible()
+    expect(saveHysFolder).not.toHaveBeenCalled()
+    fireEvent.click(dialog.getByRole('button', { name: 'Confirmar carga' }))
+    fireEvent.click(await dialog.findByRole('button', { name: 'Reintentar fallidos' }))
+    expect(await dialog.findByText('Carga completada.')).toBeVisible()
+    expect(uploadHysFolderFile.mock.calls.map(([args]) => args.file.name))
+      .toEqual(['Asistencia.pdf', 'Presentacion.pptx', 'Presentacion.pptx'])
+    expect(uploadHysFolderFile.mock.calls[1][0].id).toBe(uploadHysFolderFile.mock.calls[2][0].id)
+    expect(uploadHysFolderFile.mock.calls[0][0].folder.category).toBe('ART y cobertura / Capacitaciones 2026 / Enero')
+    fireEvent.click(dialog.getByRole('button', { name: 'Cerrar' }))
+    expect(await screen.findByText('Documento histórico')).toBeVisible()
+    expect(await screen.findByRole('button', { name: /Capacitaciones 2026 0 registros/ })).toBeVisible()
+  } finally {
+    HTMLDialogElement.prototype.showModal = originalShowModal
+    vi.unstubAllGlobals()
   }
 })

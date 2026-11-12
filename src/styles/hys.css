@@ -185,3 +185,16 @@
 .hys-import-result { display:grid; gap:10px; padding:15px; border:1px solid #e7e2dd; border-radius:12px; background:#fcfbf9; }
 .hys-import-result p { margin:0; }
 .hys-import-result button { justify-self:start; }
+
+.hys-folder-upload-dialog { width:min(680px,calc(100% - 32px)); border:0; color:inherit; }
+.hys-folder-upload-dialog:not([open]) { display:none; }
+.hys-folder-upload-dialog::backdrop { background:rgba(19,27,34,.58); }
+.hys-folder-upload-dialog p { margin:0; }
+.hys-folder-upload-heading { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.hys-folder-upload-heading span { flex-basis:100%; font-size:.88rem; }
+.hys-folder-upload-dialog progress { display:block; width:100%; margin-bottom:6px; }
+.hys-folder-upload-list { margin:0; padding:0; max-height:36vh; overflow:auto; list-style:none; border:1px solid #dcdfe3; border-radius:9px; }
+.hys-folder-upload-list li { display:flex; gap:10px; align-items:flex-start; padding:9px 12px; overflow-wrap:anywhere; }
+.hys-folder-upload-list li + li { border-top:1px solid #eceef0; }
+.hys-folder-upload-list svg { flex:none; }
+.hys-folder-upload-list small { display:block; }
